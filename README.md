@@ -2,6 +2,10 @@
 
 UbuntuのCLIでSlackチャットができるツールです。
 
+## ⚠️ よくあるエラー
+
+`missing_scope` エラーが出た場合は、[SCOPE_SETUP.md](SCOPE_SETUP.md) を参照してください。
+
 ## クイックスタート
 
 ```bash
