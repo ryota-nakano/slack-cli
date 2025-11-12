@@ -38,8 +38,11 @@ python slack_cli.py list
 
 - チャンネル一覧の表示
 - メッセージの送信
+- **スレッドへの返信** 🆕
+- **スレッドの表示** 🆕
 - メッセージの受信（履歴表示）
 - リアルタイムメッセージの監視
+- インタラクティブチャットモード（スレッド対応）
 
 ## セットアップ
 
@@ -136,24 +139,51 @@ python slack_cli.py send <channel_id> "メッセージ内容"
 python slack_cli.py --user send <channel_id> "メッセージ内容"
 ```
 
+### スレッドに返信 🆕
+
+```bash
+# スレッドを表示
+python slack_cli.py thread <channel_id> <thread_ts>
+
+# スレッドに返信
+python slack_cli.py reply <channel_id> <thread_ts> "返信内容"
+
+# ユーザーとして返信
+python slack_cli.py --user reply <channel_id> <thread_ts> "返信内容"
+```
+
+**thread_tsの取得方法:**
+- `history`コマンドで表示されるスレッドIDをコピー
+- Slackアプリでメッセージを右クリック → 「リンクをコピー」→ 末尾の数字
+
 ### メッセージ履歴を表示
 
 ```bash
 python slack_cli.py history <channel_id>
 ```
 
+履歴にスレッドがある場合、💬アイコンとスレッドIDが表示されます。
+
 ### インタラクティブモード
 
 ```bash
-# Botとしてチャット
+# 通常のチャット
 python slack_cli.py chat <channel_id>
 
 # ユーザーとしてチャット（あなたの名前で投稿）
 python slack_cli.py --user chat <channel_id>
 ```
 
+**チャットモード内のコマンド:**
+- `/quit` - 終了
+- `/history` - 履歴表示
+- `/reply <thread_ts>` - スレッドモードに切り替え
+- `/thread` - スレッド内容を表示（スレッドモード時）
+
 チャットモードでは、リアルタイムでメッセージを送受信できます。
 `/quit`で終了します。
+
+詳しくは [THREAD_GUIDE.md](THREAD_GUIDE.md) を参照してください。
 
 ## トラブルシューティング
 
