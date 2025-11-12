@@ -9,7 +9,9 @@ UbuntuのCLIでSlackチャットができるツールです。
 - **デフォルト（Bot Token）**: 🤖 Botアプリ名で投稿
 - **--user オプション（User Token）**: 👤 あなたのユーザー名で投稿
 
-ユーザーとして投稿したい場合は、[USER_TOKEN_SETUP.md](USER_TOKEN_SETUP.md) を参照してください。
+📖 **ユーザーとして投稿したい場合:**
+- 最短手順: [QUICKSTART.md](QUICKSTART.md) ⚡
+- 詳細説明: [USER_TOKEN_SETUP.md](USER_TOKEN_SETUP.md) 📚
 
 ### エラーが出た場合
 
