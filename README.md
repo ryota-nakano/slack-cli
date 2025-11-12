@@ -2,6 +2,22 @@
 
 UbuntuのCLIでSlackチャットができるツールです。
 
+**🆕 Python版とNode.js版の両方を提供！**
+
+## 📦 どちらのバージョンを使う？
+
+| | Python版 | Node.js版 |
+|---|---------|-----------|
+| 📄 ドキュメント | このREADME | [README_NODE.md](README_NODE.md) |
+| 🚀 起動 | `python slack_cli.py` | `node slack-cli.js` |
+| 📦 依存管理 | `pip` + `venv` | `npm` |
+| ✨ 機能 | 全機能実装 | 全機能実装 |
+| 💡 向いている人 | Pythonに慣れている | Node.jsに慣れている |
+
+**どちらも同じ機能を持っています！好きな方を選んでください** 🎉
+
+---
+
 ## ⚠️ よくある質問
 
 ### Bot vs ユーザーとして投稿

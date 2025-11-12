@@ -1,0 +1,34 @@
+{
+  "name": "slack-cli",
+  "version": "1.0.0",
+  "description": "UbuntuのCLIでSlackチャットができるツールです。Python版とNode.js版の両方を提供。",
+  "main": "slack-cli.js",
+  "bin": {
+    "slack-cli": "./slack-cli.js"
+  },
+  "scripts": {
+    "start": "node slack-cli.js",
+    "channels": "node slack-cli.js channels",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "slack",
+    "cli",
+    "chat",
+    "terminal",
+    "tui"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@slack/web-api": "^7.12.0",
+    "blessed": "^0.1.81",
+    "blessed-contrib": "^4.11.0",
+    "chalk": "^4.1.2",
+    "dotenv": "^17.2.3"
+  }
+}
