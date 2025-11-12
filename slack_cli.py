@@ -152,7 +152,7 @@ class SlackCLI:
                 """メッセージを表示"""
                 if show_header:
                     print(f"\n#{channel_name} のスレッドチャット (ID: {thread_ts})")
-                    print("改行: Enter | 送信: Ctrl+Enter | 終了: Ctrl+C")
+                    print("改行: Enter | 送信: Alt+Enter | 終了: Ctrl+C | Backspaceで改行削除可能")
                     print("=" * 80)
                 
                 reply_count = len(messages) - 1
@@ -247,25 +247,30 @@ class SlackCLI:
             
             def input_thread():
                 """別スレッドで入力を受け付ける（複数行対応 - prompt_toolkit使用）"""
+                from prompt_toolkit.filters import Condition
+                
                 # キーバインディングを設定
                 kb = KeyBindings()
                 
-                @kb.add('enter')
+                # multiline条件
+                multiline_condition = Condition(lambda: True)
+                
+                @kb.add('enter', filter=multiline_condition)
                 def _(event):
-                    """Enterで送信"""
-                    event.current_buffer.validate_and_handle()
+                    """Enterで改行（マルチラインモード時）"""
+                    event.current_buffer.insert_text('\n')
                 
                 @kb.add('escape', 'enter')  # Alt+Enter
                 def _(event):
-                    """Alt+Enterで改行"""
-                    event.current_buffer.insert_text('\n')
+                    """Alt+Enterで送信"""
+                    event.current_buffer.validate_and_handle()
                 
                 while not stop_input_thread.is_set():
                     try:
                         # prompt_toolkitで複数行入力
                         message = prompt(
                             '> ',
-                            multiline=True,
+                            multiline=multiline_condition,
                             key_bindings=kb,
                         )
                         
