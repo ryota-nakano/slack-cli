@@ -110,7 +110,7 @@ class SlackCLI:
         except SlackApiError as e:
             self.handle_slack_error(e, "チャンネル一覧取得")
     
-    def send_message(self, channel_id, text, thread_ts=None):
+    def send_message(self, channel_id, text, thread_ts=None, quiet=False):
         """メッセージを送信"""
         try:
             kwargs = {
@@ -123,15 +123,16 @@ class SlackCLI:
                 
             response = self.client.chat_postMessage(**kwargs)
             
-            if thread_ts:
-                print(f"✓ スレッドに返信しました")
-                print(f"  メッセージID: {response['ts']}")
-                print(f"  スレッドID: {thread_ts}")
-            else:
-                msg_ts = response['ts']
-                print(f"✓ メッセージを送信しました")
-                print(f"  メッセージID: {msg_ts}")
-                print(f"  💡 このメッセージにスレッドを作成: reply {channel_id} {msg_ts} \"返信\"")
+            if not quiet:
+                if thread_ts:
+                    print(f"✓ スレッドに返信しました")
+                    print(f"  メッセージID: {response['ts']}")
+                    print(f"  スレッドID: {thread_ts}")
+                else:
+                    msg_ts = response['ts']
+                    print(f"✓ メッセージを送信しました")
+                    print(f"  メッセージID: {msg_ts}")
+                    print(f"  💡 このメッセージにスレッドを作成: reply {channel_id} {msg_ts} \"返信\"")
             
             return response['ts']
             
@@ -139,16 +140,18 @@ class SlackCLI:
             self.handle_slack_error(e, "メッセージ送信")
             return None
     
-    def show_thread(self, channel_id, thread_ts, watch=False):
-        """スレッドの内容を表示"""
+    def show_thread(self, channel_id, thread_ts, interactive=False):
+        """スレッドの内容を表示、またはインタラクティブモード"""
         try:
             channel_name = self.get_channel_name(channel_id)
             
-            if watch:
-                print(f"\n#{channel_name} のスレッドを監視中 (ID: {thread_ts})")
-                print("Ctrl+Cで終了")
+            if interactive:
+                # インタラクティブスレッドチャットモード
+                print(f"\n#{channel_name} のスレッドチャット (ID: {thread_ts})")
+                print("メッセージを入力して返信できます。'/quit'で終了、'/show'で全体表示")
                 print("=" * 80)
             else:
+                # 通常の表示モード
                 print(f"\n#{channel_name} のスレッド (ID: {thread_ts}):")
                 print("=" * 80)
             
@@ -183,48 +186,95 @@ class SlackCLI:
             print("=" * 80)
             print(f"💬 合計 {reply_count} 件の返信")
             
-            if not watch:
-                print(f"📝 返信コマンド: reply {channel_id} {thread_ts} \"メッセージ\"")
-                print(f"👀 リアルタイム監視: thread {channel_id} {thread_ts} --watch\n")
+            if not interactive:
+                print(f"💬 インタラクティブモード: thread {channel_id} {thread_ts}\n")
                 return
             
-            # 監視モード
+            # インタラクティブモード
             latest_ts = messages[-1]["ts"] if messages else thread_ts
-            
-            print(f"\n🔄 新しい返信を監視中...\n")
+            print(f"\n💬 スレッドに参加中... (リアルタイム更新: 2秒ごと)\n")
             
             try:
+                import threading
+                import queue
+                
+                # 入力用のキュー
+                input_queue = queue.Queue()
+                
+                def input_thread():
+                    """別スレッドで入力を受け付ける"""
+                    while True:
+                        try:
+                            line = input()
+                            input_queue.put(line)
+                        except EOFError:
+                            input_queue.put('/quit')
+                            break
+                
+                # 入力スレッドを開始
+                t = threading.Thread(target=input_thread, daemon=True)
+                t.start()
+                
+                last_check = time.time()
+                
                 while True:
-                    time.sleep(3)  # 3秒ごとにチェック
-                    
-                    response = self.client.conversations_replies(
-                        channel=channel_id,
-                        ts=thread_ts,
-                        oldest=latest_ts
-                    )
-                    
-                    new_messages = [msg for msg in response["messages"] if msg["ts"] > latest_ts]
-                    
-                    if new_messages:
-                        for msg in new_messages:
-                            if msg.get("subtype") in ["channel_join", "channel_leave"]:
-                                continue
-                            
-                            user_id = msg.get("user", "Unknown")
-                            user_name = self.get_user_name(user_id) if user_id != "Unknown" else "System"
-                            
-                            timestamp = float(msg["ts"])
-                            dt = datetime.fromtimestamp(timestamp)
-                            time_str = dt.strftime("%H:%M:%S")
-                            
-                            text = msg.get("text", "")
-                            
-                            print(f"  ↳ [{time_str}] {user_name}: {text}")
+                    # 新しいメッセージをチェック（2秒ごと）
+                    if time.time() - last_check >= 2:
+                        response = self.client.conversations_replies(
+                            channel=channel_id,
+                            ts=thread_ts,
+                            oldest=latest_ts
+                        )
                         
-                        latest_ts = new_messages[-1]["ts"]
+                        new_messages = [msg for msg in response["messages"] if msg["ts"] > latest_ts]
+                        
+                        if new_messages:
+                            for msg in new_messages:
+                                if msg.get("subtype") in ["channel_join", "channel_leave"]:
+                                    continue
+                                
+                                user_id = msg.get("user", "Unknown")
+                                user_name = self.get_user_name(user_id) if user_id != "Unknown" else "System"
+                                
+                                timestamp = float(msg["ts"])
+                                dt = datetime.fromtimestamp(timestamp)
+                                time_str = dt.strftime("%H:%M:%S")
+                                
+                                text = msg.get("text", "")
+                                
+                                print(f"  ↳ [{time_str}] {user_name}: {text}")
+                            
+                            latest_ts = new_messages[-1]["ts"]
+                        
+                        last_check = time.time()
+                    
+                    # 入力をチェック
+                    try:
+                        message = input_queue.get_nowait()
+                        
+                        if message == "/quit":
+                            print("\nスレッドチャットを終了します")
+                            break
+                        
+                        if message == "/show":
+                            # 全体を再表示
+                            self.show_thread(channel_id, thread_ts, interactive=False)
+                            print(f"\n💬 スレッドに参加中... (リアルタイム更新: 2秒ごと)\n")
+                            continue
+                        
+                        if message.strip():
+                            # メッセージを送信（quietモード）
+                            sent_ts = self.send_message(channel_id, message, thread_ts=thread_ts, quiet=True)
+                            if sent_ts:
+                                latest_ts = sent_ts
+                        
+                    except queue.Empty:
+                        pass
+                    
+                    time.sleep(0.1)  # CPU使用率を下げる
                         
             except KeyboardInterrupt:
-                print("\n\n監視を終了します")
+                print("\n\nスレッドチャットを終了します")
                 return
             
         except SlackApiError as e:
@@ -408,14 +458,13 @@ Slack CLI - 使い方
 コマンド:
   list                          チャンネル一覧を表示
   send <channel_id> <text>      メッセージを送信
-  reply <channel_id> <thread_ts> <text>  スレッドに返信
-  thread <channel_id> <thread_ts>        スレッドを表示
+  reply <channel_id> <thread_ts> <text>  スレッドに1回返信
+  thread <channel_id> <thread_ts>        スレッドチャット（返信+リアルタイム更新）
   history <channel_id>          メッセージ履歴を表示
   chat <channel_id>             インタラクティブチャットモード
 
 オプション:
   --user                        ユーザーとして投稿（デフォルト: Botとして投稿）
-  --watch                       スレッドをリアルタイム監視（threadコマンド用）
 
 例:
   # 基本的な使い方
@@ -424,15 +473,14 @@ Slack CLI - 使い方
   python slack_cli.py history C01234ABCDE
   
   # スレッド機能
-  python slack_cli.py thread C01234ABCDE 1234567890.123456
-  python slack_cli.py thread C01234ABCDE 1234567890.123456 --watch  # リアルタイム監視
-  python slack_cli.py reply C01234ABCDE 1234567890.123456 "スレッドに返信"
+  python slack_cli.py thread C01234ABCDE 1234567890.123456  # 返信しながらリアルタイム監視
+  python slack_cli.py reply C01234ABCDE 1234567890.123456 "1回だけ返信"
   
   # ユーザーとして投稿
   python slack_cli.py --user send C01234ABCDE "こんにちは"
-  python slack_cli.py --user reply C01234ABCDE 1234567890.123456 "返信"
+  python slack_cli.py --user thread C01234ABCDE 1234567890.123456
   
-  # チャットモード（リアルタイム更新対応）
+  # チャットモード
   python slack_cli.py chat C01234ABCDE
   python slack_cli.py --user chat C01234ABCDE
 """)
@@ -445,16 +493,11 @@ def main():
     
     # オプションをチェック
     use_user_token = False
-    watch_mode = False
     args = sys.argv[1:]
     
     if "--user" in args:
         use_user_token = True
         args.remove("--user")
-    
-    if "--watch" in args:
-        watch_mode = True
-        args.remove("--watch")
     
     if len(args) < 1:
         print_usage()
@@ -496,12 +539,12 @@ def main():
         if len(args) < 3:
             print("エラー: channel_idとthread_tsを指定してください")
             print("例: python slack_cli.py thread C01234ABCDE 1234567890.123456")
-            print("     python slack_cli.py thread C01234ABCDE 1234567890.123456 --watch")
             sys.exit(1)
         
         channel_id = args[1]
         thread_ts = args[2]
-        cli.show_thread(channel_id, thread_ts, watch=watch_mode)
+        # デフォルトでインタラクティブモード
+        cli.show_thread(channel_id, thread_ts, interactive=True)
     
     elif command == "history":
         if len(args) < 2:
