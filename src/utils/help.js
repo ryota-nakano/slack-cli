@@ -26,10 +26,12 @@ function showHelp() {
   console.log();
   
   console.log(chalk.white('チャット中のキー操作:'));
-  console.log(chalk.green('  Enter') + chalk.gray('       - メッセージ送信'));
-  console.log(chalk.green('  @入力') + chalk.gray('       - メンション補完 (Tab/↑↓で選択)'));
-  console.log(chalk.green('  Ctrl+E') + chalk.gray('      - エディタモード (vim/nano等)'));
-  console.log(chalk.green('  Ctrl+C') + chalk.gray('      - 終了'));
+  console.log(chalk.green('  Enter') + chalk.gray('         - メッセージ送信'));
+  console.log(chalk.green('  @入力') + chalk.gray('         - メンション補完 (Tab/↑↓で選択)'));
+  console.log(chalk.green('  Ctrl+E') + chalk.gray('        - エディタモード (vim/nano等)'));
+  console.log(chalk.green('  /rm <番号>') + chalk.gray('    - メッセージ削除 (例: /rm 5)'));
+  console.log(chalk.green('  /help') + chalk.gray('         - チャット中のヘルプ'));
+  console.log(chalk.green('  Ctrl+C') + chalk.gray('        - 終了'));
   console.log();
   
   console.log(chalk.white('現在の設定:'));

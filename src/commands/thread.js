@@ -146,6 +146,19 @@ class ThreadChatSession {
           continue;
         }
 
+        // Handle /rm command
+        if (trimmedText.startsWith('/rm ')) {
+          const msgNumber = trimmedText.substring(4).trim();
+          await this.handleDeleteMessage(msgNumber);
+          continue;
+        }
+
+        // Handle /help command
+        if (trimmedText === '/help') {
+          this.showChatHelp();
+          continue;
+        }
+
         await this.sendAndDisplay(trimmedText);
 
       } catch (error) {
@@ -156,6 +169,45 @@ class ThreadChatSession {
         }
       }
     }
+  }
+
+  /**
+   * Handle message deletion
+   */
+  async handleDeleteMessage(msgNumber) {
+    const num = parseInt(msgNumber, 10);
+    
+    if (isNaN(num) || num < 1 || num > this.replies.length) {
+      console.log(chalk.red(`\n❌ 無効なメッセージ番号: ${msgNumber}`));
+      console.log(chalk.yellow(`💡 有効な番号: 1-${this.replies.length}`));
+      return;
+    }
+
+    const message = this.replies[num - 1];
+    
+    try {
+      await this.client.deleteMessage(this.channelId, message.ts);
+      console.log(chalk.green(`\n✅ メッセージ [${num}] を削除しました`));
+      
+      // Refresh messages
+      this.replies = await this.client.getThreadReplies(this.channelId, this.threadTs);
+      this.displayMessages();
+    } catch (error) {
+      console.error(chalk.red(`\n❌ 削除失敗: ${error.message}`));
+      console.log(chalk.yellow('💡 ヒント: 自分のメッセージか、適切な権限が必要です'));
+    }
+  }
+
+  /**
+   * Show chat help
+   */
+  showChatHelp() {
+    console.log(chalk.cyan('\n📖 チャット中のコマンド:'));
+    console.log(chalk.yellow('  /rm <番号>') + chalk.gray('  - 指定したメッセージを削除（例: /rm 5）'));
+    console.log(chalk.yellow('  /help') + chalk.gray('      - このヘルプを表示'));
+    console.log(chalk.yellow('  Ctrl+E') + chalk.gray('    - エディタ(vim/nano)を起動'));
+    console.log(chalk.yellow('  Ctrl+C') + chalk.gray('    - 終了'));
+    console.log();
   }
 
   /**

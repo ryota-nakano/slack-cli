@@ -165,6 +165,20 @@ class SlackClient {
 
     return await this.client.chat.postMessage(params);
   }
+
+  /**
+   * Delete a message
+   */
+  async deleteMessage(channelId, ts) {
+    try {
+      return await this.client.chat.delete({
+        channel: channelId,
+        ts: ts
+      });
+    } catch (error) {
+      throw new Error(`メッセージの削除に失敗しました: ${error.message}`);
+    }
+  }
 }
 
 module.exports = SlackClient;

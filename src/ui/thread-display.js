@@ -43,7 +43,7 @@ class ThreadDisplay {
     const mentionStatus = membersLoaded 
       ? chalk.green(`✓ メンション候補: ${memberCount}人`)
       : chalk.yellow('⏳ メンション候補読込中...');
-    console.log(chalk.gray('💡 Enter: 送信 | @入力: メンション | Ctrl+E: エディタ | Ctrl+C: 終了'));
+    console.log(chalk.gray('💡 Enter: 送信 | @: メンション | Ctrl+E: エディタ | /rm <番号>: 削除 | /help: ヘルプ'));
     console.log(mentionStatus);
     console.log('');
   }
