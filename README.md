@@ -160,7 +160,7 @@ python slack_cli.py history <channel_id>
 python slack_cli.py thread <channel_id> <thread_ts>
 # → GitHub Copilot CLIのような操作感！
 # → 改行: Enter
-# → 送信: Ctrl+Enter
+# → 送信: Alt+Enter (または Esc Enter)
 # → 終了: Ctrl+C
 # → Backspaceで改行も削除可能、矢印キーで自由に移動
 # → 複数行を自由に編集できる
@@ -182,7 +182,7 @@ python slack_cli.py --user thread <channel_id> <thread_ts>
 **`thread`コマンドの特徴:**
 - 💬 **GitHub Copilot CLIのような操作感！**
 - 📝 改行: `Enter`
-- 📤 送信: `Ctrl+Enter`
+- 📤 送信: `Alt+Enter` (または `Esc` → `Enter`)
 - 🛑 終了: `Ctrl+C` または `Ctrl+D`
 - ⌫ **Backspaceで改行も削除可能**
 - ⬆️⬇️⬅️➡️ **矢印キーで自由にカーソル移動**
@@ -198,7 +198,7 @@ python slack_cli.py --user thread <channel_id> <thread_ts>
 > こんにちは！<Enter>
 質問があります。<Enter>
 <Enter>
-これについて教えてください<Ctrl+Enter>  ← 送信！
+これについて教えてください<Alt+Enter>  ← 送信！
 ```
 
 送信されるメッセージ:
@@ -216,6 +216,10 @@ python slack_cli.py --user thread <channel_id> <thread_ts>
 - Ctrl+K でカーソルから行末まで削除
 - Ctrl+U でカーソルから行頭まで削除
 - 間違えたら自由に修正できる
+
+**送信方法:**
+- `Alt+Enter` - 1回押すだけで送信（推奨）
+- `Esc` → `Enter` - Escを押してからEnterを押す（Alt使えない時）
 
 **`reply`コマンドとの違い:**
 - `thread`: チャットモード、画面リフレッシュ、複数行編集
