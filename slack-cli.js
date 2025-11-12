@@ -21,6 +21,42 @@ if (!token) {
 const client = new WebClient(token);
 const isUserToken = !!process.env.SLACK_USER_TOKEN;
 
+// ユーザー情報キャッシュ
+const userCache = new Map();
+
+// ユーザー情報を取得（キャッシュ付き）
+async function getUserInfo(userId) {
+  if (userCache.has(userId)) {
+    return userCache.get(userId);
+  }
+  
+  try {
+    const userInfo = await client.users.info({ user: userId });
+    const user = userInfo.user;
+    const info = {
+      id: user.id,
+      name: user.name,
+      realName: user.real_name || user.name,
+      displayName: user.profile.display_name || user.real_name || user.name,
+      isBot: user.is_bot || false,
+      deleted: user.deleted || false
+    };
+    
+    userCache.set(userId, info);
+    return info;
+  } catch (error) {
+    // エラー時はユーザーIDをそのまま返す
+    return {
+      id: userId,
+      name: userId,
+      realName: userId,
+      displayName: userId,
+      isBot: false,
+      deleted: false
+    };
+  }
+}
+
 // ヘルプメッセージ
 function showHelp() {
   console.log(chalk.bold.cyan('\n📱 Slack CLI - Node.js版\n'));
@@ -86,28 +122,30 @@ async function getChannelInfo(channelId) {
 async function getChannelMembers(channelId) {
   try {
     const result = await client.conversations.members({
-      channel: channelId
+      channel: channelId,
+      limit: 100
     });
     
     const memberIds = result.members || [];
     const members = [];
     
-    // ユーザー情報を取得
-    for (const userId of memberIds) {
+    // バッチでユーザー情報を取得（rate limitを避けるため遅延を入れる）
+    for (let i = 0; i < memberIds.length; i++) {
       try {
-        const userInfo = await client.users.info({ user: userId });
-        const user = userInfo.user;
+        const userId = memberIds[i];
+        const user = await getUserInfo(userId);
         
-        if (!user.is_bot && !user.deleted) {
-          members.push({
-            id: user.id,
-            name: user.name,
-            realName: user.real_name || user.name,
-            displayName: user.profile.display_name || user.name
-          });
+        if (!user.isBot && !user.deleted) {
+          members.push(user);
         }
-      } catch (err) {
-        // ユーザー情報取得失敗は無視
+        
+        // 10件ごとに少し待つ（rate limit対策）
+        if ((i + 1) % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (error) {
+        // 個別のエラーは無視
+        continue;
       }
     }
     
@@ -130,15 +168,11 @@ async function getThreadReplies(channelId, threadTs) {
     const replies = [];
     
     for (const msg of messages) {
-      // ユーザー情報を取得
+      // ユーザー情報を取得（キャッシュ使用）
       let userName = 'Unknown';
       if (msg.user) {
-        try {
-          const userInfo = await client.users.info({ user: msg.user });
-          userName = userInfo.user.profile.display_name || userInfo.user.real_name || userInfo.user.name;
-        } catch (err) {
-          userName = msg.user;
-        }
+        const user = await getUserInfo(msg.user);
+        userName = user.displayName;
       } else if (msg.bot_id) {
         userName = msg.username || 'Bot';
       }
@@ -185,12 +219,37 @@ async function threadChat(channelId, threadTs) {
   const channel = await getChannelInfo(channelId);
   const channelName = channel ? channel.name : channelId;
   
-  // メンバー情報を取得
-  console.log(chalk.cyan('👥 メンバー情報を取得中...'));
-  const members = await getChannelMembers(channelId);
+  // 自分のユーザー情報を取得
+  let currentUserId = null;
+  let currentUserName = 'あなた';
+  try {
+    const authTest = await client.auth.test();
+    currentUserId = authTest.user_id;
+    const userInfo = await getUserInfo(currentUserId);
+    currentUserName = userInfo.displayName;
+  } catch (error) {
+    // エラーは無視
+  }
+  
+  // メンバー情報を非同期で取得（UIをブロックしない）
+  let members = [];
+  let membersLoading = true;
   
   // 初期のスレッド返信を取得
   let replies = await getThreadReplies(channelId, threadTs);
+  
+  // メンバー情報を裏で取得
+  getChannelMembers(channelId).then(loadedMembers => {
+    members = loadedMembers;
+    membersLoading = false;
+    // ヘッダーを更新
+    if (header) {
+      header.setContent(`#${channelName} [スレッド] | メンバー: ${members.length}人 | Enter: 送信 | Ctrl+J: 改行 | @でメンション(Tab/↑↓) | Ctrl+C: 終了`);
+      screen.render();
+    }
+  }).catch(() => {
+    membersLoading = false;
+  });
   
   // Blessedスクリーンの作成
   const screen = blessed.screen({
@@ -234,12 +293,32 @@ async function threadChat(channelId, threadTs) {
     left: 0,
     width: '100%',
     height: 1,
-    content: `#${channelName} [スレッド] | メンバー: ${members.length}人 | Enter: 送信 | Ctrl+J: 改行 | Ctrl+C: 終了`,
+    content: `#${channelName} [スレッド] | メンバー情報取得中... | Enter: 送信 | Ctrl+J: 改行 | @でメンション(Tab/↑↓) | Ctrl+C: 終了`,
     style: {
       fg: 'white',
       bg: 'blue',
       bold: true
     }
+  });
+  
+  // メンション候補表示エリア
+  const mentionBox = blessed.box({
+    bottom: 4,
+    left: 0,
+    width: '100%',
+    height: 0,  // 初期は非表示
+    content: '',
+    style: {
+      fg: 'cyan',
+      bg: 'black',
+      border: {
+        fg: 'cyan'
+      }
+    },
+    border: {
+      type: 'line'
+    },
+    hidden: true
   });
   
   // 入力エリア
@@ -265,11 +344,14 @@ async function threadChat(channelId, threadTs) {
       }
     },
     keys: true,
-    mouse: true
+    mouse: true,
+    vi: false,  // viモードを無効化
+    wrap: true
   });
   
   screen.append(header);
   screen.append(messageBox);
+  screen.append(mentionBox);
   screen.append(inputBox);
   
   // メッセージを表示する関数
@@ -318,6 +400,7 @@ async function threadChat(channelId, threadTs) {
   let mentionQuery = '';
   let mentionCandidates = [];
   let mentionIndex = 0;
+  let mentionStartPos = -1;
   
   function updateMentionCandidates(query) {
     const q = query.toLowerCase();
@@ -327,6 +410,22 @@ async function threadChat(channelId, threadTs) {
       m.displayName.toLowerCase().includes(q)
     ).slice(0, 10);
     mentionIndex = 0;
+    
+    // 候補を表示
+    if (mentionCandidates.length > 0 && !membersLoading) {
+      const lines = [chalk.cyan.bold('メンション候補 (Tab:選択 ↑↓/Ctrl+N/P:移動)')];
+      mentionCandidates.forEach((m, i) => {
+        const marker = i === mentionIndex ? chalk.yellow('▶') : '  ';
+        lines.push(`${marker} @${m.name} (${m.realName})`);
+      });
+      mentionBox.setContent(lines.join('\n'));
+      mentionBox.height = Math.min(mentionCandidates.length + 3, 10);
+      mentionBox.show();
+      screen.render();
+    } else {
+      mentionBox.hide();
+      screen.render();
+    }
   }
   
   function showMentionSuggestions() {
@@ -340,11 +439,88 @@ async function threadChat(channelId, threadTs) {
     return `\n${chalk.cyan('候補:')}\n${suggestions}`;
   }
   
+  function checkMentionMode() {
+    const value = inputBox.getValue();
+    const lastAtIndex = value.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      const afterAt = value.substring(lastAtIndex + 1);
+      // @の後にスペースや改行がなければメンションモード
+      if (!afterAt.includes(' ') && !afterAt.includes('\n')) {
+        mentionMode = true;
+        mentionStartPos = lastAtIndex;
+        updateMentionCandidates(afterAt);
+        return true;
+      }
+    }
+    
+    mentionMode = false;
+    mentionCandidates = [];
+    mentionBox.hide();
+    screen.render();
+    return false;
+  }
+  
   // キーバインディング
+  
+  // 矢印キー: メンション候補表示時のみ候補移動をフックし、それ以外はデフォルトのカーソル移動を維持
+  inputBox.key(['up'], function() {
+    if (!(mentionMode && mentionCandidates.length > 0)) {
+      // メンションモードでなければ何もしない -> blessed標準のカーソル移動に任せる
+      return; 
+    }
+    mentionIndex = (mentionIndex - 1 + mentionCandidates.length) % mentionCandidates.length;
+    const lines = [chalk.cyan.bold('メンション候補 (Tab:選択 ↑↓/Ctrl+N/P:移動)')];
+    mentionCandidates.forEach((m, i) => {
+      const marker = i === mentionIndex ? chalk.yellow('▶') : '  ';
+      lines.push(`${marker} @${m.name} (${m.realName})`);
+    });
+    mentionBox.setContent(lines.join('\n'));
+    screen.render();
+    return false; // イベントを止める（候補移動時のみ）
+  });
+  
+  inputBox.key(['down'], function() {
+    if (!(mentionMode && mentionCandidates.length > 0)) {
+      return; // 標準カーソル移動
+    }
+    mentionIndex = (mentionIndex + 1) % mentionCandidates.length;
+    const lines = [chalk.cyan.bold('メンション候補 (Tab:選択 ↑↓/Ctrl+N/P:移動)')];
+    mentionCandidates.forEach((m, i) => {
+      const marker = i === mentionIndex ? chalk.yellow('▶') : '  ';
+      lines.push(`${marker} @${m.name} (${m.realName})`);
+    });
+    mentionBox.setContent(lines.join('\n'));
+    screen.render();
+    return false; 
+  });
+  
+  // タブキー: メンション候補選択
+  inputBox.key(['tab'], function() {
+    if (mentionMode && mentionCandidates.length > 0 && !membersLoading && members.length > 0) {
+      const selected = mentionCandidates[mentionIndex];
+      const value = inputBox.getValue();
+      const beforeAt = value.substring(0, mentionStartPos);
+      const afterMention = value.substring(value.lastIndexOf('@') + 1).replace(/^\S+/, '');
+      inputBox.setValue(`${beforeAt}<@${selected.id}> ${afterMention}`);
+      mentionMode = false;
+      mentionCandidates = [];
+      mentionBox.hide();
+      screen.render();
+    }
+  });
+  
+  // テキスト入力時にメンションモードをチェック
+  inputBox.on('keypress', function(ch, key) {
+    // 特殊キーの処理後にメンションモードをチェック
+    setTimeout(() => {
+      checkMentionMode();
+    }, 10);
+  });
+  
   inputBox.key(['C-j'], function() {
     // Ctrl+J: 改行
     const value = inputBox.getValue();
-    const cursorPos = inputBox.value.length;
     inputBox.setValue(value + '\n');
     screen.render();
   });
@@ -366,75 +542,145 @@ async function threadChat(channelId, threadTs) {
     
     try {
       // メッセージ送信
-      await sendMessage(channelId, text, threadTs);
+      const result = await sendMessage(channelId, text, threadTs);
+      
+      // 送信した自分のメッセージを即座に表示に追加
+      replies.push({
+        ts: result.ts,
+        user: currentUserName,
+        text: text,
+        timestamp: new Date()
+      });
+      displayMessages();
       
       // 入力クリア
       inputBox.setValue('');
       
-      // 少し待ってから更新
-      setTimeout(async () => {
-        replies = await getThreadReplies(channelId, threadTs);
+      // バックグラウンドで最新のスレッド情報を取得
+      getThreadReplies(channelId, threadTs).then(newReplies => {
+        replies = newReplies;
         displayMessages();
-      }, 300);
+      }).catch(() => {
+        // エラーは無視
+      });
       
     } catch (error) {
+      const memberCount = membersLoading ? '取得中...' : `${members.length}人`;
       header.setContent(`エラー: ${error.message} | Ctrl+C: 終了`);
+      screen.render();
+      
+      setTimeout(() => {
+        header.setContent(`#${channelName} [スレッド] | メンバー: ${memberCount} | Enter: 送信 | Ctrl+J: 改行 | @でメンション(Tab/↑↓) | Ctrl+C: 終了`);
+        screen.render();
+      }, 3000);
+    }
+  });
+  
+  // Ctrl+P: メンション候補を上に移動
+  inputBox.key(['C-p'], function() {
+    if (mentionMode && mentionCandidates.length > 0) {
+      mentionIndex = (mentionIndex - 1 + mentionCandidates.length) % mentionCandidates.length;
+      // 候補リストを更新
+      const lines = [chalk.cyan.bold('メンション候補 (Tab:選択 ↑↓/Ctrl+N/P:移動)')];
+      mentionCandidates.forEach((m, i) => {
+        const marker = i === mentionIndex ? chalk.yellow('▶') : '  ';
+        lines.push(`${marker} @${m.name} (${m.realName})`);
+      });
+      mentionBox.setContent(lines.join('\n'));
       screen.render();
     }
   });
   
-  // タブキー: メンション候補選択
-  inputBox.key(['tab'], function() {
-    const value = inputBox.getValue();
-    const lastAtIndex = value.lastIndexOf('@');
-    
-    if (lastAtIndex !== -1) {
-      const query = value.substring(lastAtIndex + 1);
-      updateMentionCandidates(query);
-      
-      if (mentionCandidates.length > 0) {
-        const selected = mentionCandidates[mentionIndex];
-        const beforeAt = value.substring(0, lastAtIndex);
-        inputBox.setValue(`${beforeAt}<@${selected.id}> `);
-        screen.render();
-      }
-    }
-  });
-  
-  // 下矢印: メンション候補移動
-  inputBox.key(['down'], function() {
-    const value = inputBox.getValue();
-    const lastAtIndex = value.lastIndexOf('@');
-    
-    if (lastAtIndex !== -1 && mentionCandidates.length > 0) {
+  // Ctrl+N: メンション候補を下に移動
+  inputBox.key(['C-n'], function() {
+    if (mentionMode && mentionCandidates.length > 0) {
       mentionIndex = (mentionIndex + 1) % mentionCandidates.length;
-      header.setContent(`候補: ${mentionCandidates[mentionIndex].name} | Tab: 選択 | Ctrl+C: 終了`);
+      // 候補リストを更新
+      const lines = [chalk.cyan.bold('メンション候補 (Tab:選択 ↑↓/Ctrl+N/P:移動)')];
+      mentionCandidates.forEach((m, i) => {
+        const marker = i === mentionIndex ? chalk.yellow('▶') : '  ';
+        lines.push(`${marker} @${m.name} (${m.realName})`);
+      });
+      mentionBox.setContent(lines.join('\n'));
       screen.render();
     }
   });
   
   // Ctrl+C: 終了
-  screen.key(['C-c'], function() {
-    return process.exit(0);
-  });
+  const exitHandler = function() {
+    clearInterval(updateInterval);
+    process.stdin.setRawMode(false);
+    screen.destroy();
+    console.log('\n終了しました。');
+    process.exit(0);
+  };
+  
+  inputBox.key(['C-c'], exitHandler);
+  screen.key(['C-c'], exitHandler);
   
   // 定期的にスレッドを更新（2秒ごと）
   const updateInterval = setInterval(async () => {
     try {
       const oldCount = replies.length;
-      replies = await getThreadReplies(channelId, threadTs);
+      const newReplies = await getThreadReplies(channelId, threadTs);
       
-      if (replies.length > oldCount) {
+      // 新しいメッセージがある場合、または件数が異なる場合に更新
+      if (newReplies.length !== oldCount || 
+          (newReplies.length > 0 && replies.length > 0 && 
+           newReplies[newReplies.length - 1].ts !== replies[replies.length - 1].ts)) {
+        replies = newReplies;
         displayMessages();
+        
+        if (newReplies.length > oldCount) {
+          // 新着通知
+          const diff = newReplies.length - oldCount;
+          const memberCount = membersLoading ? '取得中...' : `${members.length}人`;
+          header.setContent(`#${channelName} [スレッド] | 🔔 ${diff}件の新着 | Enter: 送信 | Ctrl+J: 改行 | @でメンション(Tab/↑↓) | Ctrl+C: 終了`);
+          screen.render();
+          setTimeout(() => {
+            header.setContent(`#${channelName} [スレッド] | メンバー: ${memberCount} | Enter: 送信 | Ctrl+J: 改行 | @でメンション(Tab/↑↓) | Ctrl+C: 終了`);
+            screen.render();
+          }, 2000);
+        }
       }
     } catch (error) {
-      // エラーは無視
+      // エラーは無視（ログに出力しない）
     }
   }, 2000);
   
+  // プロセス終了時のクリーンアップ
+  const cleanup = () => {
+    if (updateInterval) {
+      clearInterval(updateInterval);
+    }
+    try {
+      if (process.stdin.isTTY) {
+        process.stdin.setRawMode(false);
+      }
+      screen.destroy();
+    } catch (e) {
+      // エラーは無視
+    }
+    console.log('\n終了しました。');
+    process.exit(0);
+  };
+  
+  // 各種終了シグナルをハンドル
+  process.removeAllListeners('SIGINT');
+  process.removeAllListeners('SIGTERM');
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+  process.on('exit', () => {
+    if (updateInterval) {
+      clearInterval(updateInterval);
+    }
+  });
+  
   // 終了時にインターバルをクリア
   screen.on('destroy', () => {
-    clearInterval(updateInterval);
+    if (updateInterval) {
+      clearInterval(updateInterval);
+    }
   });
   
   screen.render();
