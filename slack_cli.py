@@ -23,6 +23,38 @@ class SlackCLI:
         
         self.client = WebClient(token=token)
         self.user_cache = {}
+    
+    def handle_slack_error(self, e, context=""):
+        """Slack APIエラーを処理"""
+        error = e.response['error']
+        print(f"\nエラー: {error}")
+        
+        if error == 'missing_scope':
+            print("\n❌ 必要なスコープが不足しています。")
+            print("\n【解決方法】")
+            print("1. https://api.slack.com/apps にアクセス")
+            print("2. あなたのアプリを選択")
+            print("3. 左メニューから 'OAuth & Permissions' をクリック")
+            print("4. 'Bot Token Scopes' に以下を追加:")
+            print("   • channels:history - パブリックチャンネルの履歴を読む")
+            print("   • channels:read - パブリックチャンネル一覧を取得")
+            print("   • chat:write - メッセージを送信")
+            print("   • users:read - ユーザー情報を取得")
+            print("   • groups:history - プライベートチャンネルの履歴を読む")
+            print("   • groups:read - プライベートチャンネル一覧を取得")
+            print("5. ページ上部に表示される 'reinstall your app' をクリック")
+            print("6. 新しいトークンを .env ファイルに設定\n")
+        elif error == 'not_in_channel':
+            print(f"\n❌ Botがチャンネルに参加していません。")
+            print(f"\n【解決方法】")
+            print(f"Slackアプリでチャンネルを開き、Botを招待してください:")
+            print(f"  /invite @your-bot-name\n")
+        elif error == 'channel_not_found':
+            print(f"\n❌ チャンネルが見つかりません。")
+            print(f"チャンネルIDを確認してください。")
+            print(f"'python slack_cli.py list' でチャンネル一覧を確認できます。\n")
+        else:
+            print(f"詳細: {e.response.get('message', 'Unknown error')}\n")
         
     def get_user_name(self, user_id):
         """ユーザーIDから表示名を取得"""
@@ -43,21 +75,25 @@ class SlackCLI:
             print("チャンネル一覧を取得中...")
             response = self.client.conversations_list(
                 types="public_channel,private_channel",
-                exclude_archived=True
+                exclude_archived=True,
+                limit=200
             )
             
             channels = response["channels"]
             
             print("\n利用可能なチャンネル:")
-            print("-" * 60)
+            print("-" * 70)
             for channel in channels:
                 member_count = channel.get("num_members", "?")
-                print(f"  #{channel['name']:<20} ID: {channel['id']:<15} メンバー: {member_count}")
-            print("-" * 60)
-            print(f"合計: {len(channels)}チャンネル\n")
+                is_member = "✓" if channel.get("is_member") else " "
+                channel_type = "🔒" if channel.get("is_private") else "#"
+                print(f"{is_member} {channel_type}{channel['name']:<20} ID: {channel['id']:<15} メンバー: {member_count}")
+            print("-" * 70)
+            print(f"合計: {len(channels)}チャンネル")
+            print("✓ = Botが参加済み\n")
             
         except SlackApiError as e:
-            print(f"エラー: {e.response['error']}")
+            self.handle_slack_error(e, "チャンネル一覧取得")
     
     def send_message(self, channel_id, text):
         """メッセージを送信"""
@@ -69,7 +105,7 @@ class SlackCLI:
             print(f"✓ メッセージを送信しました (ts: {response['ts']})")
             
         except SlackApiError as e:
-            print(f"エラー: {e.response['error']}")
+            self.handle_slack_error(e, "メッセージ送信")
     
     def get_channel_name(self, channel_id):
         """チャンネルIDから名前を取得"""
@@ -111,7 +147,7 @@ class SlackCLI:
             print("=" * 80 + "\n")
             
         except SlackApiError as e:
-            print(f"エラー: {e.response['error']}")
+            self.handle_slack_error(e, "履歴取得")
     
     def chat_mode(self, channel_id):
         """インタラクティブチャットモード"""
@@ -172,7 +208,7 @@ class SlackCLI:
                     break
                     
         except SlackApiError as e:
-            print(f"エラー: {e.response['error']}")
+            self.handle_slack_error(e, "チャットモード")
 
 
 def print_usage():

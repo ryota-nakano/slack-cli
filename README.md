@@ -43,15 +43,41 @@ pip install -r requirements.txt
 
 ### 2. Slack APIトークンの取得
 
-1. [Slack API](https://api.slack.com/apps)にアクセス
-2. 新しいアプリを作成
-3. OAuth & Permissionsから以下のスコープを追加：
-   - `channels:history` - チャンネルのメッセージを読む
-   - `channels:read` - チャンネル一覧を取得
-   - `chat:write` - メッセージを送信
-   - `users:read` - ユーザー情報を取得
-4. アプリをワークスペースにインストール
-5. Bot User OAuth Tokenをコピー
+#### 詳細な手順:
+
+1. **Slack Appを作成**
+   - [Slack API](https://api.slack.com/apps)にアクセス
+   - 「Create New App」をクリック
+   - 「From scratch」を選択
+   - App名とワークスペースを選択して「Create App」
+
+2. **Bot Token Scopesを追加**
+   - 左メニューから「OAuth & Permissions」を選択
+   - 「Bot Token Scopes」セクションまでスクロール
+   - 「Add an OAuth Scope」をクリックして以下を追加：
+   
+   **必須のスコープ:**
+   ```
+   channels:history    - パブリックチャンネルのメッセージ履歴を読む
+   channels:read       - パブリックチャンネル一覧を取得
+   chat:write          - メッセージを送信
+   users:read          - ユーザー情報を取得
+   groups:history      - プライベートチャンネルのメッセージ履歴を読む
+   groups:read         - プライベートチャンネル一覧を取得
+   ```
+
+3. **アプリをワークスペースにインストール**
+   - ページ上部の「Install to Workspace」をクリック
+   - 権限を確認して「許可する」をクリック
+
+4. **Bot User OAuth Tokenをコピー**
+   - インストール後、「Bot User OAuth Token」が表示されます
+   - `xoxb-`で始まるトークンをコピー
+
+5. **Botをチャンネルに招待**
+   - Slackアプリで使用するチャンネルを開く
+   - `/invite @your-bot-name` を実行
+   - または、チャンネル設定から「統合」→「アプリを追加」
 
 ### 3. 環境変数の設定
 
@@ -95,6 +121,39 @@ python slack_cli.py chat <channel_id>
 
 チャットモードでは、リアルタイムでメッセージを送受信できます。
 `/quit`で終了します。
+
+## トラブルシューティング
+
+### `missing_scope` エラー
+
+**原因:** 必要なスコープが不足しています
+
+**解決方法:**
+1. https://api.slack.com/apps にアクセス
+2. あなたのアプリを選択
+3. 左メニューから「OAuth & Permissions」をクリック
+4. 「Bot Token Scopes」に上記の6つのスコープが全て追加されているか確認
+5. スコープを追加した場合は、ページ上部の「reinstall your app」をクリック
+6. 新しいトークンを `.env` ファイルに反映
+
+### `not_in_channel` エラー
+
+**原因:** Botがチャンネルに参加していません
+
+**解決方法:**
+Slackアプリでチャンネルを開き、以下のいずれかの方法でBotを招待:
+- `/invite @your-bot-name` を実行
+- チャンネル詳細 → 統合 → アプリを追加
+
+### `channel_not_found` エラー
+
+**原因:** チャンネルIDが間違っているか、Botがアクセスできません
+
+**解決方法:**
+```bash
+python slack_cli.py list
+```
+でチャンネルIDを確認してください。
 
 ## ライセンス
 
