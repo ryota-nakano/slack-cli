@@ -155,7 +155,8 @@ python slack_cli.py history <channel_id>
 python slack_cli.py thread <channel_id> <thread_ts>
 # → メッセージを入力して返信できる
 # → 2秒ごとに新しい返信を自動表示
-# → '/quit'で終了、'/show'で全体再表示
+# → 画面を自動リフレッシュ（新しいメッセージが上に！）
+# → '/quit'で終了
 
 # スレッドに1回だけ返信
 python slack_cli.py reply <channel_id> <thread_ts> "返信内容"
@@ -170,7 +171,9 @@ python slack_cli.py --user thread <channel_id> <thread_ts>
 **`thread`コマンドの特徴:**
 - 💬 メッセージを入力してEnterで送信
 - 🔄 2秒ごとに新しい返信を自動表示
-- ⌨️ `/quit`で終了、`/show`で全体再表示
+- 🖥️ 画面を自動リフレッシュ（新しいメッセージが常に見やすい位置に）
+- 📊 最新20件を表示（長すぎるスレッドも快適）
+- ⌨️ `/quit`で終了
 - 👥 他の人の返信もリアルタイムで見える
 
 ### メッセージ履歴を表示

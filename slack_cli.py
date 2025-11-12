@@ -145,106 +145,133 @@ class SlackCLI:
         try:
             channel_name = self.get_channel_name(channel_id)
             
-            if interactive:
-                # インタラクティブスレッドチャットモード
-                print(f"\n#{channel_name} のスレッドチャット (ID: {thread_ts})")
-                print("メッセージを入力して返信できます。'/quit'で終了、'/show'で全体表示")
+            def display_messages(messages, show_header=True):
+                """メッセージを表示"""
+                if show_header:
+                    print(f"\n#{channel_name} のスレッドチャット (ID: {thread_ts})")
+                    print("メッセージを入力して返信できます。'/quit'で終了")
+                    print("=" * 80)
+                
+                reply_count = len(messages) - 1
+                
+                # 最新20件のみ表示（スクロールしすぎないように）
+                display_messages_list = messages[-21:] if len(messages) > 21 else messages
+                
+                for i, msg in enumerate(display_messages_list):
+                    if msg.get("subtype") in ["channel_join", "channel_leave"]:
+                        continue
+                    
+                    user_id = msg.get("user", "Unknown")
+                    user_name = self.get_user_name(user_id) if user_id != "Unknown" else "System"
+                    
+                    timestamp = float(msg["ts"])
+                    dt = datetime.fromtimestamp(timestamp)
+                    time_str = dt.strftime("%H:%M:%S")
+                    
+                    text = msg.get("text", "")
+                    
+                    # 全メッセージリストでの実際の番号
+                    actual_index = messages.index(msg)
+                    
+                    if actual_index == 0:
+                        prefix = "📌 [親]"
+                    else:
+                        prefix = f"  ↳ [{actual_index}]"
+                    print(f"{prefix} [{time_str}] {user_name}: {text}")
+                
                 print("=" * 80)
-            else:
+                if len(messages) > 21:
+                    print(f"💬 {reply_count}件中 最新20件を表示")
+                else:
+                    print(f"💬 合計 {reply_count} 件の返信")
+            
+            if not interactive:
                 # 通常の表示モード
                 print(f"\n#{channel_name} のスレッド (ID: {thread_ts}):")
                 print("=" * 80)
-            
-            # 初回表示
-            response = self.client.conversations_replies(
-                channel=channel_id,
-                ts=thread_ts
-            )
-            
-            messages = response["messages"]
-            reply_count = len(messages) - 1  # 親メッセージを除く
-            
-            for i, msg in enumerate(messages):
-                if msg.get("subtype") in ["channel_join", "channel_leave"]:
-                    continue
                 
-                user_id = msg.get("user", "Unknown")
-                user_name = self.get_user_name(user_id) if user_id != "Unknown" else "System"
+                response = self.client.conversations_replies(
+                    channel=channel_id,
+                    ts=thread_ts
+                )
+                messages = response["messages"]
+                reply_count = len(messages) - 1
                 
-                timestamp = float(msg["ts"])
-                dt = datetime.fromtimestamp(timestamp)
-                time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+                for i, msg in enumerate(messages):
+                    if msg.get("subtype") in ["channel_join", "channel_leave"]:
+                        continue
+                    
+                    user_id = msg.get("user", "Unknown")
+                    user_name = self.get_user_name(user_id) if user_id != "Unknown" else "System"
+                    
+                    timestamp = float(msg["ts"])
+                    dt = datetime.fromtimestamp(timestamp)
+                    time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    text = msg.get("text", "")
+                    
+                    if i == 0:
+                        prefix = "📌 [親]"
+                    else:
+                        prefix = f"  ↳ [{i}]"
+                    print(f"{prefix} [{time_str}] {user_name}: {text}")
                 
-                text = msg.get("text", "")
-                
-                if i == 0:
-                    prefix = "📌 [親]"
-                else:
-                    prefix = f"  ↳ [{i}]"
-                print(f"{prefix} [{time_str}] {user_name}: {text}")
-            
-            print("=" * 80)
-            print(f"💬 合計 {reply_count} 件の返信")
-            
-            if not interactive:
+                print("=" * 80)
+                print(f"💬 合計 {reply_count} 件の返信")
                 print(f"💬 インタラクティブモード: thread {channel_id} {thread_ts}\n")
                 return
             
             # インタラクティブモード
+            import threading
+            import queue
+            import os
+            
+            # 初回取得
+            response = self.client.conversations_replies(
+                channel=channel_id,
+                ts=thread_ts
+            )
+            messages = response["messages"]
             latest_ts = messages[-1]["ts"] if messages else thread_ts
-            print(f"\n💬 スレッドに参加中... (リアルタイム更新: 2秒ごと)\n")
+            
+            # 初回表示
+            display_messages(messages, show_header=True)
+            print(f"\n💬 入力待ち...\n")
+            
+            # 入力用のキュー
+            input_queue = queue.Queue()
+            
+            def input_thread():
+                """別スレッドで入力を受け付ける"""
+                while True:
+                    try:
+                        line = input()
+                        input_queue.put(line)
+                    except EOFError:
+                        input_queue.put('/quit')
+                        break
+            
+            # 入力スレッドを開始
+            t = threading.Thread(target=input_thread, daemon=True)
+            t.start()
+            
+            last_check = time.time()
+            needs_refresh = False
             
             try:
-                import threading
-                import queue
-                
-                # 入力用のキュー
-                input_queue = queue.Queue()
-                
-                def input_thread():
-                    """別スレッドで入力を受け付ける"""
-                    while True:
-                        try:
-                            line = input()
-                            input_queue.put(line)
-                        except EOFError:
-                            input_queue.put('/quit')
-                            break
-                
-                # 入力スレッドを開始
-                t = threading.Thread(target=input_thread, daemon=True)
-                t.start()
-                
-                last_check = time.time()
-                
                 while True:
                     # 新しいメッセージをチェック（2秒ごと）
                     if time.time() - last_check >= 2:
                         response = self.client.conversations_replies(
                             channel=channel_id,
-                            ts=thread_ts,
-                            oldest=latest_ts
+                            ts=thread_ts
                         )
                         
-                        new_messages = [msg for msg in response["messages"] if msg["ts"] > latest_ts]
-                        
-                        if new_messages:
-                            for msg in new_messages:
-                                if msg.get("subtype") in ["channel_join", "channel_leave"]:
-                                    continue
-                                
-                                user_id = msg.get("user", "Unknown")
-                                user_name = self.get_user_name(user_id) if user_id != "Unknown" else "System"
-                                
-                                timestamp = float(msg["ts"])
-                                dt = datetime.fromtimestamp(timestamp)
-                                time_str = dt.strftime("%H:%M:%S")
-                                
-                                text = msg.get("text", "")
-                                
-                                print(f"  ↳ [{time_str}] {user_name}: {text}")
-                            
-                            latest_ts = new_messages[-1]["ts"]
+                        new_msgs = response["messages"]
+                        if len(new_msgs) > len(messages) or (new_msgs and new_msgs[-1]["ts"] != latest_ts):
+                            messages = new_msgs
+                            latest_ts = new_msgs[-1]["ts"]
+                            needs_refresh = True
                         
                         last_check = time.time()
                     
@@ -256,23 +283,36 @@ class SlackCLI:
                             print("\nスレッドチャットを終了します")
                             break
                         
-                        if message == "/show":
-                            # 全体を再表示
-                            self.show_thread(channel_id, thread_ts, interactive=False)
-                            print(f"\n💬 スレッドに参加中... (リアルタイム更新: 2秒ごと)\n")
-                            continue
-                        
                         if message.strip():
-                            # メッセージを送信（quietモード）
+                            # メッセージを送信
                             sent_ts = self.send_message(channel_id, message, thread_ts=thread_ts, quiet=True)
                             if sent_ts:
-                                latest_ts = sent_ts
+                                # すぐに再取得して表示
+                                time.sleep(0.5)
+                                response = self.client.conversations_replies(
+                                    channel=channel_id,
+                                    ts=thread_ts
+                                )
+                                messages = response["messages"]
+                                latest_ts = messages[-1]["ts"]
+                                needs_refresh = True
                         
                     except queue.Empty:
                         pass
                     
-                    time.sleep(0.1)  # CPU使用率を下げる
+                    # 画面更新
+                    if needs_refresh:
+                        # 画面をクリア
+                        os.system('clear' if os.name != 'nt' else 'cls')
                         
+                        # 再描画
+                        display_messages(messages, show_header=True)
+                        print(f"\n💬 入力待ち...\n")
+                        
+                        needs_refresh = False
+                    
+                    time.sleep(0.1)
+                    
             except KeyboardInterrupt:
                 print("\n\nスレッドチャットを終了します")
                 return
