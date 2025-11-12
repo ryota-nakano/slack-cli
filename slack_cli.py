@@ -139,13 +139,20 @@ class SlackCLI:
             self.handle_slack_error(e, "メッセージ送信")
             return None
     
-    def show_thread(self, channel_id, thread_ts):
+    def show_thread(self, channel_id, thread_ts, watch=False):
         """スレッドの内容を表示"""
         try:
             channel_name = self.get_channel_name(channel_id)
-            print(f"\n#{channel_name} のスレッド (ID: {thread_ts}):")
-            print("=" * 80)
             
+            if watch:
+                print(f"\n#{channel_name} のスレッドを監視中 (ID: {thread_ts})")
+                print("Ctrl+Cで終了")
+                print("=" * 80)
+            else:
+                print(f"\n#{channel_name} のスレッド (ID: {thread_ts}):")
+                print("=" * 80)
+            
+            # 初回表示
             response = self.client.conversations_replies(
                 channel=channel_id,
                 ts=thread_ts
@@ -175,7 +182,50 @@ class SlackCLI:
             
             print("=" * 80)
             print(f"💬 合計 {reply_count} 件の返信")
-            print(f"📝 返信コマンド: reply {channel_id} {thread_ts} \"メッセージ\"\n")
+            
+            if not watch:
+                print(f"📝 返信コマンド: reply {channel_id} {thread_ts} \"メッセージ\"")
+                print(f"👀 リアルタイム監視: thread {channel_id} {thread_ts} --watch\n")
+                return
+            
+            # 監視モード
+            latest_ts = messages[-1]["ts"] if messages else thread_ts
+            
+            print(f"\n🔄 新しい返信を監視中...\n")
+            
+            try:
+                while True:
+                    time.sleep(3)  # 3秒ごとにチェック
+                    
+                    response = self.client.conversations_replies(
+                        channel=channel_id,
+                        ts=thread_ts,
+                        oldest=latest_ts
+                    )
+                    
+                    new_messages = [msg for msg in response["messages"] if msg["ts"] > latest_ts]
+                    
+                    if new_messages:
+                        for msg in new_messages:
+                            if msg.get("subtype") in ["channel_join", "channel_leave"]:
+                                continue
+                            
+                            user_id = msg.get("user", "Unknown")
+                            user_name = self.get_user_name(user_id) if user_id != "Unknown" else "System"
+                            
+                            timestamp = float(msg["ts"])
+                            dt = datetime.fromtimestamp(timestamp)
+                            time_str = dt.strftime("%H:%M:%S")
+                            
+                            text = msg.get("text", "")
+                            
+                            print(f"  ↳ [{time_str}] {user_name}: {text}")
+                        
+                        latest_ts = new_messages[-1]["ts"]
+                        
+            except KeyboardInterrupt:
+                print("\n\n監視を終了します")
+                return
             
         except SlackApiError as e:
             self.handle_slack_error(e, "スレッド取得")
@@ -365,6 +415,7 @@ Slack CLI - 使い方
 
 オプション:
   --user                        ユーザーとして投稿（デフォルト: Botとして投稿）
+  --watch                       スレッドをリアルタイム監視（threadコマンド用）
 
 例:
   # 基本的な使い方
@@ -374,14 +425,16 @@ Slack CLI - 使い方
   
   # スレッド機能
   python slack_cli.py thread C01234ABCDE 1234567890.123456
+  python slack_cli.py thread C01234ABCDE 1234567890.123456 --watch  # リアルタイム監視
   python slack_cli.py reply C01234ABCDE 1234567890.123456 "スレッドに返信"
   
   # ユーザーとして投稿
   python slack_cli.py --user send C01234ABCDE "こんにちは"
   python slack_cli.py --user reply C01234ABCDE 1234567890.123456 "返信"
   
-  # チャットモード
+  # チャットモード（リアルタイム更新対応）
   python slack_cli.py chat C01234ABCDE
+  python slack_cli.py --user chat C01234ABCDE
 """)
 
 
@@ -390,13 +443,18 @@ def main():
         print_usage()
         sys.exit(1)
     
-    # --user オプションをチェック
+    # オプションをチェック
     use_user_token = False
+    watch_mode = False
     args = sys.argv[1:]
     
     if "--user" in args:
         use_user_token = True
         args.remove("--user")
+    
+    if "--watch" in args:
+        watch_mode = True
+        args.remove("--watch")
     
     if len(args) < 1:
         print_usage()
@@ -438,11 +496,12 @@ def main():
         if len(args) < 3:
             print("エラー: channel_idとthread_tsを指定してください")
             print("例: python slack_cli.py thread C01234ABCDE 1234567890.123456")
+            print("     python slack_cli.py thread C01234ABCDE 1234567890.123456 --watch")
             sys.exit(1)
         
         channel_id = args[1]
         thread_ts = args[2]
-        cli.show_thread(channel_id, thread_ts)
+        cli.show_thread(channel_id, thread_ts, watch=watch_mode)
     
     elif command == "history":
         if len(args) < 2:

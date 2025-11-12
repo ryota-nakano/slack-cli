@@ -40,9 +40,10 @@ python slack_cli.py list
 - メッセージの送信
 - **スレッドへの返信** 🆕
 - **スレッドの表示** 🆕
+- **スレッドのリアルタイム監視** 🆕
 - メッセージの受信（履歴表示）
 - リアルタイムメッセージの監視
-- インタラクティブチャットモード（スレッド対応）
+- インタラクティブチャットモード（スレッド対応、リアルタイム更新）
 
 ## セットアップ
 
@@ -154,6 +155,9 @@ python slack_cli.py history <channel_id>
 # スレッドを表示
 python slack_cli.py thread <channel_id> <thread_ts>
 
+# スレッドをリアルタイム監視 🆕
+python slack_cli.py thread <channel_id> <thread_ts> --watch
+
 # スレッドに返信
 python slack_cli.py reply <channel_id> <thread_ts> "返信内容"
 
@@ -163,6 +167,10 @@ python slack_cli.py --user reply <channel_id> <thread_ts> "返信内容"
 
 **スレッドIDは履歴表示で自動的に表示されます！**
 コマンドもコピペできる形式で表示されるので、簡単に使えます。
+
+**`--watch`オプションでリアルタイム監視:**
+スレッドに新しい返信があると、自動的に表示されます（3秒ごとに更新）。
+Ctrl+Cで終了できます。
 
 ### メッセージ履歴を表示
 
@@ -187,6 +195,11 @@ python slack_cli.py --user chat <channel_id>
 - `/history` - 履歴表示
 - `/reply <thread_ts>` - スレッドモードに切り替え
 - `/thread` - スレッド内容を表示（スレッドモード時）
+
+**リアルタイム更新:**
+- 通常チャット: 1秒ごとに新しいメッセージをチェック
+- スレッドチャット: 1秒ごとに新しい返信をチェック
+- `--watch`オプション: 3秒ごとにスレッドを監視（表示のみ）
 
 チャットモードでは、リアルタイムでメッセージを送受信できます。
 `/quit`で終了します。
