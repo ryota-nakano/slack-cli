@@ -15,7 +15,8 @@ class ReadlineInput {
     this.suggestions = [];
     this.selectedIndex = -1;
     this.rl = null;
-    this.previousLineCount = 1; // Track previous line count
+    this.previousLineCount = 1;
+    this.inputStartLine = 0; // Track the starting line of our input
   }
 
   /**
@@ -265,107 +266,74 @@ class ReadlineInput {
    * Redraw input line
    */
   redrawInput() {
-    // Calculate current state
     const lines = this.input.split('\n');
     const beforeCursor = this.input.substring(0, this.cursorPos);
     const linesBeforeCursor = beforeCursor.split('\n');
     const currentLineIdx = linesBeforeCursor.length - 1;
+    const currentLineText = linesBeforeCursor[currentLineIdx];
     
-    // Calculate how many lines we're currently displaying (from the first line)
-    const currentDisplayLines = lines.length;
-    const previousDisplayLines = this.previousLineCount;
-    const maxLines = Math.max(currentDisplayLines, previousDisplayLines);
+    // Calculate max lines to clear
+    const maxLines = Math.max(lines.length, this.previousLineCount);
     
-    // Save current cursor column position before moving
-    const currentCol = process.stdout.columns || 80;
-    
-    // Move cursor up to the first line of our input
-    // We need to move up (currentLineIdx) lines to reach the first line
-    if (currentLineIdx > 0) {
-      process.stdout.write('\x1b[' + currentLineIdx + 'A');
+    // Step 1: Move cursor to the beginning of the first line of input
+    // Move up by currentLineIdx lines
+    for (let i = 0; i < currentLineIdx; i++) {
+      process.stdout.write('\x1b[1A'); // Move up one line
     }
+    process.stdout.write('\r'); // Move to column 0
     
-    // Move to column 0
-    process.stdout.write('\r');
-    
-    // Clear all lines from current position downward
+    // Step 2: Clear all old lines
     for (let i = 0; i < maxLines; i++) {
-      // Clear this line
       process.stdout.write('\x1b[2K'); // Clear entire line
-      
-      // Move down if not the last line to clear
       if (i < maxLines - 1) {
-        process.stdout.write('\n');
+        process.stdout.write('\x1b[1B\r'); // Move down and to start
       }
     }
     
-    // Move back up to first line
-    if (maxLines > 1) {
-      process.stdout.write('\x1b[' + (maxLines - 1) + 'A');
+    // Step 3: Move back to the first line
+    for (let i = 0; i < maxLines - 1; i++) {
+      process.stdout.write('\x1b[1A'); // Move up one line
     }
+    process.stdout.write('\r'); // Move to column 0
     
-    // Move to column 0
-    process.stdout.write('\r');
-    
-    // Draw all current lines
+    // Step 4: Draw new content
     for (let i = 0; i < lines.length; i++) {
+      if (i > 0) {
+        process.stdout.write('\n');
+      }
       if (i === 0) {
         process.stdout.write(chalk.green('> ') + lines[i]);
       } else {
         process.stdout.write(chalk.green('  ') + lines[i]);
       }
-      
-      // Add newline if not the last line
-      if (i < lines.length - 1) {
-        process.stdout.write('\n');
-      }
     }
     
-    // Update previous line count
-    this.previousLineCount = lines.length;
+    // Step 5: Move cursor to correct position
+    // Move to start of first line
+    for (let i = 0; i < lines.length - 1; i++) {
+      process.stdout.write('\x1b[1A');
+    }
+    process.stdout.write('\r');
     
-    // Set cursor to correct position
-    this.setCursorPosition(lines, linesBeforeCursor, currentLineIdx);
+    // Move down to target line
+    for (let i = 0; i < currentLineIdx; i++) {
+      process.stdout.write('\x1b[1B');
+    }
+    
+    // Move right to target column
+    const promptWidth = 2;
+    const col = promptWidth + stringWidth(currentLineText);
+    process.stdout.write(`\x1b[${col}G`); // Move to column (1-indexed)
+    
+    // Update state
+    this.previousLineCount = lines.length;
   }
 
   /**
-   * Set cursor position based on input
+   * Set cursor position based on input (legacy method, now integrated in redrawInput)
    */
   setCursorPosition(lines = null, linesBeforeCursor = null, currentLineIdx = null) {
-    if (!lines) {
-      lines = this.input.split('\n');
-      const beforeCursor = this.input.substring(0, this.cursorPos);
-      linesBeforeCursor = beforeCursor.split('\n');
-      currentLineIdx = linesBeforeCursor.length - 1;
-    }
-    
-    const currentLineText = linesBeforeCursor[currentLineIdx];
-    
-    // We're currently at the end of the last line we drew
-    // Need to move to the correct line
-    const lastLineIdx = lines.length - 1;
-    const linesToMove = currentLineIdx - lastLineIdx;
-    
-    if (linesToMove !== 0) {
-      if (linesToMove > 0) {
-        // Move down
-        process.stdout.write('\x1b[' + linesToMove + 'B');
-      } else {
-        // Move up
-        process.stdout.write('\x1b[' + (-linesToMove) + 'A');
-      }
-    }
-    
-    // Set horizontal position
-    const promptWidth = 2; // '> ' or '  '
-    const displayWidth = stringWidth(currentLineText);
-    const targetCol = promptWidth + displayWidth;
-    
-    // Move to column 0 first, then move right
-    process.stdout.write('\r');
-    if (targetCol > 0) {
-      process.stdout.write('\x1b[' + targetCol + 'C');
-    }
+    // This method is kept for compatibility but logic moved to redrawInput
   }
 
   /**
