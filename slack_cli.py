@@ -7,8 +7,6 @@ import os
 import sys
 import time
 import readline  # 日本語入力とカーソル移動を改善
-import tty
-import termios
 from datetime import datetime
 from dotenv import load_dotenv
 from slack_sdk import WebClient
@@ -153,7 +151,7 @@ class SlackCLI:
                 """メッセージを表示"""
                 if show_header:
                     print(f"\n#{channel_name} のスレッドチャット (ID: {thread_ts})")
-                    print("改行: Ctrl+J | 送信: Ctrl+D | 終了: Ctrl+C")
+                    print("改行: Enter | 送信: Ctrl+Enter | 終了: Ctrl+C")
                     print("=" * 80)
                 
                 reply_count = len(messages) - 1
@@ -250,69 +248,41 @@ class SlackCLI:
                 """別スレッドで入力を受け付ける（複数行対応）"""
                 while not stop_input_thread.is_set():
                     try:
-                        # プロンプトを表示
-                        sys.stdout.write("> ")
-                        sys.stdout.flush()
-                        
+                        print("> ", end='', flush=True)
                         lines = []
-                        current_line = []
                         
-                        # 生のモードで文字を読み取る
-                        old_settings = termios.tcgetattr(sys.stdin)
-                        try:
-                            tty.setcbreak(sys.stdin.fileno())
-                            
-                            while True:
-                                char = sys.stdin.read(1)
+                        # 複数行入力モード
+                        while True:
+                            try:
+                                line = input()
                                 
-                                # Ctrl+D (EOT) - 送信
-                                if char == '\x04':
-                                    if current_line:
-                                        lines.append(''.join(current_line))
-                                    sys.stdout.write('\n')
-                                    sys.stdout.flush()
-                                    break
+                                # Ctrl+D で送信（EOFError が発生）
+                                lines.append(line)
                                 
-                                # Ctrl+C - 終了
-                                elif char == '\x03':
-                                    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-                                    input_queue.put('/quit')
-                                    return
+                                # 続きの行のプロンプト
+                                print("> ", end='', flush=True)
                                 
-                                # Ctrl+J - 改行
-                                elif char == '\n' or char == '\x0a':
-                                    lines.append(''.join(current_line))
-                                    current_line = []
-                                    sys.stdout.write('\n> ')
-                                    sys.stdout.flush()
-                                
-                                # Backspace
-                                elif char == '\x7f':
-                                    if current_line:
-                                        current_line.pop()
-                                        sys.stdout.write('\b \b')
-                                        sys.stdout.flush()
-                                
-                                # 通常の文字
-                                elif ord(char) >= 32 or char in ['\t']:
-                                    current_line.append(char)
-                                    sys.stdout.write(char)
-                                    sys.stdout.flush()
-                        
-                        finally:
-                            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+                            except EOFError:
+                                # Ctrl+D が押された = 送信
+                                break
+                            except KeyboardInterrupt:
+                                # Ctrl+C が押された = 終了
+                                input_queue.put('/quit')
+                                return
                         
                         # メッセージを送信
                         if lines:
                             message = '\n'.join(lines)
                             if message.strip():
                                 input_queue.put(message)
+                        
+                        # 改行を出力
+                        print()
                             
-                    except (EOFError, KeyboardInterrupt):
+                    except KeyboardInterrupt:
                         input_queue.put('/quit')
                         break
-                    except Exception as e:
-                        # エラーが起きてもreadlineモードに戻す
+                    except Exception:
                         pass
             
             # 入力スレッドを開始

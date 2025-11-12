@@ -159,7 +159,7 @@ python slack_cli.py history <channel_id>
 # スレッドチャット（返信+リアルタイム監視） 🆕🔥
 python slack_cli.py thread <channel_id> <thread_ts>
 # → メッセージを入力して返信できる
-# → 改行: Ctrl+J (そのまま入力を続ける)
+# → 改行: Enter (そのまま入力を続ける、Backspaceで削除可能)
 # → 送信: Ctrl+D
 # → 終了: Ctrl+C
 # → 2秒ごとに新しい返信を自動表示
@@ -179,7 +179,7 @@ python slack_cli.py --user thread <channel_id> <thread_ts>
 
 **`thread`コマンドの特徴:**
 - 💬 メッセージを入力
-- 📝 改行: `Ctrl+J` で改行して続けて入力
+- 📝 改行: `Enter` で改行して続けて入力（Backspaceで削除可能）
 - 📤 送信: `Ctrl+D`
 - 🛑 終了: `Ctrl+C`
 - 🔄 2秒ごとに新しい返信を自動表示
@@ -190,11 +190,16 @@ python slack_cli.py --user thread <channel_id> <thread_ts>
 
 **入力例:**
 ```
-> こんにちは！<Ctrl+J>
-> 質問があります。<Ctrl+J>
-> <Ctrl+J>
+> こんにちは！<Enter>
+> 質問があります。<Enter>
+> <Enter>
 > これについて教えてください<Ctrl+D>
 ```
+
+**便利な機能:**
+- Backspaceで文字削除（改行も削除できる）
+- 矢印キーでカーソル移動
+- Ctrl+A で行頭、Ctrl+E で行末
 
 **`reply`コマンドとの違い:**
 - `thread`: チャットモード、画面リフレッシュ、静か、複数行入力
