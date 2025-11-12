@@ -159,6 +159,7 @@ python slack_cli.py history <channel_id>
 # スレッドチャット（返信+リアルタイム監視） 🆕🔥
 python slack_cli.py thread <channel_id> <thread_ts>
 # → メッセージを入力して返信できる
+# → 改行: \n を入力 (例: 1行目\n2行目\n3行目)
 # → 2秒ごとに新しい返信を自動表示
 # → 画面を自動リフレッシュ（新しいメッセージが上に！）
 # → 自分の投稿もすぐに画面に反映！
@@ -166,8 +167,7 @@ python slack_cli.py thread <channel_id> <thread_ts>
 
 # スレッドに1回だけ返信（確認メッセージあり）
 python slack_cli.py reply <channel_id> <thread_ts> "返信内容"
-# → 送信確認メッセージが表示される
-# → すぐ終了する
+# → スクリプトから使う時やサッと送信したい時に便利
 
 # ユーザーとしてスレッドチャット
 python slack_cli.py --user thread <channel_id> <thread_ts>
@@ -178,6 +178,7 @@ python slack_cli.py --user thread <channel_id> <thread_ts>
 
 **`thread`コマンドの特徴:**
 - 💬 メッセージを入力してEnterで送信
+- 📝 改行可能: `\n` を入力 (例: `こんにちは\n世界`)
 - 🔄 2秒ごとに新しい返信を自動表示
 - 🖥️ 画面を自動リフレッシュ（新しいメッセージが常に見やすい位置に）
 - ⚡ 自分の投稿も0.3秒で画面に反映（確認メッセージなし）
@@ -186,8 +187,8 @@ python slack_cli.py --user thread <channel_id> <thread_ts>
 - 👥 他の人の返信もリアルタイムで見える
 
 **`reply`コマンドとの違い:**
-- `thread`: チャットモード、画面リフレッシュ、静か
-- `reply`: 1回だけ送信、確認メッセージあり、すぐ終了
+- `thread`: チャットモード、画面リフレッシュ、静か、改行対応
+- `reply`: 1回だけ送信、確認メッセージあり、すぐ終了、スクリプト向け
 
 ### メッセージ履歴を表示
 

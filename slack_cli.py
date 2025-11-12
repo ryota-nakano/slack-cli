@@ -151,7 +151,8 @@ class SlackCLI:
                 """メッセージを表示"""
                 if show_header:
                     print(f"\n#{channel_name} のスレッドチャット (ID: {thread_ts})")
-                    print("メッセージを入力して返信できます。'/quit'で終了")
+                    print("メッセージを入力して返信できます。")
+                    print("改行: \\n を入力 (例: 1行目\\n2行目) | 終了: /quit")
                     print("=" * 80)
                 
                 reply_count = len(messages) - 1
@@ -251,6 +252,8 @@ class SlackCLI:
                         # readlineを使って入力を受け取る
                         line = input()
                         if line is not None:
+                            # \n を実際の改行に変換
+                            line = line.replace('\\n', '\n')
                             input_queue.put(line)
                     except (EOFError, KeyboardInterrupt):
                         input_queue.put('/quit')
@@ -398,14 +401,13 @@ class SlackCLI:
             if thread_ts:
                 print(f"\n#{channel_name} のスレッドでチャット開始")
                 print(f"スレッドID: {thread_ts}")
-                print("メッセージを入力してください。'/quit'で終了、'/thread'でスレッド表示")
+                print("メッセージ入力 | 改行: \\n | 終了: /quit | 表示: /thread")
                 print("-" * 80)
                 # スレッドの内容を表示
                 self.show_thread(channel_id, thread_ts)
             else:
                 print(f"\n#{channel_name} でチャット開始")
-                print("メッセージを入力してください。")
-                print("'/quit'で終了、'/history'で履歴表示、'/reply <thread_ts>'でスレッドモード")
+                print("メッセージ入力 | 改行: \\n | 終了: /quit | 履歴: /history")
                 print("-" * 80)
             
             # 最新のタイムスタンプを取得
@@ -415,7 +417,10 @@ class SlackCLI:
             while True:
                 try:
                     prompt = f"#{channel_name}[スレッド]> " if thread_ts else f"#{channel_name}> "
-                    message = input(prompt).strip()
+                    message = input(prompt)
+                    
+                    # \n を実際の改行に変換
+                    message = message.replace('\\n', '\n').strip()
                     
                     if not message:
                         continue
