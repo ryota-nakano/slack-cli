@@ -291,11 +291,11 @@ class SlackCLI:
                             break
                         
                         if message.strip():
-                            # メッセージを送信
+                            # メッセージを送信（quiet=Trueで確認メッセージなし）
                             sent_ts = self.send_message(channel_id, message, thread_ts=thread_ts, quiet=True)
                             if sent_ts:
-                                # すぐに再取得して表示
-                                time.sleep(0.5)
+                                # すぐに再取得して画面リフレッシュ
+                                time.sleep(0.3)  # API反映待ち
                                 response = self.client.conversations_replies(
                                     channel=channel_id,
                                     ts=thread_ts
