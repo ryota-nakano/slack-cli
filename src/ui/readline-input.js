@@ -22,6 +22,9 @@ class ReadlineInput {
   /**
    * Show prompt and wait for input
    */
+  /**
+   * Show prompt and wait for input
+   */
   async prompt(channelName) {
     return new Promise((resolve) => {
       console.log(chalk.cyan(`💬 #${channelName}[スレッド]`));
@@ -32,9 +35,8 @@ class ReadlineInput {
         terminal: true
       });
 
-      // Manually show prompt and save position
+      // Manually show prompt (no save needed with new approach)
       process.stdout.write(chalk.green('> '));
-      process.stdout.write('\x1b[s'); // Save cursor position for later use
 
       readline.emitKeypressEvents(process.stdin, this.rl);
       if (process.stdin.isTTY) {
@@ -264,7 +266,7 @@ class ReadlineInput {
   }
 
   /**
-   * Redraw input line
+   * Redraw input line - SIMPLE approach using \r\x1b[J
    */
   redrawInput() {
     const lines = this.input.split('\n');
@@ -273,49 +275,33 @@ class ReadlineInput {
     const currentLineIdx = linesBeforeCursor.length - 1;
     const currentLineText = linesBeforeCursor[currentLineIdx];
     
-    // Restore to the initial prompt position (saved in prompt())
-    process.stdout.write('\x1b[u'); // Restore cursor position
+    // Move to start of line and clear from cursor to end of screen
+    process.stdout.write('\r\x1b[J');
     
-    // Move to column 0 (start of "> ")
-    process.stdout.write('\r');
-    
-    // Clear all old lines from here
-    const maxLines = Math.max(lines.length, this.previousLineCount);
-    for (let i = 0; i < maxLines; i++) {
-      process.stdout.write('\x1b[2K'); // Clear line
-      if (i < maxLines - 1) {
-        process.stdout.write('\n'); // Move to next line
-      }
-    }
-    
-    // Move back to the starting position
-    if (maxLines > 1) {
-      process.stdout.write(`\x1b[${maxLines - 1}A`); // Move up
-    }
-    process.stdout.write('\r'); // Start of line
-    
-    // Draw all content
+    // Draw all lines
     for (let i = 0; i < lines.length; i++) {
       if (i === 0) {
         process.stdout.write(chalk.green('> ') + lines[i]);
       } else {
-        process.stdout.write(chalk.green('  ') + lines[i]);
-      }
-      if (i < lines.length - 1) {
-        process.stdout.write('\n');
+        process.stdout.write('\n' + chalk.green('  ') + lines[i]);
       }
     }
     
-    // Position cursor: we're now at end of last line
-    // Need to move to currentLineIdx
-    const linesUp = lines.length - 1 - currentLineIdx;
-    if (linesUp > 0) {
-      process.stdout.write(`\x1b[${linesUp}A`);
+    // Now we're at the end of the last line
+    // Move cursor to correct position
+    
+    // Calculate how many lines to move up
+    const linesToMoveUp = lines.length - 1 - currentLineIdx;
+    if (linesToMoveUp > 0) {
+      process.stdout.write(`\x1b[${linesToMoveUp}A`);
     }
     
-    // Set column position
-    const col = 2 + stringWidth(currentLineText);
-    process.stdout.write(`\x1b[${col}G`);
+    // Move to correct column
+    process.stdout.write('\r'); // Start of line
+    const col = 2 + stringWidth(currentLineText); // 2 for "> " or "  "
+    if (col > 0) {
+      process.stdout.write(`\x1b[${col}C`); // Move right
+    }
     
     // Update previous line count
     this.previousLineCount = lines.length;
