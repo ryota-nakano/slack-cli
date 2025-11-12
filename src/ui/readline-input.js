@@ -266,7 +266,7 @@ class ReadlineInput {
   }
 
   /**
-   * Redraw input line - SIMPLE approach using \r\x1b[J
+   * Redraw input line - Move to first line, then clear and redraw
    */
   redrawInput() {
     const lines = this.input.split('\n');
@@ -275,6 +275,15 @@ class ReadlineInput {
     const currentLineIdx = linesBeforeCursor.length - 1;
     const currentLineText = linesBeforeCursor[currentLineIdx];
     
+    // IMPORTANT: Move to the first line FIRST before clearing
+    // Assume we might be on any line from 0 to previousLineCount-1
+    // Move up to the first line
+    if (this.previousLineCount > 1) {
+      // Move up to first line (assuming we could be at any previous line)
+      process.stdout.write(`\x1b[${this.previousLineCount - 1}A`);
+    }
+    
+    // Now we're at the first line (or already were)
     // Move to start of line and clear from cursor to end of screen
     process.stdout.write('\r\x1b[J');
     
