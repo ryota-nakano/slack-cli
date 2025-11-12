@@ -152,7 +152,7 @@ class SlackCLI:
                 """メッセージを表示"""
                 if show_header:
                     print(f"\n#{channel_name} のスレッドチャット (ID: {thread_ts})")
-                    print("改行: Enter | 送信: Alt+Enter または Esc Enter | 終了: Ctrl+C")
+                    print("改行: Ctrl+J | 削除: Ctrl+H | 送信: Enter | 終了: Ctrl+C")
                     print("=" * 80)
                 
                 reply_count = len(messages) - 1
@@ -255,14 +255,19 @@ class SlackCLI:
                 # multiline条件
                 multiline_condition = Condition(lambda: True)
                 
-                @kb.add('enter', filter=multiline_condition)
+                @kb.add('c-j')  # Ctrl+J
                 def _(event):
-                    """Enterで改行（マルチラインモード時）"""
+                    """Ctrl+Jで改行"""
                     event.current_buffer.insert_text('\n')
                 
-                @kb.add('escape', 'enter')  # Meta+Enter (Alt+Enter, Esc+Enter)
+                @kb.add('c-h')  # Ctrl+H
                 def _(event):
-                    """Meta+Enter (Alt+Enter) で送信"""
+                    """Ctrl+HでBackspace"""
+                    event.current_buffer.delete_before_cursor(count=1)
+                
+                @kb.add('enter')
+                def _(event):
+                    """Enterで送信"""
                     event.current_buffer.validate_and_handle()
                 
                 while not stop_input_thread.is_set():

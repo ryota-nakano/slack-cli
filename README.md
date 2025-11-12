@@ -158,11 +158,12 @@ python slack_cli.py history <channel_id>
 
 # スレッドチャット（返信+リアルタイム監視） 🆕🔥
 python slack_cli.py thread <channel_id> <thread_ts>
-# → GitHub Copilot CLIのような操作感！
-# → 改行: Enter
-# → 送信: Alt+Enter (または Esc Enter)
+# → シンプルで分かりやすい操作！
+# → 改行: Ctrl+J
+# → 削除: Ctrl+H (Backspace)
+# → 送信: Enter
 # → 終了: Ctrl+C
-# → Backspaceで改行も削除可能、矢印キーで自由に移動
+# → 矢印キーで自由に移動
 # → 複数行を自由に編集できる
 # → 2秒ごとに新しい返信を自動表示
 # → 画面を自動リフレッシュ
@@ -180,11 +181,11 @@ python slack_cli.py --user thread <channel_id> <thread_ts>
 コマンドもコピペできる形式で表示されるので、簡単に使えます。
 
 **`thread`コマンドの特徴:**
-- 💬 **GitHub Copilot CLIのような操作感！**
-- 📝 改行: `Enter`
-- 📤 送信: `Alt+Enter` (または `Esc` → `Enter`)
+- 💬 **シンプルで分かりやすい操作！**
+- 📝 改行: `Ctrl+J`
+- ⌫ 削除: `Ctrl+H` (Backspaceと同じ)
+- 📤 送信: `Enter`
 - 🛑 終了: `Ctrl+C` または `Ctrl+D`
-- ⌫ **Backspaceで改行も削除可能**
 - ⬆️⬇️⬅️➡️ **矢印キーで自由にカーソル移動**
 - ✏️ **複数行を自由に編集**
 - 🔄 2秒ごとに新しい返信を自動表示
@@ -195,10 +196,14 @@ python slack_cli.py --user thread <channel_id> <thread_ts>
 
 **入力例:**
 ```
-> こんにちは！<Enter>
-質問があります。<Enter>
-<Enter>
-これについて教えてください<Alt+Enter>  ← 送信！
+> こんにちは！<Ctrl+J>
+こんにちは！
+質問があります。<Ctrl+J>
+質問があります。
+<Ctrl+J>
+
+これについて教えてください<Enter>  ← 送信！
+これについて教えてください
 ```
 
 送信されるメッセージ:
@@ -210,16 +215,18 @@ python slack_cli.py --user thread <channel_id> <thread_ts>
 ```
 
 **便利な機能:**
-- Backspaceで文字削除（**改行も削除できる！**）
+- Ctrl+H で文字削除（**改行も削除できる！**）
 - 矢印キー（↑↓←→）でカーソル移動（**どこでも移動可能！**）
 - Ctrl+A で行頭、Ctrl+E で行末
 - Ctrl+K でカーソルから行末まで削除
 - Ctrl+U でカーソルから行頭まで削除
 - 間違えたら自由に修正できる
 
-**送信方法:**
-- `Alt+Enter` - 1回押すだけで送信（推奨）
-- `Esc` → `Enter` - Escを押してからEnterを押す（Alt使えない時）
+**キーバインディング:**
+- `Ctrl+J` - 改行
+- `Ctrl+H` - 削除（Backspaceと同じ動作）
+- `Enter` - 送信
+- `Ctrl+C` - 終了
 
 **`reply`コマンドとの違い:**
 - `thread`: チャットモード、画面リフレッシュ、複数行編集
