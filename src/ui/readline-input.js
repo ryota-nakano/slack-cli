@@ -32,8 +32,9 @@ class ReadlineInput {
         terminal: true
       });
 
-      // Manually show prompt
+      // Manually show prompt and save position
       process.stdout.write(chalk.green('> '));
+      process.stdout.write('\x1b[s'); // Save cursor position for later use
 
       readline.emitKeypressEvents(process.stdin, this.rl);
       if (process.stdin.isTTY) {
@@ -272,60 +273,51 @@ class ReadlineInput {
     const currentLineIdx = linesBeforeCursor.length - 1;
     const currentLineText = linesBeforeCursor[currentLineIdx];
     
-    // Calculate max lines to clear
+    // Restore to the initial prompt position (saved in prompt())
+    process.stdout.write('\x1b[u'); // Restore cursor position
+    
+    // Move to column 0 (start of "> ")
+    process.stdout.write('\r');
+    
+    // Clear all old lines from here
     const maxLines = Math.max(lines.length, this.previousLineCount);
-    
-    // Step 1: Move cursor to the beginning of the first line of input
-    // Move up by currentLineIdx lines
-    for (let i = 0; i < currentLineIdx; i++) {
-      process.stdout.write('\x1b[1A'); // Move up one line
-    }
-    process.stdout.write('\r'); // Move to column 0
-    
-    // Step 2: Clear all old lines
     for (let i = 0; i < maxLines; i++) {
-      process.stdout.write('\x1b[2K'); // Clear entire line
+      process.stdout.write('\x1b[2K'); // Clear line
       if (i < maxLines - 1) {
-        process.stdout.write('\x1b[1B\r'); // Move down and to start
+        process.stdout.write('\n'); // Move to next line
       }
     }
     
-    // Step 3: Move back to the first line
-    for (let i = 0; i < maxLines - 1; i++) {
-      process.stdout.write('\x1b[1A'); // Move up one line
+    // Move back to the starting position
+    if (maxLines > 1) {
+      process.stdout.write(`\x1b[${maxLines - 1}A`); // Move up
     }
-    process.stdout.write('\r'); // Move to column 0
+    process.stdout.write('\r'); // Start of line
     
-    // Step 4: Draw new content
+    // Draw all content
     for (let i = 0; i < lines.length; i++) {
-      if (i > 0) {
-        process.stdout.write('\n');
-      }
       if (i === 0) {
         process.stdout.write(chalk.green('> ') + lines[i]);
       } else {
         process.stdout.write(chalk.green('  ') + lines[i]);
       }
+      if (i < lines.length - 1) {
+        process.stdout.write('\n');
+      }
     }
     
-    // Step 5: Move cursor to correct position
-    // Move to start of first line
-    for (let i = 0; i < lines.length - 1; i++) {
-      process.stdout.write('\x1b[1A');
-    }
-    process.stdout.write('\r');
-    
-    // Move down to target line
-    for (let i = 0; i < currentLineIdx; i++) {
-      process.stdout.write('\x1b[1B');
+    // Position cursor: we're now at end of last line
+    // Need to move to currentLineIdx
+    const linesUp = lines.length - 1 - currentLineIdx;
+    if (linesUp > 0) {
+      process.stdout.write(`\x1b[${linesUp}A`);
     }
     
-    // Move right to target column
-    const promptWidth = 2;
-    const col = promptWidth + stringWidth(currentLineText);
-    process.stdout.write(`\x1b[${col}G`); // Move to column (1-indexed)
+    // Set column position
+    const col = 2 + stringWidth(currentLineText);
+    process.stdout.write(`\x1b[${col}G`);
     
-    // Update state
+    // Update previous line count
     this.previousLineCount = lines.length;
   }
 
