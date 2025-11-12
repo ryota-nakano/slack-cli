@@ -1,92 +1,78 @@
 # 🚀 クイックスタートガイド
 
-## ユーザーとして投稿する最短手順
+3分でSlack CLIを始めよう！
 
-### 1. Slack APIページを開く
-```
-https://api.slack.com/apps
-```
+## ステップ1: インストール
 
-### 2. あなたのアプリ → OAuth & Permissions
-
-### 3. User Token Scopesに以下を追加:
-- channels:history
-- channels:read
-- chat:write
-- users:read
-- groups:history
-- groups:read
-
-### 4. Reinstall to Workspace ボタンをクリック
-
-### 5. ページ上部の「User OAuth Token」(xoxp-...)をコピー
-
-### 6. .envファイルに設定
 ```bash
-SLACK_USER_TOKEN=xoxp-コピーしたトークン
+npm install
 ```
 
-### 7. 使ってみる！
+## ステップ2: Slackトークンのセットアップ
+
+### オプションA: クイックセットアップ（推奨）
+
+1. https://api.slack.com/apps にアクセス
+2. 「Create New App」→「From scratch」をクリック
+3. 名前を「CLI Chat」にしてワークスペースを選択
+4. サイドバーの「OAuth & Permissions」に移動
+5. 「Scopes」までスクロールして以下の**User Token Scopes**を追加：
+   - `channels:history`
+   - `channels:read`
+   - `chat:write`
+   - `users:read`
+   - `groups:history`
+   - `groups:read`
+6. 上部の「Install to Workspace」をクリック
+7. **User OAuth Token**（`xoxp-`で始まる）をコピー
+
+### オプションB: 既存のアプリを使用
+
+既にSlackアプリがある場合：
+1. アプリの設定に移動
+2. OAuth & Permissions → Scopesを確認（不足しているスコープを追加）
+3. 必要に応じてワークスペースに再インストール
+4. トークンをコピー
+
+## ステップ3: 設定
+
 ```bash
-source venv/bin/activate
-python slack_cli.py --user chat チャンネルID
+cp .env.example .env
 ```
 
----
-
-## トークンの場所（画面イメージ）
-
-OAuth & Permissions ページの上部:
-
+`.env`を編集してトークンを追加：
 ```
-┌─────────────────────────────────────────────────┐
-│ OAuth Tokens for Your Workspace                 │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│ User OAuth Token            👈 これをコピー！    │
-│ xoxp-123456789...                        [Copy] │
-│                                                 │
-│ Bot User OAuth Token                            │
-│ xoxb-123456789...                        [Copy] │
-│                                                 │
-└─────────────────────────────────────────────────┘
+SLACK_USER_TOKEN=xoxp-your-token-here
 ```
 
----
+## ステップ4: 試してみよう！
 
-## よくある間違い
+### チャンネル一覧
+```bash
+npm run channels
+```
 
-❌ Bot Token Scopesに追加してしまう
-   → ✅ User Token Scopesに追加する
+### スレッドでチャット開始
+```bash
+node src/index.js thread <channel_id> <thread_ts>
+```
 
-❌ Bot User OAuth Token (xoxb-) をコピーしてしまう
-   → ✅ User OAuth Token (xoxp-) をコピーする
+**channel_idとthread_tsの取得方法は？**
+1. SlackのWeb版またはデスクトップ版を開く
+2. スレッド内のメッセージをクリック
+3. 「⋮」（三点リーダー）→「リンクをコピー」をクリック
+4. URLは次のような形式：`https://workspace.slack.com/archives/C03BMM307B5/p1762907616178439`
+5. 次のように抽出：
+   - `channel_id` = `C03BMM307B5`
+   - `thread_ts` = `1762907616.178439`（10桁目の後にドットを追加：`1762907616` → `1762907616.178439`）
 
-❌ アプリを再インストールしていない
-   → ✅ スコープ追加後、必ず再インストールする
+## 🎉 準備完了！
 
----
+### クイックヒント
 
-## トラブルシューティング
+- **短いメッセージ**: そのまま入力してEnterを押す
+- **長いメッセージ**: `Ctrl+E`でvim/nanoを開く
+- **メンション**: `@`を入力してTab/↑↓で選択
+- **終了**: `Ctrl+C`を押す
 
-### User OAuth Token が表示されない
-
-**原因:** User Token Scopesを追加していない
-
-**解決方法:**
-1. ページを下にスクロール
-2. 「User Token Scopes」セクションを探す（Bot Token Scopesの下）
-3. スコープを追加
-4. ページ上部の「Reinstall to Workspace」をクリック
-5. ページ上部に戻って「User OAuth Token」を確認
-
-### どのトークンをコピーすればいい？
-
-- **User OAuth Token** (xoxp-...) → ユーザーとして投稿
-- **Bot User OAuth Token** (xoxb-...) → Botとして投稿
-
-両方コピーして.envに設定すれば、--userオプションで切り替えられます！
-
----
-
-詳細な説明は [USER_TOKEN_SETUP.md](USER_TOKEN_SETUP.md) を参照してください。
+さらに詳しい情報は [README.md](README.md) をご覧ください！

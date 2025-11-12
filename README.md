@@ -1,340 +1,130 @@
 # Slack CLI
 
-UbuntuのCLIでSlackチャットができるツールです。
+🚀 **ターミナルで動作するSlackチャットクライアント（スレッド対応・メンション補完機能付き）**
 
-**🆕 Python版とNode.js版の両方を提供！**
+## ✨ 特徴
 
-## 📦 どちらのバージョンを使う？
+- 💬 ターミナル上でインタラクティブなスレッドチャット
+- 🏷️ @メンション自動補完（Tab/矢印キーで選択）
+- 📝 2つの入力モード：Readline（デフォルト）& Editor（vim/nano）
+- 🔄 リアルタイムメッセージ更新（2秒ごとにポーリング）
+- 🎨 絵文字付きカラフルなUI
+- ⚡ 自分の投稿も即座に反映
+- 🌏 完全な日本語対応
+- 💾 ユーザー情報キャッシュによる高速化
 
-| | Python版 | Node.js版 |
-|---|---------|-----------|
-| 📄 ドキュメント | このREADME | [README_NODE.md](README_NODE.md) |
-| 🚀 起動 | `python slack_cli.py` | `node slack-cli.js` |
-| 📦 依存管理 | `pip` + `venv` | `npm` |
-| ✨ 機能 | 全機能実装 | 全機能実装 |
-| 💡 向いている人 | Pythonに慣れている | Node.jsに慣れている |
-
-**どちらも同じ機能を持っています！好きな方を選んでください** 🎉
-
----
-
-## ⚠️ よくある質問
-
-### Bot vs ユーザーとして投稿
-
-- **デフォルト（Bot Token）**: 🤖 Botアプリ名で投稿
-- **--user オプション（User Token）**: 👤 あなたのユーザー名で投稿
-
-📖 **ユーザーとして投稿したい場合:**
-- 最短手順: [QUICKSTART.md](QUICKSTART.md) ⚡
-- 詳細説明: [USER_TOKEN_SETUP.md](USER_TOKEN_SETUP.md) 📚
-
-### エラーが出た場合
-
-`missing_scope` エラーが出た場合は、[SCOPE_SETUP.md](SCOPE_SETUP.md) を参照してください。
-
-## クイックスタート
+## 📦 インストール
 
 ```bash
-# 1. セットアップスクリプトを実行
-./setup.sh
-
-# 2. .envファイルを作成してSlack APIトークンを設定
-cp .env.example .env
-# .envファイルを編集して、SLACK_BOT_TOKENを設定
-
-# 3. 仮想環境を有効化
-source venv/bin/activate
-
-# 4. 使ってみる
-python slack_cli.py list
-```
-
-**💡 日本語入力のヒント:**
-- Backspaceで文字を削除できます
-- 矢印キー（↑↓←→）でカーソル移動できます
-- Ctrl+Cで終了できます
-
-## 機能
-
-- チャンネル一覧の表示
-- メッセージの送信
-- **スレッドへの返信** 🆕
-- **スレッドチャット（返信+リアルタイム監視）** 🆕🔥
-- メッセージの受信（履歴表示）
-- リアルタイムメッセージの監視
-- インタラクティブチャットモード（スレッド対応、リアルタイム更新）
-
-## セットアップ
-
-### 1. 仮想環境の作成と依存関係のインストール
-
-```bash
-# 仮想環境を作成
-python3 -m venv venv
-
-# 仮想環境を有効化
-source venv/bin/activate
-
 # 依存関係をインストール
-pip install -r requirements.txt
+npm install
+
+# 環境設定
+cp .env.example .env
+# .envを編集してSlackトークンを追加
 ```
 
-### 2. Slack APIトークンの取得
+## 🔑 Slackトークンのセットアップ
 
-#### 詳細な手順:
-
-1. **Slack Appを作成**
-   - [Slack API](https://api.slack.com/apps)にアクセス
-   - 「Create New App」をクリック
-   - 「From scratch」を選択
-   - App名とワークスペースを選択して「Create App」
-
-2. **Bot Token Scopesを追加**
-   - 左メニューから「OAuth & Permissions」を選択
-   - 「Bot Token Scopes」セクションまでスクロール
-   - 「Add an OAuth Scope」をクリックして以下を追加：
-   
-   **必須のスコープ:**
-   ```
-   channels:history    - パブリックチャンネルのメッセージ履歴を読む
-   channels:read       - パブリックチャンネル一覧を取得
-   chat:write          - メッセージを送信
-   users:read          - ユーザー情報を取得
-   groups:history      - プライベートチャンネルのメッセージ履歴を読む
-   groups:read         - プライベートチャンネル一覧を取得
-   ```
-
-3. **アプリをワークスペースにインストール**
-   - ページ上部の「Install to Workspace」をクリック
-   - 権限を確認して「許可する」をクリック
-
-4. **Bot User OAuth Tokenをコピー**
-   - インストール後、「Bot User OAuth Token」が表示されます
-   - `xoxb-`で始まるトークンをコピー
-
-5. **Botをチャンネルに招待**
-   - Slackアプリで使用するチャンネルを開く
-   - `/invite @your-bot-name` を実行
-   - または、チャンネル設定から「統合」→「アプリを追加」
-
-### 3. 環境変数の設定
-
-**ユーザーとして投稿する場合（推奨）:**
-```bash
-export SLACK_USER_TOKEN="xoxp-your-user-token-here"
-```
-
-**Botとして投稿する場合:**
-```bash
-export SLACK_BOT_TOKEN="xoxb-your-bot-token-here"
-```
-
-または`.env`ファイルを作成：
-
-```
-# ユーザーとして投稿
-SLACK_USER_TOKEN=xoxp-your-user-token-here
-
-# Botとして投稿（オプション）
-SLACK_BOT_TOKEN=xoxb-your-bot-token-here
-```
-
-## 使い方
-
-**注意:** 仮想環境を有効化してから実行してください: `source venv/bin/activate`
-
-### チャンネル一覧を表示
-
-```bash
-python slack_cli.py list
-```
-
-### メッセージを送信
-
-```bash
-# Botとして送信（デフォルト）
-python slack_cli.py send <channel_id> "メッセージ内容"
-
-# ユーザーとして送信
-python slack_cli.py --user send <channel_id> "メッセージ内容"
-```
-
-### スレッドに返信 🆕
-
-```bash
-# 履歴からスレッドIDを確認
-python slack_cli.py history <channel_id>
-
-# 出力例:
-# [1] [2024-01-15 10:30:45] Alice: 会議の議事録です 💬 3件の返信
-#      └─ 💬 スレッドID: 1705282245.123456
-#      └─ 📋 コマンド: thread C01234ABCDE 1705282245.123456
-#      └─ 📝 返信: reply C01234ABCDE 1705282245.123456 "メッセージ"
-
-# スレッドチャット（返信+リアルタイム監視） 🆕🔥
-python slack_cli.py thread <channel_id> <thread_ts>
-# → シンプルで分かりやすい操作！
-# → 改行: Ctrl+J
-# → 削除: Ctrl+H (Backspace)
-# → 送信: Enter
-# → メンション: @名前 で候補表示 🆕✨
-# → 終了: Ctrl+C
-# → 矢印キーで自由に移動
-# → 複数行を自由に編集できる
-# → 2秒ごとに新しい返信を自動表示
-# → 画面を自動リフレッシュ
-# → 自分の投稿もすぐに画面に反映！
-
-# スレッドに1回だけ返信（確認メッセージあり）
-python slack_cli.py reply <channel_id> <thread_ts> "返信内容"
-# → スクリプトから使う時やサッと送信したい時に便利
-
-# ユーザーとしてスレッドチャット
-python slack_cli.py --user thread <channel_id> <thread_ts>
-```
-
-**スレッドIDは履歴表示で自動的に表示されます！**
-コマンドもコピペできる形式で表示されるので、簡単に使えます。
-
-**`thread`コマンドの特徴:**
-- 💬 **シンプルで分かりやすい操作！**
-- 📝 改行: `Ctrl+J`
-- ⌫ 削除: `Ctrl+H` (Backspaceと同じ)
-- 📤 送信: `Enter`
-- 🏷️ **メンション: `@名前` で候補表示** 🆕✨
-- 🛑 終了: `Ctrl+C` または `Ctrl+D`
-- ⬆️⬇️⬅️➡️ **矢印キーで自由にカーソル移動**
-- ✏️ **複数行を自由に編集**
-- 🔄 2秒ごとに新しい返信を自動表示
-- 🖥️ 画面を自動リフレッシュ（新しいメッセージが常に見やすい位置に）
-- ⚡ 自分の投稿も0.3秒で画面に反映（確認メッセージなし）
-- 📊 最新20件を表示（長すぎるスレッドも快適）
-- 👥 他の人の返信もリアルタイムで見える
-
-**メンション機能:** 🆕✨
-```
-> @ryo<Tab または ↓>
-候補:
-  @ryota (山田 太郎)
-  @ryoichi (鈴木 良一)
-
-↓で選択、Enterで確定
-→ "こんにちは <@U12345678>" に変換
-```
-
-**使い方:**
-1. `@`を入力
-2. 名前の一部を入力（例: `ryo`）
-3. 候補が自動表示される
-4. `Tab`または`↓`で選択
-5. `Enter`で確定
-6. 自動的に`<@USER_ID>`形式に変換
-
-**入力例:**
-```
-> @ryo<Tab><Enter>
-→ "<@U12345678>"
-
-> @geo<Tab> お疲れ様です<Ctrl+J>
-→ "<@U87654321> お疲れ様です"
-質問があります<Enter>
-```
-
-送信されるメッセージ:
-```
-<@U87654321> お疲れ様です
-質問があります
-```
-
-**便利な機能:**
-- Ctrl+H で文字削除（**改行も削除できる！**）
-- 矢印キー（↑↓←→）でカーソル移動（**どこでも移動可能！**）
-- **`@`でメンション候補を自動表示** 🆕
-- チャンネルメンバーから検索
-- 表示名・本名の両方で検索可能
-- Ctrl+A で行頭、Ctrl+E で行末
-- Ctrl+K でカーソルから行末まで削除
-- Ctrl+U でカーソルから行頭まで削除
-- 間違えたら自由に修正できる
-
-**キーバインディング:**
-- `Ctrl+J` - 改行
-- `Ctrl+H` - 削除（Backspaceと同じ動作）
-- `Enter` - 送信
-- `@名前` + `Tab` - メンション候補選択
-- `Ctrl+C` - 終了
-
-**`reply`コマンドとの違い:**
-- `thread`: チャットモード、画面リフレッシュ、複数行編集
-- `reply`: 1回だけ送信、確認メッセージあり、スクリプト向け
-
-### メッセージ履歴を表示
-
-```bash
-python slack_cli.py history <channel_id>
-```
-
-履歴にスレッドがある場合、💬アイコンとスレッドIDが表示されます。
-
-### インタラクティブモード
-
-```bash
-# 通常のチャット
-python slack_cli.py chat <channel_id>
-
-# ユーザーとしてチャット（あなたの名前で投稿）
-python slack_cli.py --user chat <channel_id>
-```
-
-**チャットモード内のコマンド:**
-- `/quit` - 終了
-- `/history` - 履歴表示
-- `/reply <thread_ts>` - スレッドモードに切り替え
-- `/thread` - スレッド内容を表示（スレッドモード時）
-
-**リアルタイム更新:**
-- 通常チャット: 1秒ごとに新しいメッセージをチェック
-- スレッドチャット（`thread`コマンド）: 2秒ごとに新しい返信をチェック、メッセージも送信可能
-
-チャットモードでは、リアルタイムでメッセージを送受信できます。
-`/quit`で終了します。
-
-詳しくは [THREAD_GUIDE.md](THREAD_GUIDE.md) を参照してください。
-
-## トラブルシューティング
-
-### `missing_scope` エラー
-
-**原因:** 必要なスコープが不足しています
-
-**解決方法:**
 1. https://api.slack.com/apps にアクセス
-2. あなたのアプリを選択
-3. 左メニューから「OAuth & Permissions」をクリック
-4. 「Bot Token Scopes」に上記の6つのスコープが全て追加されているか確認
-5. スコープを追加した場合は、ページ上部の「reinstall your app」をクリック
-6. 新しいトークンを `.env` ファイルに反映
+2. 新しいアプリを作成するか既存のアプリを選択
+3. "OAuth & Permissions" に移動
+4. 必要なスコープを追加：
+   - `channels:history`
+   - `channels:read`
+   - `chat:write`
+   - `users:read`
+   - `groups:history`
+   - `groups:read`
+5. ワークスペースにインストールしてトークンを `.env` にコピー
 
-### `not_in_channel` エラー
+**推奨：** 自分の名前で投稿するにはUser Token（`SLACK_USER_TOKEN`）を使用してください
 
-**原因:** Botがチャンネルに参加していません
+## 🚀 使い方
 
-**解決方法:**
-Slackアプリでチャンネルを開き、以下のいずれかの方法でBotを招待:
-- `/invite @your-bot-name` を実行
-- チャンネル詳細 → 統合 → アプリを追加
+### チャンネル一覧
 
-### `channel_not_found` エラー
-
-**原因:** チャンネルIDが間違っているか、Botがアクセスできません
-
-**解決方法:**
 ```bash
-python slack_cli.py list
+npm run channels
+# または
+node src/index.js channels
 ```
-でチャンネルIDを確認してください。
 
-## ライセンス
+### スレッドチャット開始
 
-MIT
+```bash
+node src/index.js thread <channel_id> <thread_ts>
+```
+
+**例：**
+```bash
+node src/index.js thread C03BMM307B5 1762907616.178439
+```
+
+## ⌨️ キーボードショートカット
+
+| キー | 動作 |
+|-----|------|
+| `Enter` | メッセージ送信 |
+| `@` + 入力 | メンション補完 |
+| `Tab` / `↑↓` | メンション候補選択 |
+| `Ctrl+E` | 外部エディタ起動（vim/nano） |
+| `Ctrl+C` | 終了 |
+| `Backspace` | 文字削除 |
+| `←→` | カーソル移動 |
+
+## 📝 入力モード
+
+### Readlineモード（デフォルト）
+- シンプルな1行入力
+- 短いメッセージに最適
+- Enterで即座に送信
+- @メンション補完機能
+
+### Editorモード（Ctrl+E）
+- vim/nano等のお好みのエディタを起動
+- 長文メッセージに最適
+- 複数行編集可能
+- 保存して終了で送信、保存せず終了でキャンセル
+
+エディタの設定：`export EDITOR=nano` または `.env` に追加
+
+## 🏗️ プロジェクト構造
+
+```
+slack-cli/
+├── src/
+│   ├── index.js              # エントリーポイント
+│   ├── api/
+│   │   └── slack-client.js   # Slack APIクライアント
+│   ├── commands/
+│   │   ├── channels.js       # チャンネル一覧コマンド
+│   │   └── thread.js         # スレッドチャットコマンド
+│   ├── ui/
+│   │   ├── readline-input.js # Readline入力モード
+│   │   ├── editor-input.js   # Editor入力モード
+│   │   └── thread-display.js # スレッドメッセージ表示
+│   └── utils/
+│       └── help.js           # ヘルプコマンド
+├── .env.example              # 環境変数テンプレート
+├── package.json              # Node.js設定
+└── README.md                 # このファイル
+```
+
+## 🔧 環境変数
+
+| 変数 | 説明 | 必須 |
+|------|------|------|
+| `SLACK_USER_TOKEN` | ユーザートークン（推奨） | はい* |
+| `SLACK_BOT_TOKEN` | Botトークン | はい* |
+| `EDITOR` | 外部エディタ（デフォルト：vim） | いいえ |
+
+*User TokenまたはBot Tokenのどちらかが必須です
+
+## 📄 ライセンス
+
+ISC
+
+## 🤝 貢献
+
+IssueやPull Requestはお気軽にどうぞ！
