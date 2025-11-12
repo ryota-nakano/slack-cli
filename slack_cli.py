@@ -12,9 +12,42 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from prompt_toolkit import prompt
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.completion import Completer, Completion
 
 # 環境変数を読み込む
 load_dotenv()
+
+class MentionCompleter(Completer):
+    """@でメンションをオートコンプリート"""
+    def __init__(self, members):
+        """
+        Args:
+            members: [(user_id, display_name, real_name), ...] のリスト
+        """
+        self.members = members
+    
+    def get_completions(self, document, complete_event):
+        """補完候補を返す"""
+        text = document.text_before_cursor
+        
+        # @の後の文字列を取得
+        if '@' in text:
+            # 最後の@を見つける
+            at_index = text.rfind('@')
+            search_text = text[at_index + 1:].lower()
+            
+            # メンバーを検索
+            for user_id, display_name, real_name in self.members:
+                # 表示名または本名で検索
+                if search_text in display_name.lower() or search_text in real_name.lower():
+                    # 候補として表示
+                    # <@USER_ID> 形式に変換
+                    yield Completion(
+                        text=f'<@{user_id}>',  # Slack形式のメンション
+                        start_position=-(len(search_text) + 1),  # @も含めて置き換え
+                        display=f'@{display_name}',  # 表示テキスト
+                        display_meta=real_name  # メタ情報（本名）
+                    )
 
 class SlackCLI:
     def __init__(self, use_user_token=False):
@@ -87,6 +120,40 @@ class SlackCLI:
         except SlackApiError:
             return user_id
     
+    def get_channel_members(self, channel_id):
+        """チャンネルのメンバーリストを取得"""
+        try:
+            # チャンネルメンバーのIDを取得
+            response = self.client.conversations_members(channel=channel_id)
+            member_ids = response["members"]
+            
+            # メンバー情報を取得
+            members = []
+            for user_id in member_ids:
+                try:
+                    user_info = self.client.users_info(user=user_id)
+                    user = user_info["user"]
+                    
+                    # Botやシステムアカウントは除外
+                    if user.get("is_bot") or user.get("deleted"):
+                        continue
+                    
+                    display_name = user["profile"].get("display_name") or user["name"]
+                    real_name = user["profile"].get("real_name", display_name)
+                    
+                    members.append((user_id, display_name, real_name))
+                    
+                    # キャッシュにも保存
+                    self.user_cache[user_id] = display_name
+                    
+                except SlackApiError:
+                    continue
+            
+            return members
+        except SlackApiError as e:
+            print(f"メンバー取得エラー: {e.response['error']}")
+            return []
+    
     def list_channels(self):
         """チャンネル一覧を表示"""
         try:
@@ -152,7 +219,7 @@ class SlackCLI:
                 """メッセージを表示"""
                 if show_header:
                     print(f"\n#{channel_name} のスレッドチャット (ID: {thread_ts})")
-                    print("改行: Ctrl+J | 削除: Ctrl+H | 送信: Enter | 終了: Ctrl+C")
+                    print("改行: Ctrl+J | 削除: Ctrl+H | 送信: Enter | メンション: @名前 | 終了: Ctrl+C")
                     print("=" * 80)
                 
                 reply_count = len(messages) - 1
@@ -229,6 +296,11 @@ class SlackCLI:
             import queue
             import os
             
+            # チャンネルメンバーを取得
+            print("メンバー情報を取得中...")
+            members = self.get_channel_members(channel_id)
+            member_names = [f"@{name}" for _, name, _ in members]
+            
             # 初回取得
             response = self.client.conversations_replies(
                 channel=channel_id,
@@ -239,11 +311,23 @@ class SlackCLI:
             
             # 初回表示
             display_messages(messages, show_header=True)
+            
+            # メンバーリストを表示
+            if members:
+                print(f"\n👥 メンバー ({len(members)}人): {', '.join(member_names[:10])}", end="")
+                if len(members) > 10:
+                    print(f" ...他{len(members)-10}人")
+                else:
+                    print()
+            print(f"💡 @を入力すると候補が表示されます\n")
             print(f"\n💬 入力待ち...\n")
             
             # 入力用のキュー
             input_queue = queue.Queue()
             stop_input_thread = threading.Event()
+            
+            # メンションコンプリーターを作成
+            mention_completer = MentionCompleter(members)
             
             def input_thread():
                 """別スレッドで入力を受け付ける（複数行対応 - prompt_toolkit使用）"""
@@ -272,11 +356,13 @@ class SlackCLI:
                 
                 while not stop_input_thread.is_set():
                     try:
-                        # prompt_toolkitで複数行入力
+                        # prompt_toolkitで複数行入力（メンションコンプリーター付き）
                         message = prompt(
                             '> ',
                             multiline=multiline_condition,
                             key_bindings=kb,
+                            completer=mention_completer,
+                            complete_while_typing=True,
                         )
                         
                         if message and message.strip():
