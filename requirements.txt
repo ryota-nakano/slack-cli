@@ -1,2 +1,4 @@
-slack-sdk>=3.23.0
-python-dotenv>=1.0.0
+prompt_toolkit==3.0.52
+python-dotenv==1.2.1
+slack_sdk==3.37.0
+wcwidth==0.2.14

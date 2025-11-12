@@ -6,11 +6,12 @@ Slack CLI - UbuntuのCLIでSlackチャットができるツール
 import os
 import sys
 import time
-import readline  # 日本語入力とカーソル移動を改善
 from datetime import datetime
 from dotenv import load_dotenv
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+from prompt_toolkit import prompt
+from prompt_toolkit.key_binding import KeyBindings
 
 # 環境変数を読み込む
 load_dotenv()
@@ -245,55 +246,38 @@ class SlackCLI:
             stop_input_thread = threading.Event()
             
             def input_thread():
-                """別スレッドで入力を受け付ける（複数行対応）"""
+                """別スレッドで入力を受け付ける（複数行対応 - prompt_toolkit使用）"""
+                # キーバインディングを設定
+                kb = KeyBindings()
+                
+                @kb.add('enter')
+                def _(event):
+                    """Enterで送信"""
+                    event.current_buffer.validate_and_handle()
+                
+                @kb.add('escape', 'enter')  # Alt+Enter
+                def _(event):
+                    """Alt+Enterで改行"""
+                    event.current_buffer.insert_text('\n')
+                
                 while not stop_input_thread.is_set():
                     try:
-                        print("> ", end='', flush=True)
-                        lines = []
-                        empty_line_count = 0
+                        # prompt_toolkitで複数行入力
+                        message = prompt(
+                            '> ',
+                            multiline=True,
+                            key_bindings=kb,
+                        )
                         
-                        # 複数行入力モード
-                        while True:
-                            try:
-                                line = input()
-                                
-                                # 空行チェック
-                                if line == "":
-                                    empty_line_count += 1
-                                    if empty_line_count >= 2:
-                                        # 空行2回で送信（最後の空行は含めない）
-                                        break
-                                    else:
-                                        # 1回目の空行は保存
-                                        lines.append(line)
-                                        print("> ", end='', flush=True)
-                                else:
-                                    empty_line_count = 0
-                                    lines.append(line)
-                                    print("> ", end='', flush=True)
-                                
-                            except EOFError:
-                                # Ctrl+D が押された = 送信
-                                break
-                            except KeyboardInterrupt:
-                                # Ctrl+C が押された = 終了
-                                input_queue.put('/quit')
-                                return
-                        
-                        # 末尾の空行を削除
-                        while lines and lines[-1] == "":
-                            lines.pop()
-                        
-                        # メッセージを送信
-                        if lines:
-                            message = '\n'.join(lines)
-                            if message.strip():
-                                input_queue.put(message)
-                        
-                        # 改行を出力
-                        print()
+                        if message and message.strip():
+                            input_queue.put(message)
                             
                     except KeyboardInterrupt:
+                        # Ctrl+C = 終了
+                        input_queue.put('/quit')
+                        break
+                    except EOFError:
+                        # Ctrl+D = 終了
                         input_queue.put('/quit')
                         break
                     except Exception:
