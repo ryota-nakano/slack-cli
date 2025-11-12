@@ -124,9 +124,14 @@ class SlackCLI:
             response = self.client.chat_postMessage(**kwargs)
             
             if thread_ts:
-                print(f"✓ スレッドに返信しました (ts: {response['ts']})")
+                print(f"✓ スレッドに返信しました")
+                print(f"  メッセージID: {response['ts']}")
+                print(f"  スレッドID: {thread_ts}")
             else:
-                print(f"✓ メッセージを送信しました (ts: {response['ts']})")
+                msg_ts = response['ts']
+                print(f"✓ メッセージを送信しました")
+                print(f"  メッセージID: {msg_ts}")
+                print(f"  💡 このメッセージにスレッドを作成: reply {channel_id} {msg_ts} \"返信\"")
             
             return response['ts']
             
@@ -138,7 +143,7 @@ class SlackCLI:
         """スレッドの内容を表示"""
         try:
             channel_name = self.get_channel_name(channel_id)
-            print(f"\n#{channel_name} のスレッド:")
+            print(f"\n#{channel_name} のスレッド (ID: {thread_ts}):")
             print("=" * 80)
             
             response = self.client.conversations_replies(
@@ -147,6 +152,7 @@ class SlackCLI:
             )
             
             messages = response["messages"]
+            reply_count = len(messages) - 1  # 親メッセージを除く
             
             for i, msg in enumerate(messages):
                 if msg.get("subtype") in ["channel_join", "channel_leave"]:
@@ -161,10 +167,15 @@ class SlackCLI:
                 
                 text = msg.get("text", "")
                 
-                prefix = "📌" if i == 0 else "  ↳"
+                if i == 0:
+                    prefix = "📌 [親]"
+                else:
+                    prefix = f"  ↳ [{i}]"
                 print(f"{prefix} [{time_str}] {user_name}: {text}")
             
-            print("=" * 80 + "\n")
+            print("=" * 80)
+            print(f"💬 合計 {reply_count} 件の返信")
+            print(f"📝 返信コマンド: reply {channel_id} {thread_ts} \"メッセージ\"\n")
             
         except SlackApiError as e:
             self.handle_slack_error(e, "スレッド取得")
@@ -191,6 +202,7 @@ class SlackCLI:
             
             messages = reversed(response["messages"])
             
+            msg_number = 1
             for msg in messages:
                 if msg.get("subtype") in ["channel_join", "channel_leave"]:
                     continue
@@ -211,9 +223,17 @@ class SlackCLI:
                     if reply_count > 0:
                         thread_info = f" 💬 {reply_count}件の返信"
                 
-                print(f"[{time_str}] {user_name}: {text}{thread_info}")
+                # メッセージ番号を表示
+                print(f"[{msg_number}] [{time_str}] {user_name}: {text}{thread_info}")
+                
+                # スレッドIDを表示
                 if msg.get("thread_ts") and msg.get("reply_count", 0) > 0:
-                    print(f"  └─ スレッドID: {msg['ts']}")
+                    thread_ts_display = msg['ts']
+                    print(f"     └─ 💬 スレッドID: {thread_ts_display}")
+                    print(f"     └─ 📋 コマンド: thread {channel_id} {thread_ts_display}")
+                    print(f"     └─ 📝 返信: reply {channel_id} {thread_ts_display} \"メッセージ\"")
+                
+                msg_number += 1
             
             print("=" * 80 + "\n")
             
@@ -304,7 +324,18 @@ class SlackCLI:
                                     dt = datetime.fromtimestamp(float(msg["ts"]))
                                     time_str = dt.strftime("%H:%M:%S")
                                     prefix = "  ↳" if thread_ts else ""
-                                    print(f"{prefix}[{time_str}] {user_name}: {text}")
+                                    
+                                    # スレッド情報を追加
+                                    thread_info = ""
+                                    if not thread_ts and msg.get("thread_ts") and msg.get("reply_count", 0) > 0:
+                                        reply_count = msg.get("reply_count")
+                                        thread_info = f" 💬 {reply_count}件"
+                                    
+                                    print(f"{prefix}[{time_str}] {user_name}: {text}{thread_info}")
+                                    
+                                    # スレッドIDを表示（通常モードのみ）
+                                    if not thread_ts and msg.get("thread_ts") and msg.get("reply_count", 0) > 0:
+                                        print(f"  └─ スレッド: /reply {msg['ts']}")
                         
                         latest_ts = response["messages"][0]["ts"]
                 

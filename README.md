@@ -142,6 +142,15 @@ python slack_cli.py --user send <channel_id> "メッセージ内容"
 ### スレッドに返信 🆕
 
 ```bash
+# 履歴からスレッドIDを確認
+python slack_cli.py history <channel_id>
+
+# 出力例:
+# [1] [2024-01-15 10:30:45] Alice: 会議の議事録です 💬 3件の返信
+#      └─ 💬 スレッドID: 1705282245.123456
+#      └─ 📋 コマンド: thread C01234ABCDE 1705282245.123456
+#      └─ 📝 返信: reply C01234ABCDE 1705282245.123456 "メッセージ"
+
 # スレッドを表示
 python slack_cli.py thread <channel_id> <thread_ts>
 
@@ -152,9 +161,8 @@ python slack_cli.py reply <channel_id> <thread_ts> "返信内容"
 python slack_cli.py --user reply <channel_id> <thread_ts> "返信内容"
 ```
 
-**thread_tsの取得方法:**
-- `history`コマンドで表示されるスレッドIDをコピー
-- Slackアプリでメッセージを右クリック → 「リンクをコピー」→ 末尾の数字
+**スレッドIDは履歴表示で自動的に表示されます！**
+コマンドもコピペできる形式で表示されるので、簡単に使えます。
 
 ### メッセージ履歴を表示
 
