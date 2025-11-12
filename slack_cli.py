@@ -250,17 +250,27 @@ class SlackCLI:
                     try:
                         print("> ", end='', flush=True)
                         lines = []
+                        empty_line_count = 0
                         
                         # 複数行入力モード
                         while True:
                             try:
                                 line = input()
                                 
-                                # Ctrl+D で送信（EOFError が発生）
-                                lines.append(line)
-                                
-                                # 続きの行のプロンプト
-                                print("> ", end='', flush=True)
+                                # 空行チェック
+                                if line == "":
+                                    empty_line_count += 1
+                                    if empty_line_count >= 2:
+                                        # 空行2回で送信（最後の空行は含めない）
+                                        break
+                                    else:
+                                        # 1回目の空行は保存
+                                        lines.append(line)
+                                        print("> ", end='', flush=True)
+                                else:
+                                    empty_line_count = 0
+                                    lines.append(line)
+                                    print("> ", end='', flush=True)
                                 
                             except EOFError:
                                 # Ctrl+D が押された = 送信
@@ -269,6 +279,10 @@ class SlackCLI:
                                 # Ctrl+C が押された = 終了
                                 input_queue.put('/quit')
                                 return
+                        
+                        # 末尾の空行を削除
+                        while lines and lines[-1] == "":
+                            lines.pop()
                         
                         # メッセージを送信
                         if lines:
