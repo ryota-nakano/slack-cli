@@ -34,6 +34,11 @@ source venv/bin/activate
 python slack_cli.py list
 ```
 
+**💡 日本語入力のヒント:**
+- Backspaceで文字を削除できます
+- 矢印キー（↑↓←→）でカーソル移動できます
+- Ctrl+Cで終了できます
+
 ## 機能
 
 - チャンネル一覧の表示

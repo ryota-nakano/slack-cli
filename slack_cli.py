@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Slack CLI - UbuntuのCLIでSlackチャットができるツール
 """
 import os
 import sys
 import time
+import readline  # 日本語入力とカーソル移動を改善
 from datetime import datetime
 from dotenv import load_dotenv
 from slack_sdk import WebClient
@@ -240,16 +242,21 @@ class SlackCLI:
             
             # 入力用のキュー
             input_queue = queue.Queue()
+            stop_input_thread = threading.Event()
             
             def input_thread():
                 """別スレッドで入力を受け付ける"""
-                while True:
+                while not stop_input_thread.is_set():
                     try:
+                        # readlineを使って入力を受け取る
                         line = input()
-                        input_queue.put(line)
-                    except EOFError:
+                        if line is not None:
+                            input_queue.put(line)
+                    except (EOFError, KeyboardInterrupt):
                         input_queue.put('/quit')
                         break
+                    except Exception:
+                        pass
             
             # 入力スレッドを開始
             t = threading.Thread(target=input_thread, daemon=True)
@@ -314,8 +321,11 @@ class SlackCLI:
                     time.sleep(0.1)
                     
             except KeyboardInterrupt:
+                stop_input_thread.set()
                 print("\n\nスレッドチャットを終了します")
                 return
+            finally:
+                stop_input_thread.set()
             
         except SlackApiError as e:
             self.handle_slack_error(e, "スレッド取得")
