@@ -14,15 +14,30 @@ from slack_sdk.errors import SlackApiError
 load_dotenv()
 
 class SlackCLI:
-    def __init__(self):
-        token = os.getenv("SLACK_BOT_TOKEN")
+    def __init__(self, use_user_token=False):
+        """
+        Args:
+            use_user_token: Trueの場合、ユーザーとして投稿（User Token使用）
+                           Falseの場合、Botとして投稿（Bot Token使用）
+        """
+        if use_user_token:
+            token = os.getenv("SLACK_USER_TOKEN")
+            token_type = "SLACK_USER_TOKEN"
+        else:
+            token = os.getenv("SLACK_BOT_TOKEN")
+            token_type = "SLACK_BOT_TOKEN"
+        
         if not token:
-            print("エラー: SLACK_BOT_TOKENが設定されていません")
+            print(f"エラー: {token_type}が設定されていません")
             print("環境変数を設定するか、.envファイルを作成してください")
+            if use_user_token:
+                print("\nユーザーとして投稿するには User Token が必要です。")
+                print("詳細は USER_TOKEN_SETUP.md を参照してください。")
             sys.exit(1)
         
         self.client = WebClient(token=token)
         self.user_cache = {}
+        self.use_user_token = use_user_token
     
     def handle_slack_error(self, e, context=""):
         """Slack APIエラーを処理"""
@@ -222,11 +237,18 @@ Slack CLI - 使い方
   history <channel_id>     メッセージ履歴を表示
   chat <channel_id>        インタラクティブチャットモード
 
+オプション:
+  --user                   ユーザーとして投稿（デフォルト: Botとして投稿）
+
 例:
+  # Botとして投稿（デフォルト）
   python slack_cli.py list
   python slack_cli.py send C01234ABCDE "こんにちは"
-  python slack_cli.py history C01234ABCDE
   python slack_cli.py chat C01234ABCDE
+  
+  # ユーザーとして投稿
+  python slack_cli.py --user send C01234ABCDE "こんにちは"
+  python slack_cli.py --user chat C01234ABCDE
 """)
 
 
@@ -235,38 +257,55 @@ def main():
         print_usage()
         sys.exit(1)
     
-    command = sys.argv[1]
-    cli = SlackCLI()
+    # --user オプションをチェック
+    use_user_token = False
+    args = sys.argv[1:]
+    
+    if "--user" in args:
+        use_user_token = True
+        args.remove("--user")
+    
+    if len(args) < 1:
+        print_usage()
+        sys.exit(1)
+    
+    command = args[0]
+    cli = SlackCLI(use_user_token=use_user_token)
+    
+    # トークンタイプを表示
+    token_type = "👤 ユーザー" if use_user_token else "🤖 Bot"
+    if command != "list":
+        print(f"モード: {token_type}\n")
     
     if command == "list":
         cli.list_channels()
     
     elif command == "send":
-        if len(sys.argv) < 4:
+        if len(args) < 3:
             print("エラー: channel_idとメッセージを指定してください")
             print("例: python slack_cli.py send C01234ABCDE 'こんにちは'")
             sys.exit(1)
         
-        channel_id = sys.argv[2]
-        message = " ".join(sys.argv[3:])
+        channel_id = args[1]
+        message = " ".join(args[2:])
         cli.send_message(channel_id, message)
     
     elif command == "history":
-        if len(sys.argv) < 3:
+        if len(args) < 2:
             print("エラー: channel_idを指定してください")
             print("例: python slack_cli.py history C01234ABCDE")
             sys.exit(1)
         
-        channel_id = sys.argv[2]
+        channel_id = args[1]
         cli.show_history(channel_id)
     
     elif command == "chat":
-        if len(sys.argv) < 3:
+        if len(args) < 2:
             print("エラー: channel_idを指定してください")
             print("例: python slack_cli.py chat C01234ABCDE")
             sys.exit(1)
         
-        channel_id = sys.argv[2]
+        channel_id = args[1]
         cli.chat_mode(channel_id)
     
     else:

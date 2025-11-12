@@ -2,7 +2,16 @@
 
 UbuntuのCLIでSlackチャットができるツールです。
 
-## ⚠️ よくあるエラー
+## ⚠️ よくある質問
+
+### Bot vs ユーザーとして投稿
+
+- **デフォルト（Bot Token）**: 🤖 Botアプリ名で投稿
+- **--user オプション（User Token）**: 👤 あなたのユーザー名で投稿
+
+ユーザーとして投稿したい場合は、[USER_TOKEN_SETUP.md](USER_TOKEN_SETUP.md) を参照してください。
+
+### エラーが出た場合
 
 `missing_scope` エラーが出た場合は、[SCOPE_SETUP.md](SCOPE_SETUP.md) を参照してください。
 
@@ -85,14 +94,24 @@ pip install -r requirements.txt
 
 ### 3. 環境変数の設定
 
+**ユーザーとして投稿する場合（推奨）:**
 ```bash
-export SLACK_BOT_TOKEN="xoxb-your-token-here"
+export SLACK_USER_TOKEN="xoxp-your-user-token-here"
+```
+
+**Botとして投稿する場合:**
+```bash
+export SLACK_BOT_TOKEN="xoxb-your-bot-token-here"
 ```
 
 または`.env`ファイルを作成：
 
 ```
-SLACK_BOT_TOKEN=xoxb-your-token-here
+# ユーザーとして投稿
+SLACK_USER_TOKEN=xoxp-your-user-token-here
+
+# Botとして投稿（オプション）
+SLACK_BOT_TOKEN=xoxb-your-bot-token-here
 ```
 
 ## 使い方
@@ -108,7 +127,11 @@ python slack_cli.py list
 ### メッセージを送信
 
 ```bash
+# Botとして送信（デフォルト）
 python slack_cli.py send <channel_id> "メッセージ内容"
+
+# ユーザーとして送信
+python slack_cli.py --user send <channel_id> "メッセージ内容"
 ```
 
 ### メッセージ履歴を表示
@@ -120,7 +143,11 @@ python slack_cli.py history <channel_id>
 ### インタラクティブモード
 
 ```bash
+# Botとしてチャット
 python slack_cli.py chat <channel_id>
+
+# ユーザーとしてチャット（あなたの名前で投稿）
+python slack_cli.py --user chat <channel_id>
 ```
 
 チャットモードでは、リアルタイムでメッセージを送受信できます。
