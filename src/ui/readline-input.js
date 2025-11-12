@@ -15,6 +15,7 @@ class ReadlineInput {
     this.suggestions = [];
     this.selectedIndex = -1;
     this.rl = null;
+    this.previousLineCount = 1; // Track previous line count
   }
 
   /**
@@ -276,10 +277,24 @@ class ReadlineInput {
     }
     readline.cursorTo(process.stdout, 0);
     
-    // Clear and redraw all lines
-    for (let i = 0; i < lines.length; i++) {
+    // Clear all lines (including old ones if line count decreased)
+    const maxLines = Math.max(lines.length, this.previousLineCount);
+    for (let i = 0; i < maxLines; i++) {
       readline.clearLine(process.stdout, 0);
-      
+      if (i < maxLines - 1) {
+        readline.moveCursor(process.stdout, 0, 1);
+        readline.cursorTo(process.stdout, 0);
+      }
+    }
+    
+    // Move back to start
+    if (maxLines > 1) {
+      readline.moveCursor(process.stdout, 0, -(maxLines - 1));
+      readline.cursorTo(process.stdout, 0);
+    }
+    
+    // Redraw current lines
+    for (let i = 0; i < lines.length; i++) {
       if (i === 0) {
         process.stdout.write(chalk.green('> ') + lines[i]);
       } else {
@@ -291,6 +306,9 @@ class ReadlineInput {
         process.stdout.write('\n');
       }
     }
+    
+    // Update previous line count
+    this.previousLineCount = lines.length;
     
     // Set cursor to correct position
     this.setCursorPosition(lines, linesBeforeCursor, currentLineIdx);
