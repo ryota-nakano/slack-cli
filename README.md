@@ -2,6 +2,23 @@
 
 UbuntuのCLIでSlackチャットができるツールです。
 
+## クイックスタート
+
+```bash
+# 1. セットアップスクリプトを実行
+./setup.sh
+
+# 2. .envファイルを作成してSlack APIトークンを設定
+cp .env.example .env
+# .envファイルを編集して、SLACK_BOT_TOKENを設定
+
+# 3. 仮想環境を有効化
+source venv/bin/activate
+
+# 4. 使ってみる
+python slack_cli.py list
+```
+
 ## 機能
 
 - チャンネル一覧の表示
@@ -11,9 +28,16 @@ UbuntuのCLIでSlackチャットができるツールです。
 
 ## セットアップ
 
-### 1. 依存関係のインストール
+### 1. 仮想環境の作成と依存関係のインストール
 
 ```bash
+# 仮想環境を作成
+python3 -m venv venv
+
+# 仮想環境を有効化
+source venv/bin/activate
+
+# 依存関係をインストール
 pip install -r requirements.txt
 ```
 
@@ -42,6 +66,8 @@ SLACK_BOT_TOKEN=xoxb-your-token-here
 ```
 
 ## 使い方
+
+**注意:** 仮想環境を有効化してから実行してください: `source venv/bin/activate`
 
 ### チャンネル一覧を表示
 
