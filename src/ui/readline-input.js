@@ -27,11 +27,11 @@ class ReadlineInput {
       this.rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
-        prompt: chalk.green('> '),
         terminal: true
       });
 
-      this.rl.prompt();
+      // Manually show prompt
+      process.stdout.write(chalk.green('> '));
 
       readline.emitKeypressEvents(process.stdin, this.rl);
       if (process.stdin.isTTY) {
@@ -62,6 +62,16 @@ class ReadlineInput {
           this.clearSuggestions();
           cleanup();
           resolve('__EDITOR__');
+          return;
+        }
+
+        // Ctrl+J: Insert newline
+        if (key.ctrl && key.name === 'j') {
+          this.input = this.input.substring(0, this.cursorPos) + '\n' + this.input.substring(this.cursorPos);
+          this.cursorPos++;
+          this.clearSuggestions();
+          this.redrawInput();
+          this.updateSuggestions();
           return;
         }
 
@@ -254,19 +264,60 @@ class ReadlineInput {
    * Redraw input line
    */
   redrawInput() {
+    // Get all lines
+    const lines = this.input.split('\n');
+    const beforeCursor = this.input.substring(0, this.cursorPos);
+    const linesBeforeCursor = beforeCursor.split('\n');
+    const currentLineIdx = linesBeforeCursor.length - 1;
+    
+    // Move cursor to start of input (first line)
+    if (currentLineIdx > 0) {
+      readline.moveCursor(process.stdout, 0, -currentLineIdx);
+    }
     readline.cursorTo(process.stdout, 0);
-    readline.clearLine(process.stdout, 0);
-    process.stdout.write(chalk.green('> ') + this.input);
-    this.setCursorPosition();
+    
+    // Clear and redraw all lines
+    for (let i = 0; i < lines.length; i++) {
+      readline.clearLine(process.stdout, 0);
+      
+      if (i === 0) {
+        process.stdout.write(chalk.green('> ') + lines[i]);
+      } else {
+        process.stdout.write(chalk.green('  ') + lines[i]);
+      }
+      
+      // Move to next line if not last
+      if (i < lines.length - 1) {
+        process.stdout.write('\n');
+      }
+    }
+    
+    // Set cursor to correct position
+    this.setCursorPosition(lines, linesBeforeCursor, currentLineIdx);
   }
 
   /**
    * Set cursor position based on input
    */
-  setCursorPosition() {
-    const promptWidth = 2;
-    const beforeCursor = this.input.substring(0, this.cursorPos);
-    const displayWidth = stringWidth(beforeCursor);
+  setCursorPosition(lines = null, linesBeforeCursor = null, currentLineIdx = null) {
+    if (!lines) {
+      lines = this.input.split('\n');
+      const beforeCursor = this.input.substring(0, this.cursorPos);
+      linesBeforeCursor = beforeCursor.split('\n');
+      currentLineIdx = linesBeforeCursor.length - 1;
+    }
+    
+    const currentLineText = linesBeforeCursor[currentLineIdx];
+    const linesToMove = currentLineIdx - (lines.length - 1);
+    
+    // Move up/down to correct line
+    if (linesToMove !== 0) {
+      readline.moveCursor(process.stdout, 0, linesToMove);
+    }
+    
+    // Move to horizontal position
+    const promptWidth = 2; // '> ' or '  '
+    const displayWidth = stringWidth(currentLineText);
     readline.cursorTo(process.stdout, promptWidth + displayWidth);
   }
 

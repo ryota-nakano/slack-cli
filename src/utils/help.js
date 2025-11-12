@@ -27,6 +27,7 @@ function showHelp() {
   
   console.log(chalk.white('チャット中のキー操作:'));
   console.log(chalk.green('  Enter') + chalk.gray('         - メッセージ送信'));
+  console.log(chalk.green('  Ctrl+J') + chalk.gray('        - 改行挿入（複数行）'));
   console.log(chalk.green('  @入力') + chalk.gray('         - メンション補完 (Tab/↑↓で選択)'));
   console.log(chalk.green('  Ctrl+E') + chalk.gray('        - エディタモード (vim/nano等)'));
   console.log(chalk.green('  /rm <番号>') + chalk.gray('    - メッセージ削除 (例: /rm 5)'));

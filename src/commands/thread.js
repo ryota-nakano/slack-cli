@@ -205,6 +205,7 @@ class ThreadChatSession {
     console.log(chalk.cyan('\n📖 チャット中のコマンド:'));
     console.log(chalk.yellow('  /rm <番号>') + chalk.gray('  - 指定したメッセージを削除（例: /rm 5）'));
     console.log(chalk.yellow('  /help') + chalk.gray('      - このヘルプを表示'));
+    console.log(chalk.yellow('  Ctrl+J') + chalk.gray('    - 改行を挿入（複数行メッセージ）'));
     console.log(chalk.yellow('  Ctrl+E') + chalk.gray('    - エディタ(vim/nano)を起動'));
     console.log(chalk.yellow('  Ctrl+C') + chalk.gray('    - 終了'));
     console.log();
