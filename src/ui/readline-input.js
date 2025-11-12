@@ -265,35 +265,49 @@ class ReadlineInput {
    * Redraw input line
    */
   redrawInput() {
-    // Get all lines
+    // Calculate current state
     const lines = this.input.split('\n');
     const beforeCursor = this.input.substring(0, this.cursorPos);
     const linesBeforeCursor = beforeCursor.split('\n');
     const currentLineIdx = linesBeforeCursor.length - 1;
     
-    // Move cursor to start of input (first line)
-    if (currentLineIdx > 0) {
-      readline.moveCursor(process.stdout, 0, -currentLineIdx);
-    }
-    readline.cursorTo(process.stdout, 0);
+    // Calculate how many lines we're currently displaying (from the first line)
+    const currentDisplayLines = lines.length;
+    const previousDisplayLines = this.previousLineCount;
+    const maxLines = Math.max(currentDisplayLines, previousDisplayLines);
     
-    // Clear all lines (including old ones if line count decreased)
-    const maxLines = Math.max(lines.length, this.previousLineCount);
+    // Save current cursor column position before moving
+    const currentCol = process.stdout.columns || 80;
+    
+    // Move cursor up to the first line of our input
+    // We need to move up (currentLineIdx) lines to reach the first line
+    if (currentLineIdx > 0) {
+      process.stdout.write('\x1b[' + currentLineIdx + 'A');
+    }
+    
+    // Move to column 0
+    process.stdout.write('\r');
+    
+    // Clear all lines from current position downward
     for (let i = 0; i < maxLines; i++) {
-      readline.clearLine(process.stdout, 0);
+      // Clear this line
+      process.stdout.write('\x1b[2K'); // Clear entire line
+      
+      // Move down if not the last line to clear
       if (i < maxLines - 1) {
-        readline.moveCursor(process.stdout, 0, 1);
-        readline.cursorTo(process.stdout, 0);
+        process.stdout.write('\n');
       }
     }
     
-    // Move back to start
+    // Move back up to first line
     if (maxLines > 1) {
-      readline.moveCursor(process.stdout, 0, -(maxLines - 1));
-      readline.cursorTo(process.stdout, 0);
+      process.stdout.write('\x1b[' + (maxLines - 1) + 'A');
     }
     
-    // Redraw current lines
+    // Move to column 0
+    process.stdout.write('\r');
+    
+    // Draw all current lines
     for (let i = 0; i < lines.length; i++) {
       if (i === 0) {
         process.stdout.write(chalk.green('> ') + lines[i]);
@@ -301,7 +315,7 @@ class ReadlineInput {
         process.stdout.write(chalk.green('  ') + lines[i]);
       }
       
-      // Move to next line if not last
+      // Add newline if not the last line
       if (i < lines.length - 1) {
         process.stdout.write('\n');
       }
@@ -326,17 +340,32 @@ class ReadlineInput {
     }
     
     const currentLineText = linesBeforeCursor[currentLineIdx];
-    const linesToMove = currentLineIdx - (lines.length - 1);
     
-    // Move up/down to correct line
+    // We're currently at the end of the last line we drew
+    // Need to move to the correct line
+    const lastLineIdx = lines.length - 1;
+    const linesToMove = currentLineIdx - lastLineIdx;
+    
     if (linesToMove !== 0) {
-      readline.moveCursor(process.stdout, 0, linesToMove);
+      if (linesToMove > 0) {
+        // Move down
+        process.stdout.write('\x1b[' + linesToMove + 'B');
+      } else {
+        // Move up
+        process.stdout.write('\x1b[' + (-linesToMove) + 'A');
+      }
     }
     
-    // Move to horizontal position
+    // Set horizontal position
     const promptWidth = 2; // '> ' or '  '
     const displayWidth = stringWidth(currentLineText);
-    readline.cursorTo(process.stdout, promptWidth + displayWidth);
+    const targetCol = promptWidth + displayWidth;
+    
+    // Move to column 0 first, then move right
+    process.stdout.write('\r');
+    if (targetCol > 0) {
+      process.stdout.write('\x1b[' + targetCol + 'C');
+    }
   }
 
   /**
