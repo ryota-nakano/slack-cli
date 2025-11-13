@@ -8,6 +8,7 @@ const SlackClient = require('../api/slack-client');
 const ReadlineInput = require('../ui/readline-input');
 const EditorInput = require('../ui/editor-input');
 const ThreadDisplay = require('../ui/thread-display');
+const HistoryManager = require('../utils/history-manager');
 
 class ChatSession {
   constructor(channelId, channelName, threadTs = null) {
@@ -23,6 +24,8 @@ class ChatSession {
     this.display = null;
     this.currentDate = null; // Track current viewing date (for channels only)
     this.daysBack = 0; // 0 = today, 1 = yesterday, etc.
+    this.historyManager = new HistoryManager();
+    this.showingRecentHistory = false; // Track if /recent was just shown
   }
 
   /**
@@ -57,6 +60,14 @@ class ChatSession {
 
     // Display messages
     this.displayMessages();
+
+    // Record this conversation in history
+    this.historyManager.addConversation({
+      channelId: this.channelId,
+      channelName: this.channelName,
+      threadTs: this.threadTs,
+      type: this.isThread() ? 'thread' : 'channel'
+    });
 
     // Start update polling
     this.updateInterval = setInterval(() => this.checkUpdates(), 2000);
@@ -184,12 +195,42 @@ class ChatSession {
           continue;
         }
 
-        // Handle /番号 command (enter thread) - only in channel context
-        if (!this.isThread() && trimmedText.match(/^\/\d+$/)) {
-          const msgNumber = trimmedText.substring(1).trim();
-          await this.enterThread(msgNumber);
-          return;
+        // Handle /番号 command
+        if (trimmedText.match(/^\/\d+$/)) {
+          const number = parseInt(trimmedText.substring(1).trim());
+          
+          // Check if /recent was just shown - use history navigation
+          if (this.showingRecentHistory) {
+            const history = this.historyManager.getTodayHistory();
+            
+            if (number > 0 && number <= history.length) {
+              const item = history[number - 1];
+              console.log(chalk.cyan(`\n📂 ${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''} に移動中...\n`));
+              this.cleanup(false);
+              
+              const session = new ChatSession(item.channelId, item.channelName, item.threadTs);
+              await session.start();
+              return;
+            } else {
+              console.log(chalk.yellow(`\n⚠️  履歴番号 ${number} は存在しません`));
+              this.showingRecentHistory = false;
+              continue;
+            }
+          }
+          
+          // Otherwise, in channel context, enter thread
+          if (!this.isThread()) {
+            await this.enterThread(number.toString());
+            return;
+          }
+          
+          // In thread context, invalid command
+          console.log(chalk.yellow('\n⚠️  スレッド内では /番号 コマンドは使用できません'));
+          continue;
         }
+        
+        // Reset showingRecentHistory flag on other commands
+        this.showingRecentHistory = false;
 
         // Handle /back command (thread only) - Return to channel
         if (this.isThread() && (trimmedText === '/back' || trimmedText === '/b')) {
@@ -237,6 +278,12 @@ class ChatSession {
           this.daysBack = 0;
           await this.fetchMessages();
           this.displayMessages();
+          continue;
+        }
+
+        // Handle /recent command - Show today's conversation history
+        if (trimmedText === '/recent' || trimmedText === '/r') {
+          await this.showRecentHistory();
           continue;
         }
 
@@ -365,6 +412,7 @@ class ChatSession {
       console.log(chalk.yellow('  /back, /b') + chalk.gray('       - チャンネルに戻る'));
     }
     
+    console.log(chalk.yellow('  /recent, /r') + chalk.gray('      - 今日の会話履歴から選択'));
     console.log(chalk.yellow('  /rm <番号>') + chalk.gray('      - 指定したメッセージを削除（例: /rm 5）'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
@@ -374,6 +422,37 @@ class ChatSession {
     console.log(chalk.yellow('  Ctrl+E') + chalk.gray('          - エディタ(vim/nano)を起動'));
     console.log(chalk.yellow('  Ctrl+C') + chalk.gray('          - 終了'));
     console.log();
+  }
+
+  /**
+   * Show recent conversation history and let user select
+   */
+  async showRecentHistory() {
+    const history = this.historyManager.getTodayHistory();
+    
+    if (history.length === 0) {
+      console.log(chalk.yellow('\n💡 今日の履歴はまだありません'));
+      return;
+    }
+
+    console.log(chalk.cyan('\n📜 今日の会話履歴:\n'));
+    
+    history.forEach((item, index) => {
+      const icon = item.type === 'thread' ? '💬' : '#';
+      const typeLabel = item.type === 'thread' ? '[スレッド]' : '';
+      const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      console.log(
+        chalk.yellow(`  [${index + 1}]`) + ' ' +
+        chalk.gray(time) + ' ' +
+        `${icon} ${chalk.green(item.channelName)}${typeLabel ? chalk.gray(typeLabel) : ''}`
+      );
+    });
+    
+    console.log(chalk.gray('\n💡 ヒント: /数字 で移動（例: /1）\n'));
+    this.showingRecentHistory = true; // Set flag for next command
   }
 
   /**
@@ -439,9 +518,31 @@ async function threadChat(channelId, threadTs, channelName = null) {
 async function channelChat() {
   const token = process.env.SLACK_USER_TOKEN || process.env.SLACK_BOT_TOKEN;
   const client = new SlackClient(token);
+  const historyManager = new HistoryManager();
 
   try {
     console.log(chalk.cyan('📋 チャンネルを選択してください\n'));
+    
+    // Show today's history if available
+    const history = historyManager.getTodayHistory();
+    if (history.length > 0) {
+      console.log(chalk.cyan('📜 今日の履歴:\n'));
+      
+      history.slice(0, 5).forEach((item, index) => {
+        const icon = item.type === 'thread' ? '💬' : '#';
+        const typeLabel = item.type === 'thread' ? chalk.gray('[スレッド]') : '';
+        const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        console.log(
+          '  ' + chalk.gray(time) + ' ' +
+          `${icon} ${chalk.green(item.channelName)}${typeLabel}`
+        );
+      });
+      
+      console.log('');
+    }
     
     // Initial prompt with channel selection (auto-trigger channel mode)
     const readlineInput = new ReadlineInput([], client);
