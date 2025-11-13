@@ -221,6 +221,9 @@ class ReadlineInput {
     const linesToMove = this.suggestions.length + 1;
     readline.moveCursor(process.stdout, 0, -linesToMove);
     this.setCursorPosition();
+    
+    // IMPORTANT: screenCursorLine remains the same after showing suggestions
+    // because we move back to the original position
   }
 
   /**
@@ -241,6 +244,12 @@ class ReadlineInput {
     
     this.suggestions = [];
     this.selectedIndex = -1;
+    
+    // IMPORTANT: Reset screenCursorLine since we moved the cursor
+    // We need to recalculate where we are
+    const beforeCursor = this.input.substring(0, this.cursorPos);
+    const linesBeforeCursor = beforeCursor.split('\n');
+    this.screenCursorLine = linesBeforeCursor.length - 1;
   }
 
   /**
