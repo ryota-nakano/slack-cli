@@ -34,18 +34,15 @@ class ThreadDisplay {
       const prefix = i === 0 ? '📌' : '  ↳';
       const index = replies.length - displayReplies.length + i + 1;
       
-      // Format index with fixed width (right-aligned, 3 chars)
-      const indexStr = String(index).padStart(3, ' ');
-      
-      // Show thread indicator with fixed width
+      // Show thread indicator
       const threadIndicator = reply.hasThread 
-        ? chalk.blue(`[💬${String(reply.replyCount).padStart(2, ' ')}]`) 
-        : '      '; // 6 spaces to match [💬NN]
+        ? chalk.blue(` [💬${reply.replyCount}]`) 
+        : '';
       
-      // Format user name with fixed width (left-aligned, 12 chars)
-      const userStr = reply.user.padEnd(12, ' ').substring(0, 12);
-      
-      console.log(`${prefix} ${chalk.gray(indexStr)} ${chalk.gray(time)} ${threadIndicator} ${chalk.yellow(userStr)} ${reply.text}`);
+      // First line: Number (bright), time, thread indicator, user
+      console.log(`${prefix} ${chalk.bold.white(`[${index}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.user)}`);
+      // Second line: Message text (indented)
+      console.log(`     ${reply.text}`);
     });
 
     console.log('');
@@ -68,15 +65,15 @@ class ThreadDisplay {
         second: '2-digit'
       });
       
-      // Show thread indicator with fixed width
+      // Show thread indicator
       const threadIndicator = reply.hasThread 
-        ? chalk.blue(`[💬${String(reply.replyCount).padStart(2, ' ')}]`) 
-        : '      '; // 6 spaces
+        ? chalk.blue(` [💬${reply.replyCount}]`) 
+        : '';
       
-      // Format user name with fixed width
-      const userStr = reply.user.padEnd(12, ' ').substring(0, 12);
-      
-      console.log(`  ↳ ${chalk.gray(time)} ${threadIndicator} ${chalk.yellow(userStr)} ${reply.text}`);
+      // First line: time, thread indicator, user
+      console.log(`  ↳ ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.user)}`);
+      // Second line: Message text (indented)
+      console.log(`     ${reply.text}`);
     });
   }
 }
@@ -94,18 +91,15 @@ function displayMessages(messages) {
       second: '2-digit'
     });
 
-    // Format index with fixed width (right-aligned, 3 chars)
-    const indexStr = String(i + 1).padStart(3, ' ');
-
-    // Show thread indicator with fixed width
+    // Show thread indicator
     const threadIndicator = msg.hasThread 
-      ? chalk.blue(`[💬${String(msg.replyCount).padStart(2, ' ')}]`) 
-      : '      '; // 6 spaces
+      ? chalk.blue(` [💬${msg.replyCount}]`) 
+      : '';
 
-    // Format user name with fixed width (left-aligned, 12 chars)
-    const userStr = msg.user.padEnd(12, ' ').substring(0, 12);
-
-    console.log(`${chalk.gray(indexStr)} ${chalk.gray(time)} ${threadIndicator} ${chalk.yellow(userStr)} ${msg.text}`);
+    // First line: Number (bright), time, thread indicator, user
+    console.log(`${chalk.bold.white(`[${i + 1}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(msg.user)}`);
+    // Second line: Message text (indented)
+    console.log(`     ${msg.text}`);
   });
   console.log('');
 }
