@@ -16,7 +16,7 @@ class ReadlineInput {
     this.selectedIndex = -1;
     this.rl = null;
     this.previousLineCount = 1;
-    this.inputStartLine = 0; // Track the starting line of our input
+    this.screenCursorLine = 0; // Track which line the cursor is actually on screen (0-based)
   }
 
   /**
@@ -266,7 +266,7 @@ class ReadlineInput {
   }
 
   /**
-   * Redraw input line - Move to first line, then clear and redraw
+   * Redraw input line - Track screen cursor position accurately
    */
   redrawInput() {
     const lines = this.input.split('\n');
@@ -275,11 +275,10 @@ class ReadlineInput {
     const currentLineIdx = linesBeforeCursor.length - 1;
     const currentLineText = linesBeforeCursor[currentLineIdx];
     
-    // IMPORTANT: Move to the first line from CURRENT cursor position
-    // currentLineIdx tells us which line we're on (0-based)
-    if (currentLineIdx > 0) {
-      // Move up from current line to first line
-      process.stdout.write(`\x1b[${currentLineIdx}A`);
+    // Move to the first line using the tracked screen cursor position
+    // screenCursorLine tells us where the cursor actually is on screen
+    if (this.screenCursorLine > 0) {
+      process.stdout.write(`\x1b[${this.screenCursorLine}A`);
     }
     
     // Now we're at the first line
@@ -311,8 +310,9 @@ class ReadlineInput {
       process.stdout.write(`\x1b[${col}C`); // Move right
     }
     
-    // Update previous line count
+    // Update tracked positions
     this.previousLineCount = lines.length;
+    this.screenCursorLine = currentLineIdx; // Update screen cursor position
   }
 
   /**
