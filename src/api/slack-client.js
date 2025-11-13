@@ -17,7 +17,6 @@ class SlackClient {
   constructor(token) {
     this.client = new WebClient(token);
     this.userCache = new Map();
-    this.usergroupCache = new Map(); // Cache for user groups
     this.channelCache = null; // Cache all channels
     this.channelCacheTime = null;
     this.allUsersCache = null; // Cache all workspace users
@@ -189,42 +188,9 @@ class SlackClient {
   }
 
   /**
-   * Get user group information with caching
+   * Convert Slack mentions and special mentions to display names
+   * @param {string} text - Message text with Slack formatting
    */
-  async getUsergroupInfo(usergroupId) {
-    if (this.usergroupCache.has(usergroupId)) {
-      return this.usergroupCache.get(usergroupId);
-    }
-
-    try {
-      const result = await this.client.usergroups.list();
-      const usergroups = result.usergroups || [];
-      
-      // Cache all usergroups
-      for (const group of usergroups) {
-        const groupInfo = {
-          id: group.id,
-          handle: group.handle,
-          name: group.name
-        };
-        this.usergroupCache.set(group.id, groupInfo);
-      }
-      
-      return this.usergroupCache.get(usergroupId) || {
-        id: usergroupId,
-        handle: usergroupId,
-        name: usergroupId
-      };
-    } catch (error) {
-      // Return fallback on error
-      return {
-        id: usergroupId,
-        handle: usergroupId,
-        name: usergroupId
-      };
-    }
-  }
-
   /**
    * Convert Slack mentions and special mentions to display names
    * @param {string} text - Message text with Slack formatting
@@ -247,15 +213,10 @@ class SlackClient {
     // Replace user group mentions (with name): <!subteam^ID|@groupname> with @groupname
     formattedText = formattedText.replace(/<!subteam\^[A-Z0-9]+\|(@[^>]+)>/g, '$1');
 
-    // Replace user group mentions (without name): <!subteam^ID> with @groupname
-    const usergroupMentionRegex = /<!subteam\^([A-Z0-9]+)>/g;
-    const usergroupMentions = [...formattedText.matchAll(usergroupMentionRegex)];
-    
-    for (const match of usergroupMentions) {
-      const usergroupId = match[1];
-      const usergroup = await this.getUsergroupInfo(usergroupId);
-      formattedText = formattedText.replace(match[0], `@${usergroup.handle}`);
-    }
+    // Replace user group mentions (without name): <!subteam^ID> 
+    // Note: Without usergroups:read scope, we can't fetch group names
+    // So we'll just show @<ID> format
+    formattedText = formattedText.replace(/<!subteam\^([A-Z0-9]+)>/g, '@<$1>');
 
     // Replace special mentions
     formattedText = formattedText.replace(/<!channel>/g, '@channel');
