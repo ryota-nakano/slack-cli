@@ -114,7 +114,7 @@ class ChatSession {
    * Display all messages
    */
   displayMessages() {
-    this.display.displayMessages(this.messages, true, 0);
+    this.display.displayMessages(this.messages);
     this.lastDisplayedCount = this.messages.length;
   }
 

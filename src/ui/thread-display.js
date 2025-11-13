@@ -13,7 +13,7 @@ class ThreadDisplay {
   /**
    * Display all messages in thread
    */
-  displayMessages(replies, membersLoaded, memberCount) {
+  displayMessages(replies) {
     console.clear();
     console.log(chalk.bold.cyan(`\n#${this.channelName} のスレッド`));
     console.log(chalk.gray('='.repeat(80)));
@@ -39,12 +39,7 @@ class ThreadDisplay {
     console.log('');
     console.log(chalk.gray('='.repeat(80)));
     console.log(chalk.bold(`💬 合計 ${replies.length} 件の返信`));
-    
-    const mentionStatus = membersLoaded 
-      ? chalk.green(`✓ メンション候補: ${memberCount}人`)
-      : chalk.yellow('⏳ メンション候補読込中...');
-    console.log(chalk.gray('💡 Enter: 送信 | @: メンション | Ctrl+E: エディタ | /rm <番号>: 削除 | /help: ヘルプ'));
-    console.log(mentionStatus);
+    console.log(chalk.gray('💡 Enter: 送信 | @[Tab]: メンション | #[Tab]: チャンネル切替 | Ctrl+E: エディタ | /help: ヘルプ'));
     console.log('');
   }
 
