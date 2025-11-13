@@ -117,7 +117,7 @@ class ChannelChatSession {
       try {
         const channels = await this.client.listChannels();
         const readlineInput = new ReadlineInput(this.channelMembers, channels);
-        const text = await readlineInput.prompt(this.channelName);
+        const text = await readlineInput.prompt(this.channelName, false); // isThread = false
 
         // Switch to editor mode
         if (text === '__EDITOR__') {
