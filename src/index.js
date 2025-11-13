@@ -5,7 +5,20 @@
  * Terminal-based Slack chat client
  */
 
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+
+// Load .env from project root (where package.json is)
+const projectRoot = path.join(__dirname, '..');
+const envPath = path.join(projectRoot, '.env');
+
+if (fs.existsSync(envPath)) {
+  require('dotenv').config({ path: envPath });
+} else {
+  // Fallback to current directory
+  require('dotenv').config();
+}
+
 const chalk = require('chalk');
 const { listChannels } = require('./commands/channels');
 const { threadChat, channelChat } = require('./commands/thread');
