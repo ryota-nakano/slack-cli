@@ -46,6 +46,13 @@ class ThreadDisplay {
       lines.forEach(line => {
         console.log(line);
       });
+      
+      // Show file attachments if present
+      if (reply.files && reply.files.length > 0) {
+        reply.files.forEach(file => {
+          console.log(chalk.cyan(`📎 ${file.title || file.name}: ${file.url}`));
+        });
+      }
     });
 
     console.log('');
@@ -81,6 +88,13 @@ class ThreadDisplay {
       lines.forEach(line => {
         console.log(line);
       });
+      
+      // Show file attachments if present
+      if (reply.files && reply.files.length > 0) {
+        reply.files.forEach(file => {
+          console.log(chalk.cyan(`📎 ${file.title || file.name}: ${file.url}`));
+        });
+      }
     });
   }
 }
@@ -111,6 +125,13 @@ function displayMessages(messages) {
     lines.forEach(line => {
       console.log(line);
     });
+    
+    // Show file attachments if present
+    if (msg.files && msg.files.length > 0) {
+      msg.files.forEach(file => {
+        console.log(chalk.cyan(`📎 ${file.title || file.name}: ${file.url}`));
+      });
+    }
   });
   console.log('');
 }

@@ -704,11 +704,25 @@ class SlackClient {
         // Format mentions in message text
         const formattedText = await this.formatMentions(msg.text || '');
 
+        // Extract file URLs if present
+        const files = [];
+        if (msg.files && msg.files.length > 0) {
+          for (const file of msg.files) {
+            files.push({
+              name: file.name,
+              url: file.url_private || file.permalink,
+              mimetype: file.mimetype,
+              title: file.title
+            });
+          }
+        }
+
         replies.push({
           ts: msg.ts,
           user: userName,
           text: formattedText,
-          timestamp: new Date(parseFloat(msg.ts) * 1000)
+          timestamp: new Date(parseFloat(msg.ts) * 1000),
+          files: files
         });
       }
 
@@ -760,6 +774,19 @@ class SlackClient {
         // Format mentions in message text (getChannelHistory)
         const formattedText = await this.formatMentions(msg.text || '');
 
+        // Extract file URLs if present
+        const files = [];
+        if (msg.files && msg.files.length > 0) {
+          for (const file of msg.files) {
+            files.push({
+              name: file.name,
+              url: file.url_private || file.permalink,
+              mimetype: file.mimetype,
+              title: file.title
+            });
+          }
+        }
+
         history.push({
           ts: msg.ts,
           user: userName,
@@ -767,7 +794,8 @@ class SlackClient {
           timestamp: new Date(parseFloat(msg.ts) * 1000),
           replyCount: msg.reply_count || 0,
           replyUsersCount: msg.reply_users_count || 0,
-          hasThread: (msg.reply_count || 0) > 0
+          hasThread: (msg.reply_count || 0) > 0,
+          files: files
         });
       }
 
@@ -815,6 +843,19 @@ class SlackClient {
         // Format mentions in message text (getChannelHistoryRange)
         const formattedText = await this.formatMentions(msg.text || '');
 
+        // Extract file URLs if present
+        const files = [];
+        if (msg.files && msg.files.length > 0) {
+          for (const file of msg.files) {
+            files.push({
+              name: file.name,
+              url: file.url_private || file.permalink,
+              mimetype: file.mimetype,
+              title: file.title
+            });
+          }
+        }
+
         history.push({
           ts: msg.ts,
           user: userName,
@@ -822,7 +863,8 @@ class SlackClient {
           timestamp: new Date(parseFloat(msg.ts) * 1000),
           replyCount: msg.reply_count || 0,
           replyUsersCount: msg.reply_users_count || 0,
-          hasThread: (msg.reply_count || 0) > 0
+          hasThread: (msg.reply_count || 0) > 0,
+          files: files
         });
       }
 
