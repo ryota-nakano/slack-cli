@@ -4,6 +4,7 @@
  */
 
 const { WebClient } = require('@slack/web-api');
+const chalk = require('chalk');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -245,33 +246,35 @@ class SlackClient {
 
     let formattedText = text;
 
-    // Replace user mentions <@USER_ID> with @DisplayName
+    // Replace user mentions <@USER_ID> with @DisplayName (colored)
     const userMentionRegex = /<@([A-Z0-9]+)>/g;
     const userMentions = [...text.matchAll(userMentionRegex)];
     
     for (const match of userMentions) {
       const userId = match[1];
       const user = await this.getUserInfo(userId);
-      formattedText = formattedText.replace(match[0], `@${user.displayName}`);
+      formattedText = formattedText.replace(match[0], chalk.cyan(`@${user.displayName}`));
     }
 
-    // Replace user group mentions (with name): <!subteam^ID|@groupname> with @groupname
-    formattedText = formattedText.replace(/<!subteam\^[A-Z0-9]+\|(@[^>]+)>/g, '$1');
+    // Replace user group mentions (with name): <!subteam^ID|@groupname> with @groupname (colored)
+    formattedText = formattedText.replace(/<!subteam\^[A-Z0-9]+\|(@[^>]+)>/g, (match, groupName) => {
+      return chalk.cyan(groupName);
+    });
 
-    // Replace user group mentions (without name): <!subteam^ID>
+    // Replace user group mentions (without name): <!subteam^ID> (colored)
     const usergroupMentionRegex = /<!subteam\^([A-Z0-9]+)>/g;
     const usergroupMentions = [...formattedText.matchAll(usergroupMentionRegex)];
     
     for (const match of usergroupMentions) {
       const usergroupId = match[1];
       const usergroup = await this.getUsergroupInfo(usergroupId);
-      formattedText = formattedText.replace(match[0], `@${usergroup.handle}`);
+      formattedText = formattedText.replace(match[0], chalk.cyan(`@${usergroup.handle}`));
     }
 
-    // Replace special mentions
-    formattedText = formattedText.replace(/<!channel>/g, '@channel');
-    formattedText = formattedText.replace(/<!here>/g, '@here');
-    formattedText = formattedText.replace(/<!everyone>/g, '@everyone');
+    // Replace special mentions (colored)
+    formattedText = formattedText.replace(/<!channel>/g, chalk.cyan('@channel'));
+    formattedText = formattedText.replace(/<!here>/g, chalk.cyan('@here'));
+    formattedText = formattedText.replace(/<!everyone>/g, chalk.cyan('@everyone'));
 
     // Replace channel mentions <#CHANNEL_ID|channel-name> with #channel-name
     formattedText = formattedText.replace(/<#[A-Z0-9]+\|([^>]+)>/g, '#$1');
