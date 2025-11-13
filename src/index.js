@@ -41,9 +41,9 @@ async function main() {
     return;
   }
   
-  // 引数なしの場合はチャンネル選択を表示
+  // 引数なしの場合はチャット画面を表示
   if (args.length === 0) {
-    await listChannels();
+    await channelChat();
     return;
   }
   
