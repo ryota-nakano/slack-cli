@@ -36,10 +36,10 @@ class ThreadDisplay {
       
       // Show thread indicator if message has replies
       const threadIndicator = reply.hasThread 
-        ? chalk.blue(` 💬${reply.replyCount}`) 
+        ? chalk.blue(` [💬${reply.replyCount}]`) 
         : '';
       
-      console.log(`${prefix} ${chalk.gray(`[${index}]`)} ${chalk.gray(`[${time}]`)} ${chalk.yellow(reply.user)}: ${reply.text}${threadIndicator}`);
+      console.log(`${prefix} ${chalk.gray(`[${index}]`)} ${chalk.gray(`[${time}]`)}${threadIndicator} ${chalk.yellow(reply.user)}: ${reply.text}`);
     });
 
     console.log('');
@@ -64,10 +64,10 @@ class ThreadDisplay {
       
       // Show thread indicator if message has replies
       const threadIndicator = reply.hasThread 
-        ? chalk.blue(` 💬${reply.replyCount}`) 
+        ? chalk.blue(` [💬${reply.replyCount}]`) 
         : '';
       
-      console.log(`  ↳${chalk.gray(`[${time}]`)} ${chalk.yellow(reply.user)}: ${reply.text}${threadIndicator}`);
+      console.log(`  ↳${chalk.gray(`[${time}]`)}${threadIndicator} ${chalk.yellow(reply.user)}: ${reply.text}`);
     });
   }
 }
@@ -87,10 +87,10 @@ function displayMessages(messages) {
 
     // Show thread indicator if message has replies
     const threadIndicator = msg.hasThread 
-      ? chalk.blue(` 💬${msg.replyCount}`) 
+      ? chalk.blue(` [💬${msg.replyCount}]`) 
       : '';
 
-    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(`[${time}]`)} ${chalk.yellow(msg.user)}: ${msg.text}${threadIndicator}`);
+    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(`[${time}]`)}${threadIndicator} ${chalk.yellow(msg.user)}: ${msg.text}`);
   });
   console.log('');
 }
