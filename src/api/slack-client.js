@@ -11,6 +11,7 @@ const os = require('os');
 // Cache directory in user's home
 const CACHE_DIR = path.join(os.homedir(), '.slack-cli');
 const CHANNEL_CACHE_FILE = path.join(CACHE_DIR, 'channels-cache.json');
+const USERS_CACHE_FILE = path.join(CACHE_DIR, 'users-cache.json');
 
 class SlackClient {
   constructor(token) {
@@ -18,6 +19,8 @@ class SlackClient {
     this.userCache = new Map();
     this.channelCache = null; // Cache all channels
     this.channelCacheTime = null;
+    this.allUsersCache = null; // Cache all workspace users
+    this.allUsersCacheTime = null;
     this.isUserToken = token.startsWith('xoxp-');
     
     // Ensure cache directory exists
@@ -27,6 +30,8 @@ class SlackClient {
     
     // Load channel cache from file
     this.loadChannelCacheFromFile();
+    // Load users cache from file
+    this.loadUsersCacheFromFile();
   }
 
   /**
@@ -78,6 +83,59 @@ class SlackClient {
     } catch (error) {
       if (process.env.DEBUG_CHANNELS) {
         console.error(`[DEBUG] キャッシュ保存エラー: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Load users cache from file
+   */
+  loadUsersCacheFromFile() {
+    try {
+      if (fs.existsSync(USERS_CACHE_FILE)) {
+        const data = fs.readFileSync(USERS_CACHE_FILE, 'utf8');
+        const cached = JSON.parse(data);
+        
+        // Check if cache is still valid (24 hours)
+        const CACHE_TTL = 24 * 60 * 60 * 1000;
+        if (cached.timestamp && (Date.now() - cached.timestamp < CACHE_TTL)) {
+          this.allUsersCache = cached.users;
+          this.allUsersCacheTime = cached.timestamp;
+          
+          if (process.env.DEBUG_MENTIONS) {
+            console.error(`[DEBUG] ファイルからユーザーキャッシュ読み込み: ${this.allUsersCache.length}件`);
+          }
+        } else {
+          if (process.env.DEBUG_MENTIONS) {
+            console.error('[DEBUG] ユーザーキャッシュファイルが古いため無効');
+          }
+        }
+      }
+    } catch (error) {
+      if (process.env.DEBUG_MENTIONS) {
+        console.error(`[DEBUG] ユーザーキャッシュ読み込みエラー: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Save users cache to file
+   */
+  saveUsersCacheToFile() {
+    try {
+      const data = {
+        timestamp: this.allUsersCacheTime,
+        users: this.allUsersCache
+      };
+      
+      fs.writeFileSync(USERS_CACHE_FILE, JSON.stringify(data), 'utf8');
+      
+      if (process.env.DEBUG_MENTIONS) {
+        console.error(`[DEBUG] ユーザーキャッシュをファイルに保存: ${this.allUsersCache.length}件`);
+      }
+    } catch (error) {
+      if (process.env.DEBUG_MENTIONS) {
+        console.error(`[DEBUG] ユーザーキャッシュ保存エラー: ${error.message}`);
       }
     }
   }
@@ -243,6 +301,161 @@ class SlackClient {
     }
 
     return filtered.slice(0, limit);
+  }
+
+  /**
+   * Get channel information
+   */
+  async getChannelInfo(channelId) {
+    try {
+      const result = await this.client.conversations.info({ channel: channelId });
+      return result.channel;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * List all workspace users with caching
+   * @param {boolean} forceRefresh - Force refresh cache
+   */
+  async listAllUsers(forceRefresh = false) {
+    // Return cached users if available (cache for 5 minutes in memory)
+    const MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+    if (!forceRefresh && this.allUsersCache && this.allUsersCacheTime && 
+        (Date.now() - this.allUsersCacheTime < MEMORY_CACHE_TTL)) {
+      if (process.env.DEBUG_MENTIONS) {
+        console.error(`[DEBUG] メモリキャッシュからユーザー取得: ${this.allUsersCache.length}件`);
+      }
+      return this.allUsersCache;
+    }
+
+    if (process.env.DEBUG_MENTIONS) {
+      console.error('[DEBUG] ワークスペースユーザー取得開始...');
+    }
+
+    const allUsers = [];
+    let cursor = undefined;
+    let pageCount = 0;
+
+    try {
+      do {
+        const result = await this.client.users.list({
+          limit: 200,
+          cursor: cursor
+        });
+
+        const users = result.members || [];
+        pageCount++;
+
+        // Filter out bots and deleted users
+        const activeUsers = users
+          .filter(user => !user.is_bot && !user.deleted)
+          .map(user => ({
+            id: user.id,
+            name: user.name,
+            realName: user.real_name || user.name,
+            displayName: user.profile.display_name || user.real_name || user.name,
+            isBot: false,
+            deleted: false
+          }));
+
+        allUsers.push(...activeUsers);
+
+        if (process.env.DEBUG_MENTIONS) {
+          console.error(`[DEBUG] ページ${pageCount}: ${activeUsers.length}件取得, 累計: ${allUsers.length}件`);
+        }
+
+        cursor = result.response_metadata?.next_cursor;
+        
+        // Rate limit protection
+        if (cursor) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      } while (cursor);
+
+      if (process.env.DEBUG_MENTIONS) {
+        console.error(`[DEBUG] 取得完了: 合計 ${allUsers.length}件のユーザー (${pageCount}ページ)\n`);
+      }
+
+      // Cache the results
+      this.allUsersCache = allUsers;
+      this.allUsersCacheTime = Date.now();
+      
+      // Save to file for next time
+      this.saveUsersCacheToFile();
+
+      return allUsers;
+    } catch (error) {
+      if (process.env.DEBUG_MENTIONS) {
+        console.error(`[DEBUG] ユーザー取得エラー: ${error.message}`);
+      }
+      
+      // If we got some users before error, return them
+      if (allUsers.length > 0) {
+        this.allUsersCache = allUsers;
+        this.allUsersCacheTime = Date.now();
+        this.saveUsersCacheToFile();
+        return allUsers;
+      }
+      
+      // Otherwise return empty or cached data
+      return this.allUsersCache || [];
+    }
+  }
+
+  /**
+   * Search users for mentions (including special mentions)
+   * @param {string} query - Search query
+   * @param {number} limit - Max results to return
+   */
+  async searchMentions(query = '', limit = 20) {
+    if (process.env.DEBUG_MENTIONS) {
+      console.error(`[DEBUG] メンション検索: "${query}"`);
+    }
+
+    // Special mentions (group mentions)
+    const specialMentions = [
+      { id: 'channel', displayName: 'channel', realName: 'このチャンネルのメンバー全員に通知', type: 'special' },
+      { id: 'here', displayName: 'here', realName: 'オンライン中のメンバーに通知', type: 'special' },
+      { id: 'everyone', displayName: 'everyone', realName: 'ワークスペースの全員に通知', type: 'special' }
+    ];
+
+    // Get all users from cache
+    const allUsers = await this.listAllUsers();
+    
+    if (process.env.DEBUG_MENTIONS) {
+      console.error(`[DEBUG] ${allUsers.length}件のユーザーから検索`);
+    }
+
+    const searchTerm = query.toLowerCase();
+    
+    // Filter special mentions
+    const filteredSpecial = specialMentions.filter(mention => 
+      mention.displayName.toLowerCase().includes(searchTerm) ||
+      mention.realName.toLowerCase().includes(searchTerm)
+    );
+
+    // Filter users
+    const filteredUsers = allUsers.filter(user => 
+      user.displayName.toLowerCase().includes(searchTerm) ||
+      user.realName.toLowerCase().includes(searchTerm) ||
+      user.name.toLowerCase().includes(searchTerm)
+    );
+
+    // Combine: special mentions first, then users
+    const results = [...filteredSpecial, ...filteredUsers];
+
+    if (process.env.DEBUG_MENTIONS) {
+      console.error(`[DEBUG] 検索結果: ${results.length}件 (特殊:${filteredSpecial.length}, ユーザー:${filteredUsers.length})`);
+      if (results.length > 0 && results.length <= 5) {
+        results.forEach(r => {
+          console.error(`[DEBUG]   → @${r.displayName} (${r.realName})`);
+        });
+      }
+    }
+
+    return results.slice(0, limit);
   }
 
   /**

@@ -9,8 +9,8 @@ const stringWidth = require('string-width');
 
 class ReadlineInput {
   constructor(channelMembers = [], slackClient = null) {
-    this.members = channelMembers;
-    this.slackClient = slackClient; // SlackClient instance for dynamic channel search
+    this.members = channelMembers; // Deprecated - not used anymore
+    this.slackClient = slackClient; // SlackClient instance for dynamic search
     this.input = '';
     this.cursorPos = 0;
     this.suggestions = [];
@@ -21,7 +21,9 @@ class ReadlineInput {
     this.screenCursorLine = 0; // Track which line the cursor is actually on screen (0-based)
     this.autoChannelMode = false; // Auto channel selection mode (no # required)
     this.lastChannelQuery = null; // Track last channel query to avoid duplicate searches
+    this.lastMentionQuery = null; // Track last mention query to avoid duplicate searches
     this.isLoadingChannels = false; // Prevent concurrent channel loads
+    this.isLoadingMentions = false; // Prevent concurrent mention loads
   }
 
   /**
@@ -184,11 +186,29 @@ class ReadlineInput {
           
           // Then try mention context
           const mentionResult = this.findMentionContext();
-          if (mentionResult && mentionResult.candidates.length > 0) {
-            this.suggestions = mentionResult.candidates;
-            this.suggestionType = 'mention';
-            this.selectedIndex = 0;
-            this.showSuggestions();
+          if (mentionResult && mentionResult.needsLoad) {
+            // Show loading indicator
+            process.stdout.write(chalk.gray('\n🔍 検索中...'));
+            
+            await this.loadMentionSuggestions(mentionResult.searchTerm);
+            
+            // Clear loading indicator
+            readline.moveCursor(process.stdout, 0, -1);
+            readline.cursorTo(process.stdout, 0);
+            readline.clearLine(process.stdout, 0);
+            
+            if (this.suggestions.length > 0) {
+              this.showSuggestions();
+            } else {
+              // Show "no results" message temporarily
+              process.stdout.write(chalk.yellow('\n💡 該当するユーザーが見つかりませんでした'));
+              setTimeout(() => {
+                readline.moveCursor(process.stdout, 0, -1);
+                readline.cursorTo(process.stdout, 0);
+                readline.clearLine(process.stdout, 0);
+                this.setCursorPosition();
+              }, 1000);
+            }
           }
           return;
         }
@@ -267,6 +287,50 @@ class ReadlineInput {
   }
 
   /**
+   * Load mention suggestions based on search query
+   */
+  async loadMentionSuggestions(searchTerm) {
+    if (!this.slackClient) {
+      this.suggestions = [];
+      return;
+    }
+
+    // Skip if same query or already loading
+    if (this.lastMentionQuery === searchTerm || this.isLoadingMentions) {
+      if (process.env.DEBUG_MENTIONS) {
+        console.error(`[DEBUG] メンション検索スキップ: "${searchTerm}" (重複/ロード中)`);
+      }
+      return;
+    }
+
+    this.isLoadingMentions = true;
+    this.lastMentionQuery = searchTerm;
+
+    if (process.env.DEBUG_MENTIONS) {
+      console.error(`[DEBUG] メンション検索: "${searchTerm}"`);
+    }
+
+    try {
+      const mentions = await this.slackClient.searchMentions(searchTerm, 10);
+      this.suggestions = mentions;
+      this.suggestionType = 'mention';
+      this.selectedIndex = this.suggestions.length > 0 ? 0 : -1;
+
+      if (process.env.DEBUG_MENTIONS) {
+        console.error(`[DEBUG] 検索結果: ${mentions.length}件`);
+      }
+    } catch (error) {
+      if (process.env.DEBUG_MENTIONS) {
+        console.error(`[DEBUG] メンション検索エラー: ${error.message}`);
+      }
+      this.suggestions = [];
+      this.selectedIndex = -1;
+    } finally {
+      this.isLoadingMentions = false;
+    }
+  }
+
+  /**
    * Find mention context at cursor position
    */
   findMentionContext() {
@@ -279,19 +343,13 @@ class ReadlineInput {
     const afterAt = beforeCursor.substring(lastAtIndex + 1);
     if (afterAt.includes(' ')) return null;
 
-    const searchTerm = afterAt.toLowerCase();
-    const candidates = this.members.filter(member => {
-      return member.displayName.toLowerCase().includes(searchTerm) ||
-             member.realName.toLowerCase().includes(searchTerm);
-    });
-
-    if (candidates.length === 0) return null;
+    const searchTerm = afterAt;
 
     return {
       type: 'mention',
       startIndex: lastAtIndex,
-      searchTerm: afterAt,
-      candidates: candidates.slice(0, 10)
+      searchTerm: searchTerm,
+      needsLoad: true // Signal that we need to load suggestions
     };
   }
 
@@ -391,6 +449,7 @@ class ReadlineInput {
     
     // Reset query tracking when clearing suggestions
     this.lastChannelQuery = null;
+    this.lastMentionQuery = null;
     
     // Reset screenCursorLine after cursor movement
     const beforeCursor = this.input.substring(0, this.cursorPos);
@@ -549,14 +608,20 @@ class ReadlineInput {
       const mentionResult = this.findMentionContext();
       if (!mentionResult) return;
 
-      const selectedMember = this.suggestions[this.selectedIndex];
+      const selectedMention = this.suggestions[this.selectedIndex];
       const beforeAt = this.input.substring(0, mentionResult.startIndex);
       const afterCursor = this.input.substring(this.cursorPos);
 
-      this.input = beforeAt + `<@${selectedMember.id}>` + afterCursor;
-      this.cursorPos = beforeAt.length + selectedMember.id.length + 3;
+      // Handle special mentions differently
+      if (selectedMention.type === 'special') {
+        this.input = beforeAt + `<!${selectedMention.id}>` + afterCursor;
+        this.cursorPos = beforeAt.length + selectedMention.id.length + 3;
+      } else {
+        this.input = beforeAt + `<@${selectedMention.id}>` + afterCursor;
+        this.cursorPos = beforeAt.length + selectedMention.id.length + 3;
+      }
       
-      return { type: 'mention', member: selectedMember };
+      return { type: 'mention', mention: selectedMention };
     }
   }
 }

@@ -16,14 +16,11 @@ class ChatSession {
     this.channelId = channelId;
     this.channelName = channelName;
     this.threadTs = threadTs; // null = channel chat, value = thread chat
-    this.channelMembers = [];
     this.currentUser = null;
     this.messages = [];
     this.lastDisplayedCount = 0;
     this.updateInterval = null;
-    this.membersLoaded = false;
     this.display = null;
-    this.channelsPreloaded = false; // Track if channels are preloaded
   }
 
   /**
@@ -117,11 +114,7 @@ class ChatSession {
    * Display all messages
    */
   displayMessages() {
-    this.display.displayMessages(
-      this.messages,
-      this.membersLoaded,
-      this.channelMembers.length
-    );
+    this.display.displayMessages(this.messages, true, 0);
     this.lastDisplayedCount = this.messages.length;
   }
 
@@ -142,7 +135,7 @@ class ChatSession {
   async inputLoop() {
     while (true) {
       try {
-        const readlineInput = new ReadlineInput(this.channelMembers, this.client);
+        const readlineInput = new ReadlineInput([], this.client);
         const text = await readlineInput.prompt(this.getContextName());
 
         // Switch to editor mode
@@ -307,7 +300,7 @@ class ChatSession {
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
     console.log(chalk.yellow('  #channel[Tab]') + chalk.gray('   - チャンネル検索・切り替え（例: #gen[Tab] → [Enter]）'));
-    console.log(chalk.yellow('  @user[Tab]') + chalk.gray('      - メンション補完'));
+    console.log(chalk.yellow('  @user[Tab]') + chalk.gray('      - メンション補完（例: @tak[Tab]、@channel等）'));
     console.log(chalk.yellow('  Ctrl+J') + chalk.gray('          - 改行を挿入（複数行メッセージ）'));
     console.log(chalk.yellow('  Ctrl+E') + chalk.gray('          - エディタ(vim/nano)を起動'));
     console.log(chalk.yellow('  Ctrl+C') + chalk.gray('          - 終了'));
