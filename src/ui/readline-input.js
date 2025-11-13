@@ -296,42 +296,42 @@ class ReadlineInput {
       console.error(`  previousLineCount: ${this.previousLineCount}`);
     }
     
-    // Move to the first line using the tracked screen cursor position
+    // Step 1: Move to the first line using the tracked screen cursor position
     if (this.screenCursorLine > 0) {
       process.stdout.write(`\x1b[${this.screenCursorLine}A`);
     }
     
-    // Now we're at the first line, column 0
+    // Step 2: Clear all old lines from the first line
     process.stdout.write('\r');
-    
-    // Clear enough lines (maximum of current and previous)
     const maxLines = Math.max(lines.length, this.previousLineCount);
     for (let i = 0; i < maxLines; i++) {
       process.stdout.write('\x1b[2K'); // Clear entire line
       if (i < maxLines - 1) {
-        process.stdout.write('\n'); // Move to next line
+        process.stdout.write('\x1b[B'); // Move down one line (instead of \n)
       }
     }
     
-    // Move back to first line
+    // Step 3: Move back to first line, start of line
     if (maxLines > 1) {
       process.stdout.write(`\x1b[${maxLines - 1}A`);
     }
     process.stdout.write('\r');
     
-    // Draw all lines
+    // Step 4: Draw all lines
     for (let i = 0; i < lines.length; i++) {
+      if (i > 0) {
+        process.stdout.write('\n'); // Move to next line before drawing
+      }
       if (i === 0) {
         process.stdout.write(chalk.green('> ') + lines[i]);
       } else {
-        process.stdout.write('\n' + chalk.green('  ') + lines[i]);
+        process.stdout.write(chalk.green('  ') + lines[i]);
       }
     }
     
-    // Now we're at the end of the last line
-    // Move cursor to correct position
-    
-    // Calculate how many lines to move up
+    // Step 5: Position cursor at correct location
+    // We're currently at the end of the last line
+    // Move up to the correct line
     const linesToMoveUp = lines.length - 1 - currentLineIdx;
     if (linesToMoveUp > 0) {
       process.stdout.write(`\x1b[${linesToMoveUp}A`);
@@ -344,7 +344,7 @@ class ReadlineInput {
       process.stdout.write(`\x1b[${col}C`); // Move right
     }
     
-    // Update tracked positions
+    // Step 6: Update tracked positions
     this.previousLineCount = lines.length;
     this.screenCursorLine = currentLineIdx; // Update screen cursor position
     
