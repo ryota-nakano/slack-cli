@@ -33,9 +33,8 @@ echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc
 # 3. パッケージをグローバルインストール
 npm install -g @ryota-nakano/slack-cli
 
-# 4. 環境設定
-mkdir -p ~/.slack-cli
-# .envファイルを作成してSlackトークンを追加
+# 4. 初期設定（対話的にSlackトークンを設定）
+slack setup
 ```
 
 ### ローカル開発用インストール
@@ -55,6 +54,16 @@ cp .env.example .env
 
 ## 🔑 Slackトークンのセットアップ
 
+### 簡単セットアップ（グローバルインストール時）
+
+```bash
+slack setup
+```
+
+このコマンドで対話的に設定できます。設定は `~/.config/slack-cli/config` に保存されます。
+
+### 手動セットアップ
+
 1. https://api.slack.com/apps にアクセス
 2. 新しいアプリを作成するか既存のアプリを選択
 3. "OAuth & Permissions" に移動
@@ -66,42 +75,41 @@ cp .env.example .env
    - `groups:history` - プライベートチャンネルの履歴を読む
    - `groups:read` - プライベートチャンネル一覧を読む
    - `usergroups:read` - ユーザーグループ（@developers等）の名前を表示 ⭐
-5. ワークスペースにインストールしてトークンを `.env` にコピー
+5. ワークスペースにインストールしてトークンを取得
 
-**推奨：** 自分の名前で投稿するにはUser Token（`SLACK_USER_TOKEN`）を使用してください
+**推奨：** 自分の名前で投稿するにはUser Token（`xoxp-`で始まる）を使用してください
 
 **Note:** `usergroups:read` スコープがない場合、グループメンションは `@<GROUP_ID>` 形式で表示されます
 
-## 🚀 使い方
+### 設定ファイルの場所
 
-### グローバルコマンドとして使う（推奨）
+- グローバルインストール: `~/.config/slack-cli/config`
+- ローカル開発: プロジェクトルートの `.env`
 
-どこからでも `slack` コマンドで起動できるようにする：
-
+設定を確認:
 ```bash
-# プロジェクトルートで実行
-npm run setup-global
+slack config
 ```
 
-これにより、どのディレクトリからでも以下のようにSlack CLIを起動できます：
+## 🚀 使い方
+
+### 基本的な使い方
 
 ```bash
 # デフォルトでチャンネル選択画面が起動
 slack
 
+# 初期設定
+slack setup
+
+# 設定確認
+slack config
+
 # チャンネル一覧を表示
 slack channels
 
-# 特定のチャンネルで起動
-slack channel <channel_id>
-
-# 特定のスレッドで起動
-slack thread <channel_id> <thread_ts>
-```
-
-**注意:** グローバルコマンドをアンインストールする場合：
-```bash
-npm run unsetup-global
+# ヘルプを表示
+slack --help
 ```
 
 ### ローカルで使う

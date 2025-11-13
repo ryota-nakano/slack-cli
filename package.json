@@ -10,6 +10,8 @@
   "scripts": {
     "start": "node src/index.js channel",
     "channels": "node src/index.js channels",
+    "setup": "node src/index.js setup",
+    "config": "node src/index.js config",
     "help": "node src/index.js --help"
   },
   "repository": {
