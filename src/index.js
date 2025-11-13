@@ -35,8 +35,15 @@ if (!token) {
 async function main() {
   const args = process.argv.slice(2);
   
-  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+  // ヘルプオプションのチェック
+  if (args.includes('--help') || args.includes('-h')) {
     showHelp();
+    return;
+  }
+  
+  // 引数なしの場合はチャンネル選択を表示
+  if (args.length === 0) {
+    await listChannels();
     return;
   }
   
