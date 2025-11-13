@@ -87,7 +87,12 @@ class ReadlineInput {
         if (key.ctrl && key.name === 'j') {
           this.input = this.input.substring(0, this.cursorPos) + '\n' + this.input.substring(this.cursorPos);
           this.cursorPos++;
-          // Don't manually update screenCursorLine - redrawInput() will calculate it correctly
+          
+          // Update screenCursorLine immediately after newline insertion
+          const beforeCursor = this.input.substring(0, this.cursorPos);
+          const linesBeforeCursor = beforeCursor.split('\n');
+          this.screenCursorLine = linesBeforeCursor.length - 1;
+          
           this.clearSuggestions();
           this.redrawInput();
           return;
@@ -400,6 +405,16 @@ class ReadlineInput {
     const currentLineIdx = linesBeforeCursor.length - 1;
     const currentLineText = linesBeforeCursor[currentLineIdx];
     
+    if (process.env.DEBUG_READLINE) {
+      console.error(`[DEBUG] redrawInput called:`);
+      console.error(`  input: ${JSON.stringify(this.input)}`);
+      console.error(`  cursorPos: ${this.cursorPos}`);
+      console.error(`  screenCursorLine (before): ${this.screenCursorLine}`);
+      console.error(`  currentLineIdx: ${currentLineIdx}`);
+      console.error(`  lines.length: ${lines.length}`);
+      console.error(`  previousLineCount: ${this.previousLineCount}`);
+    }
+    
     // Step 1: Move to the first line using the tracked screen cursor position
     if (this.screenCursorLine > 0) {
       process.stdout.write(`\x1b[${this.screenCursorLine}A`);
@@ -448,6 +463,10 @@ class ReadlineInput {
     // Step 6: Update tracked positions
     this.previousLineCount = lines.length;
     this.screenCursorLine = currentLineIdx;
+    
+    if (process.env.DEBUG_READLINE) {
+      console.error(`    screenCursorLine (after): ${this.screenCursorLine}`);
+    }
   }
 
   /**
