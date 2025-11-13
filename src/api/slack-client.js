@@ -304,8 +304,12 @@ class SlackClient {
       }
       // Try to get the emoji from node-emoji
       const emojiChar = emoji.get(emojiName);
-      // If found (not the same as input), return it; otherwise keep original
-      return emojiChar !== `:${emojiName}:` ? emojiChar : match;
+      // If found and valid (not undefined), return it; otherwise keep original
+      if (emojiChar && emojiChar !== `:${emojiName}:`) {
+        return emojiChar;
+      }
+      // Keep original format for unknown emojis
+      return match;
     });
 
     return formattedText;
