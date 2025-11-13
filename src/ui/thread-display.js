@@ -31,7 +31,6 @@ class ThreadDisplay {
         second: '2-digit'
       });
 
-      const prefix = i === 0 ? '📌' : '  ↳';
       const index = replies.length - displayReplies.length + i + 1;
       
       // Show thread indicator
@@ -40,7 +39,7 @@ class ThreadDisplay {
         : '';
       
       // First line: Number, time, thread indicator, user
-      console.log(`${prefix} ${chalk.gray(`[${index}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.user)}`);
+      console.log(`${chalk.gray(`[${index}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.user)}`);
       
       // Second line: Message text (no indent, handle multi-line)
       const lines = reply.text.split('\n');
@@ -75,7 +74,7 @@ class ThreadDisplay {
         : '';
       
       // First line: time, thread indicator, user
-      console.log(`  ↳ ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.user)}`);
+      console.log(`${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.user)}`);
       
       // Second line: Message text (no indent, handle multi-line)
       const lines = reply.text.split('\n');
