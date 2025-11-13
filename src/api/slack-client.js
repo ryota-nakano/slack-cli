@@ -596,6 +596,58 @@ class SlackClient {
   }
 
   /**
+   * Get channel message history within a time range
+   * @param {string} channelId - Channel ID
+   * @param {number} oldest - Oldest timestamp (Unix timestamp)
+   * @param {number} latest - Latest timestamp (Unix timestamp)
+   * @param {number|null} limit - Max messages to fetch (null = no limit)
+   */
+  async getChannelHistoryRange(channelId, oldest, latest, limit = null) {
+    try {
+      const params = {
+        channel: channelId,
+        oldest: oldest,
+        latest: latest
+      };
+
+      // Only add limit if specified
+      if (limit !== null) {
+        params.limit = limit;
+      }
+
+      const result = await this.client.conversations.history(params);
+
+      const messages = result.messages || [];
+      const history = [];
+
+      for (const msg of messages) {
+        let userName = 'Unknown';
+        if (msg.user) {
+          const user = await this.getUserInfo(msg.user);
+          userName = user.displayName;
+        } else if (msg.bot_id) {
+          userName = msg.username || 'Bot';
+        }
+
+        history.push({
+          ts: msg.ts,
+          user: userName,
+          text: msg.text || '',
+          timestamp: new Date(parseFloat(msg.ts) * 1000),
+          replyCount: msg.reply_count || 0,
+          replyUsersCount: msg.reply_users_count || 0,
+          hasThread: (msg.reply_count || 0) > 0
+        });
+      }
+
+      // Reverse to show oldest first
+      return history.reverse();
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
    * Send a message to a channel or thread
    */
   async sendMessage(channelId, text, threadTs = null) {

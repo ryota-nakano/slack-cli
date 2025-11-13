@@ -21,6 +21,8 @@ class ChatSession {
     this.lastDisplayedCount = 0;
     this.updateInterval = null;
     this.display = null;
+    this.currentDate = null; // Track current viewing date (for channels only)
+    this.daysBack = 0; // 0 = today, 1 = yesterday, etc.
   }
 
   /**
@@ -70,12 +72,26 @@ class ChatSession {
   /**
    * Fetch messages based on context
    */
-  async fetchMessages(limit = null) {
+  async fetchMessages(limit = null, daysBack = null) {
     if (this.isThread()) {
-      this.messages = await this.client.getThreadReplies(this.channelId, this.threadTs);
-    } else {
-      // For channels, default to today's messages (oldest = today's 0:00)
       this.messages = await this.client.getChannelHistory(this.channelId, limit, null);
+    } else {
+      // Use daysBack parameter or instance variable
+      const days = daysBack !== null ? daysBack : this.daysBack;
+      
+      // Calculate oldest timestamp based on days back
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() - days);
+      targetDate.setHours(0, 0, 0, 0);
+      const oldest = targetDate.getTime() / 1000;
+      
+      // Calculate newest timestamp (end of that day)
+      const newestDate = new Date(targetDate);
+      newestDate.setHours(23, 59, 59, 999);
+      const newest = newestDate.getTime() / 1000;
+      
+      this.currentDate = targetDate;
+      this.messages = await this.client.getChannelHistoryRange(this.channelId, oldest, newest, limit);
     }
   }
 
@@ -99,6 +115,20 @@ class ChatSession {
    * Display all messages
    */
   displayMessages() {
+    // Show current viewing date for channels
+    if (!this.isThread() && this.currentDate) {
+      const dateStr = this.currentDate.toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        weekday: 'short'
+      });
+      console.log(chalk.cyan(`\n📅 ${dateStr}の履歴`));
+      if (this.daysBack > 0) {
+        console.log(chalk.gray(`   (${this.daysBack}日前)`));
+      }
+    }
+    
     this.display.displayMessages(this.messages);
     this.lastDisplayedCount = this.messages.length;
   }
@@ -172,6 +202,34 @@ class ChatSession {
           const parts = trimmedText.split(' ');
           const limit = parseInt(parts[1]) || 20;
           await this.handleHistory(limit);
+          continue;
+        }
+
+        // Handle /prev command (channel only) - Go to previous day
+        if (!this.isThread() && (trimmedText === '/prev' || trimmedText === '/p')) {
+          this.daysBack++;
+          await this.fetchMessages();
+          this.displayMessages();
+          continue;
+        }
+
+        // Handle /next command (channel only) - Go to next day
+        if (!this.isThread() && (trimmedText === '/next' || trimmedText === '/n')) {
+          if (this.daysBack > 0) {
+            this.daysBack--;
+            await this.fetchMessages();
+            this.displayMessages();
+          } else {
+            console.log(chalk.yellow('\n💡 すでに最新（今日）の履歴を表示しています'));
+          }
+          continue;
+        }
+
+        // Handle /today command (channel only) - Go back to today
+        if (!this.isThread() && trimmedText === '/today') {
+          this.daysBack = 0;
+          await this.fetchMessages();
+          this.displayMessages();
           continue;
         }
 
@@ -278,6 +336,9 @@ class ChatSession {
     
     if (!this.isThread()) {
       console.log(chalk.yellow('  /<番号>') + chalk.gray('        - 指定した投稿のスレッドに入る（例: /3）'));
+      console.log(chalk.yellow('  /prev, /p') + chalk.gray('       - 前日の履歴を表示'));
+      console.log(chalk.yellow('  /next, /n') + chalk.gray('       - 次の日の履歴を表示'));
+      console.log(chalk.yellow('  /today') + chalk.gray('          - 今日の履歴に戻る'));
       console.log(chalk.yellow('  /history [件数]') + chalk.gray(' - 過去の履歴を表示 (デフォルト: 20件)'));
       console.log(chalk.yellow('  /h [件数]') + chalk.gray('       - 過去の履歴を表示 (短縮形)'));
       console.log(chalk.gray('    💡 デフォルトでは今日のメッセージのみ表示されます'));
