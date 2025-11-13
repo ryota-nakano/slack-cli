@@ -276,14 +276,27 @@ class ReadlineInput {
     const currentLineText = linesBeforeCursor[currentLineIdx];
     
     // Move to the first line using the tracked screen cursor position
-    // screenCursorLine tells us where the cursor actually is on screen
     if (this.screenCursorLine > 0) {
       process.stdout.write(`\x1b[${this.screenCursorLine}A`);
     }
     
-    // Now we're at the first line
-    // Move to start of line and clear from cursor to end of screen
-    process.stdout.write('\r\x1b[J');
+    // Now we're at the first line, column 0
+    process.stdout.write('\r');
+    
+    // Clear enough lines (maximum of current and previous)
+    const maxLines = Math.max(lines.length, this.previousLineCount);
+    for (let i = 0; i < maxLines; i++) {
+      process.stdout.write('\x1b[2K'); // Clear entire line
+      if (i < maxLines - 1) {
+        process.stdout.write('\n'); // Move to next line
+      }
+    }
+    
+    // Move back to first line
+    if (maxLines > 1) {
+      process.stdout.write(`\x1b[${maxLines - 1}A`);
+    }
+    process.stdout.write('\r');
     
     // Draw all lines
     for (let i = 0; i < lines.length; i++) {
