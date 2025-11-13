@@ -102,8 +102,8 @@ class ReadlineInput {
             this.clearSuggestions();
             this.redrawInput();
             
-            // If channel was selected, signal special handling
-            if (result && result.type === 'channel') {
+            // If channel was selected with switch intent, signal special handling
+            if (result && result.type === 'channel' && !result.inserted) {
               cleanup();
               resolve({ type: 'channel', channel: result.channel });
               return;
@@ -528,12 +528,15 @@ class ReadlineInput {
 
       const selectedChannel = this.suggestions[this.selectedIndex];
       
-      // In auto channel mode, replace entire input
-      if (this.autoChannelMode && channelResult.startIndex === 0) {
-        this.input = `<#${selectedChannel.id}|${selectedChannel.name}>`;
-        this.cursorPos = this.input.length;
+      // In auto channel mode OR if input starts with # (channel switch intent)
+      const isChannelSwitchIntent = this.autoChannelMode || 
+                                   (channelResult.startIndex === 0 && this.input.startsWith('#'));
+      
+      if (isChannelSwitchIntent) {
+        // Return channel object to trigger channel switch
+        return { type: 'channel', channel: selectedChannel };
       } else {
-        // Normal mode: replace from # onwards
+        // Normal mode: insert as channel mention in message
         const beforeHash = this.input.substring(0, channelResult.startIndex);
         const afterCursor = this.input.substring(this.cursorPos);
 
@@ -541,7 +544,7 @@ class ReadlineInput {
         this.cursorPos = beforeHash.length + selectedChannel.id.length + selectedChannel.name.length + 5;
       }
       
-      return { type: 'channel', channel: selectedChannel };
+      return { type: 'channel', channel: selectedChannel, inserted: true };
     } else {
       const mentionResult = this.findMentionContext();
       if (!mentionResult) return;

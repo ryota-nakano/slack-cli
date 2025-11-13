@@ -306,8 +306,8 @@ class ChatSession {
     console.log(chalk.yellow('  /rm <番号>') + chalk.gray('      - 指定したメッセージを削除（例: /rm 5）'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
-    console.log(chalk.yellow('  #channel') + chalk.gray('        - チャンネル切り替え'));
-    console.log(chalk.yellow('  @user') + chalk.gray('           - メンション補完'));
+    console.log(chalk.yellow('  #channel[Tab]') + chalk.gray('   - チャンネル検索・切り替え（例: #gen[Tab] → [Enter]）'));
+    console.log(chalk.yellow('  @user[Tab]') + chalk.gray('      - メンション補完'));
     console.log(chalk.yellow('  Ctrl+J') + chalk.gray('          - 改行を挿入（複数行メッセージ）'));
     console.log(chalk.yellow('  Ctrl+E') + chalk.gray('          - エディタ(vim/nano)を起動'));
     console.log(chalk.yellow('  Ctrl+C') + chalk.gray('          - 終了'));
