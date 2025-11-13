@@ -75,6 +75,7 @@ class ReadlineInput {
         if (key.ctrl && key.name === 'j') {
           this.input = this.input.substring(0, this.cursorPos) + '\n' + this.input.substring(this.cursorPos);
           this.cursorPos++;
+          this.screenCursorLine++; // Update screen cursor line immediately after newline
           this.clearSuggestions();
           this.redrawInput();
           return;
