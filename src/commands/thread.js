@@ -384,11 +384,11 @@ async function channelChat() {
     // Get all channels
     const channels = await client.listChannels();
     
-    // Initial prompt with channel selection
+    // Initial prompt with channel selection (auto-trigger channel mode)
     const readlineInput = new ReadlineInput([], channels);
     
-    console.log(chalk.yellow('💡 ヒント: #を入力してチャンネルを検索・選択できます'));
-    const result = await readlineInput.prompt('チャンネル選択');
+    console.log(chalk.yellow('💡 ヒント: チャンネル名を入力して検索・選択できます'));
+    const result = await readlineInput.prompt('チャンネル選択', true); // true = auto-trigger channel mode
     
     if (result === '__EMPTY__') {
       console.log(chalk.yellow('⚠️  入力がキャンセルされました'));

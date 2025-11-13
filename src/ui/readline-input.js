@@ -19,13 +19,17 @@ class ReadlineInput {
     this.rl = null;
     this.previousLineCount = 1;
     this.screenCursorLine = 0; // Track which line the cursor is actually on screen (0-based)
+    this.autoChannelMode = false; // Auto channel selection mode (no # required)
   }
 
   /**
    * Show prompt and wait for input
    * @param {string} contextName - Context name (already formatted with [スレッド] if needed)
+   * @param {boolean} autoChannelMode - If true, automatically show channel suggestions on start
    */
-  async prompt(contextName) {
+  async prompt(contextName, autoChannelMode = false) {
+    this.autoChannelMode = autoChannelMode;
+    
     return new Promise((resolve) => {
       const label = `💬 #${contextName}`;
       console.log(chalk.cyan(label));
@@ -38,6 +42,14 @@ class ReadlineInput {
 
       // Show initial prompt using redrawInput
       this.redrawInput(); // This will draw "> " with empty input
+
+      // Auto-trigger channel suggestions if in channel selection mode
+      if (autoChannelMode && this.channels.length > 0) {
+        this.suggestions = this.channels.slice(0, 10);
+        this.suggestionType = 'channel';
+        this.selectedIndex = 0;
+        this.showSuggestions();
+      }
 
       readline.emitKeypressEvents(process.stdin, this.rl);
       if (process.stdin.isTTY) {
@@ -75,7 +87,7 @@ class ReadlineInput {
         if (key.ctrl && key.name === 'j') {
           this.input = this.input.substring(0, this.cursorPos) + '\n' + this.input.substring(this.cursorPos);
           this.cursorPos++;
-          this.screenCursorLine++; // Update screen cursor line immediately after newline
+          // Don't manually update screenCursorLine - redrawInput() will calculate it correctly
           this.clearSuggestions();
           this.redrawInput();
           return;
@@ -218,6 +230,24 @@ class ReadlineInput {
    * Find channel context at cursor position
    */
   findChannelContext() {
+    // In auto channel mode, treat entire input as channel search
+    if (this.autoChannelMode && this.input.indexOf('#') === -1) {
+      const searchTerm = this.input.toLowerCase();
+      const candidates = this.channels.filter(channel => {
+        return channel.name.toLowerCase().includes(searchTerm);
+      });
+
+      if (candidates.length === 0) return null;
+
+      return {
+        type: 'channel',
+        startIndex: 0,
+        searchTerm: this.input,
+        candidates: candidates.slice(0, 10)
+      };
+    }
+
+    // Normal mode: require # prefix
     const beforeCursor = this.input.substring(0, this.cursorPos);
     const lastHashIndex = beforeCursor.lastIndexOf('#');
 
@@ -438,11 +468,19 @@ class ReadlineInput {
       if (!channelResult) return;
 
       const selectedChannel = this.suggestions[this.selectedIndex];
-      const beforeHash = this.input.substring(0, channelResult.startIndex);
-      const afterCursor = this.input.substring(this.cursorPos);
+      
+      // In auto channel mode, replace entire input
+      if (this.autoChannelMode && channelResult.startIndex === 0) {
+        this.input = `<#${selectedChannel.id}|${selectedChannel.name}>`;
+        this.cursorPos = this.input.length;
+      } else {
+        // Normal mode: replace from # onwards
+        const beforeHash = this.input.substring(0, channelResult.startIndex);
+        const afterCursor = this.input.substring(this.cursorPos);
 
-      this.input = beforeHash + `<#${selectedChannel.id}|${selectedChannel.name}>` + afterCursor;
-      this.cursorPos = beforeHash.length + selectedChannel.id.length + selectedChannel.name.length + 5;
+        this.input = beforeHash + `<#${selectedChannel.id}|${selectedChannel.name}>` + afterCursor;
+        this.cursorPos = beforeHash.length + selectedChannel.id.length + selectedChannel.name.length + 5;
+      }
       
       return { type: 'channel', channel: selectedChannel };
     } else {
