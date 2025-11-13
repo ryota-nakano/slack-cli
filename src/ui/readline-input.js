@@ -35,8 +35,8 @@ class ReadlineInput {
         terminal: true
       });
 
-      // Manually show prompt (no save needed with new approach)
-      process.stdout.write(chalk.green('> '));
+      // Show initial prompt using redrawInput
+      this.redrawInput(); // This will draw "> " with empty input
 
       readline.emitKeypressEvents(process.stdin, this.rl);
       if (process.stdin.isTTY) {
@@ -307,7 +307,7 @@ class ReadlineInput {
     for (let i = 0; i < maxLines; i++) {
       process.stdout.write('\x1b[2K'); // Clear entire line
       if (i < maxLines - 1) {
-        process.stdout.write('\x1b[B'); // Move down one line (instead of \n)
+        process.stdout.write('\x1b[B'); // Move down one line (NOT on the last line!)
       }
     }
     
