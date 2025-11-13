@@ -155,6 +155,13 @@ class ChannelChatSession {
           continue;
         }
 
+        // Handle /投稿番号 command (enter thread)
+        if (trimmedText.match(/^\/\d+$/)) {
+          const msgNumber = trimmedText.substring(1).trim();
+          await this.handleEnterThread(msgNumber);
+          return;
+        }
+
         // Handle /rm command
         if (trimmedText.startsWith('/rm ')) {
           const msgNumber = trimmedText.substring(4).trim();
@@ -192,6 +199,30 @@ class ChannelChatSession {
         }
       }
     }
+  }
+
+  /**
+   * Handle entering a thread
+   */
+  async handleEnterThread(msgNumber) {
+    const num = parseInt(msgNumber, 10);
+    
+    if (isNaN(num) || num < 1 || num > this.messages.length) {
+      console.log(chalk.red(`\n❌ 無効なメッセージ番号: ${msgNumber}`));
+      console.log(chalk.yellow(`💡 有効な番号: 1-${this.messages.length}`));
+      return;
+    }
+
+    const message = this.messages[num - 1];
+    
+    // Cleanup current session
+    this.cleanup(false);
+    
+    console.log(chalk.cyan(`\n🧵 スレッドに入ります...\n`));
+    
+    // Import and start thread chat
+    const { threadChat } = require('./thread');
+    await threadChat(this.channelId, message.ts, this.channelName);
   }
 
   /**
@@ -235,6 +266,7 @@ class ChannelChatSession {
    */
   showChatHelp() {
     console.log(chalk.cyan('\n📖 チャット中のコマンド:'));
+    console.log(chalk.yellow('  /<番号>') + chalk.gray('        - 指定した投稿のスレッドに入る（例: /3）'));
     console.log(chalk.yellow('  /rm <番号>') + chalk.gray('      - 指定したメッセージを削除（例: /rm 5）'));
     console.log(chalk.yellow('  /history [件数]') + chalk.gray(' - 履歴を表示 (デフォルト: 20件)'));
     console.log(chalk.yellow('  /h [件数]') + chalk.gray('       - 履歴を表示 (短縮形)'));

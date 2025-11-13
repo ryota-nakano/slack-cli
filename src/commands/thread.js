@@ -10,12 +10,12 @@ const EditorInput = require('../ui/editor-input');
 const ThreadDisplay = require('../ui/thread-display');
 
 class ThreadChatSession {
-  constructor(channelId, threadTs) {
+  constructor(channelId, threadTs, channelName = null) {
     const token = process.env.SLACK_USER_TOKEN || process.env.SLACK_BOT_TOKEN;
     this.client = new SlackClient(token);
     this.channelId = channelId;
     this.threadTs = threadTs;
-    this.channelName = null;
+    this.channelName = channelName; // Pre-set channel name if provided
     this.channelMembers = [];
     this.currentUser = null;
     this.replies = [];
@@ -31,9 +31,11 @@ class ThreadChatSession {
   async start() {
     console.log(chalk.cyan('🔄 スレッド情報を取得中...\n'));
 
-    // Get channel info
-    const channel = await this.client.getChannelInfo(this.channelId);
-    this.channelName = channel ? channel.name : this.channelId;
+    // Get channel info if not provided
+    if (!this.channelName) {
+      const channel = await this.client.getChannelInfo(this.channelId);
+      this.channelName = channel ? channel.name : this.channelId;
+    }
     this.display = new ThreadDisplay(this.channelName);
 
     // Get current user
@@ -252,8 +254,8 @@ class ThreadChatSession {
   }
 }
 
-async function threadChat(channelId, threadTs) {
-  const session = new ThreadChatSession(channelId, threadTs);
+async function threadChat(channelId, threadTs, channelName = null) {
+  const session = new ThreadChatSession(channelId, threadTs, channelName);
   await session.start();
 }
 
