@@ -30,15 +30,18 @@ cp .env.example .env
 2. 新しいアプリを作成するか既存のアプリを選択
 3. "OAuth & Permissions" に移動
 4. 必要なスコープを追加：
-   - `channels:history`
-   - `channels:read`
-   - `chat:write`
-   - `users:read`
-   - `groups:history`
-   - `groups:read`
+   - `channels:history` - チャンネルの履歴を読む
+   - `channels:read` - チャンネル一覧を読む
+   - `chat:write` - メッセージを送信
+   - `users:read` - ユーザー情報を読む
+   - `groups:history` - プライベートチャンネルの履歴を読む
+   - `groups:read` - プライベートチャンネル一覧を読む
+   - `usergroups:read` - ユーザーグループ（@developers等）の名前を表示 ⭐
 5. ワークスペースにインストールしてトークンを `.env` にコピー
 
 **推奨：** 自分の名前で投稿するにはUser Token（`SLACK_USER_TOKEN`）を使用してください
+
+**Note:** `usergroups:read` スコープがない場合、グループメンションは `@<GROUP_ID>` 形式で表示されます
 
 ## 🚀 使い方
 

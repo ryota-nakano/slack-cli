@@ -17,6 +17,8 @@ class SlackClient {
   constructor(token) {
     this.client = new WebClient(token);
     this.userCache = new Map();
+    this.usergroupCache = new Map(); // Cache for user groups
+    this.usergroupsFetched = false; // Track if we've tried to fetch usergroups
     this.channelCache = null; // Cache all channels
     this.channelCacheTime = null;
     this.allUsersCache = null; // Cache all workspace users
@@ -213,10 +215,15 @@ class SlackClient {
     // Replace user group mentions (with name): <!subteam^ID|@groupname> with @groupname
     formattedText = formattedText.replace(/<!subteam\^[A-Z0-9]+\|(@[^>]+)>/g, '$1');
 
-    // Replace user group mentions (without name): <!subteam^ID> 
-    // Note: Without usergroups:read scope, we can't fetch group names
-    // So we'll just show @<ID> format
-    formattedText = formattedText.replace(/<!subteam\^([A-Z0-9]+)>/g, '@<$1>');
+    // Replace user group mentions (without name): <!subteam^ID>
+    const usergroupMentionRegex = /<!subteam\^([A-Z0-9]+)>/g;
+    const usergroupMentions = [...formattedText.matchAll(usergroupMentionRegex)];
+    
+    for (const match of usergroupMentions) {
+      const usergroupId = match[1];
+      const usergroup = await this.getUsergroupInfo(usergroupId);
+      formattedText = formattedText.replace(match[0], `@${usergroup.handle}`);
+    }
 
     // Replace special mentions
     formattedText = formattedText.replace(/<!channel>/g, '@channel');
