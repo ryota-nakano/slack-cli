@@ -5,6 +5,7 @@
 
 const { WebClient } = require('@slack/web-api');
 const chalk = require('chalk');
+const emoji = require('node-emoji');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -278,6 +279,34 @@ class SlackClient {
 
     // Replace channel mentions <#CHANNEL_ID|channel-name> with #channel-name
     formattedText = formattedText.replace(/<#[A-Z0-9]+\|([^>]+)>/g, '#$1');
+
+    // Replace Slack emoji :emoji_name: with actual emoji
+    // Slack emoji name mappings (some Slack names differ from standard emoji names)
+    const slackEmojiMap = {
+      '+1': '👍',
+      'thumbsup': '👍',
+      '-1': '👎',
+      'thumbsdown': '👎',
+      'thinking_face': '🤔',
+      'slightly_smiling_face': '🙂',
+      'white_check_mark': '✅',
+      'x': '❌',
+      'heavy_check_mark': '✔️',
+      'exclamation': '❗',
+      'question': '❓',
+      'warning': '⚠️'
+    };
+    
+    formattedText = formattedText.replace(/:([a-z0-9_+-]+):/g, (match, emojiName) => {
+      // Check Slack-specific mapping first
+      if (slackEmojiMap[emojiName]) {
+        return slackEmojiMap[emojiName];
+      }
+      // Try to get the emoji from node-emoji
+      const emojiChar = emoji.get(emojiName);
+      // If found (not the same as input), return it; otherwise keep original
+      return emojiChar !== `:${emojiName}:` ? emojiChar : match;
+    });
 
     return formattedText;
   }
