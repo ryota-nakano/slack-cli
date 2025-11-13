@@ -862,6 +862,29 @@ class SlackClient {
       throw new Error(`メッセージの削除に失敗しました: ${error.message}`);
     }
   }
+
+  /**
+   * Mark a conversation as read
+   * @param {string} channelId - Channel ID
+   * @param {string} ts - Timestamp of the last message read
+   */
+  async markAsRead(channelId, ts) {
+    try {
+      await this.client.conversations.mark({
+        channel: channelId,
+        ts: ts
+      });
+      
+      if (process.env.DEBUG_READ) {
+        console.error(`[DEBUG] 既読マーク: ${channelId} @ ${ts}`);
+      }
+    } catch (error) {
+      // Silent fail - marking as read is not critical
+      if (process.env.DEBUG_READ) {
+        console.error(`[DEBUG] 既読マークエラー: ${error.message}`);
+      }
+    }
+  }
 }
 
 module.exports = SlackClient;

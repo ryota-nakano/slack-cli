@@ -143,6 +143,11 @@ class ChatSession {
     
     this.display.displayMessages(this.messages);
     this.lastDisplayedCount = this.messages.length;
+    
+    // Mark as read (for today's messages only)
+    if (this.messages.length > 0 && this.daysBack === 0) {
+      this.markMessagesAsRead();
+    }
   }
 
   /**
@@ -153,6 +158,27 @@ class ChatSession {
       const newMessages = this.messages.slice(this.lastDisplayedCount);
       this.display.displayNewMessages(newMessages);
       this.lastDisplayedCount = this.messages.length;
+      
+      // Mark new messages as read (for today's messages only)
+      if (this.daysBack === 0) {
+        this.markMessagesAsRead();
+      }
+    }
+  }
+
+  /**
+   * Mark messages as read
+   */
+  async markMessagesAsRead() {
+    if (this.messages.length === 0) return;
+    
+    // Get the latest message timestamp
+    const latestMessage = this.messages[this.messages.length - 1];
+    
+    try {
+      await this.client.markAsRead(this.channelId, latestMessage.ts);
+    } catch (error) {
+      // Silent fail - not critical
     }
   }
 
