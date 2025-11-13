@@ -507,7 +507,7 @@ class ChatSession {
             '    ' + chalk.gray(`└─ ${msgTime} ${item.threadPreview.userName}:`) + ' ' + previewText
           );
         } else {
-          // Fallback to API call if no cache
+          // Fallback to API call if no cache, then cache the result
           try {
             // Get the first message of the thread
             const replies = await this.client.getThreadReplies(item.channelId, item.threadTs);
@@ -521,13 +521,27 @@ class ChatSession {
               const firstLine = firstMsg.text.split('\n')[0];
               const previewText = firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
               
+              // Cache the thread preview for future use
+              this.historyManager.addConversation({
+                channelId: item.channelId,
+                channelName: item.channelName,
+                threadTs: item.threadTs,
+                type: 'thread',
+                threadPreview: {
+                  text: firstLine,
+                  user: firstMsg.user,
+                  userName: firstMsg.userName || '',
+                  ts: firstMsg.ts
+                }
+              });
+              
               console.log(
                 chalk.yellow(`[${index + 1}]`) + ' ' +
                 chalk.gray(time) + ' ' +
                 '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
               );
               console.log(
-                '    ' + chalk.gray(`└─ ${msgTime} ${firstMsg.user}:`) + ' ' + previewText
+                '    ' + chalk.gray(`└─ ${msgTime} ${firstMsg.userName || firstMsg.user}:`) + ' ' + previewText
               );
             }
           } catch (error) {
@@ -656,7 +670,7 @@ async function channelChat() {
               '    ' + chalk.gray(`└─ ${msgTime} ${item.threadPreview.userName}:`) + ' ' + previewText
             );
           } else {
-            // Fallback to API call if no cache
+            // Fallback to API call if no cache, then cache the result
             try {
               // Get the first message of the thread
               const replies = await client.getThreadReplies(item.channelId, item.threadTs);
@@ -670,13 +684,27 @@ async function channelChat() {
                 const firstLine = firstMsg.text.split('\n')[0];
                 const previewText = firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
                 
+                // Cache the thread preview for future use
+                historyManager.addConversation({
+                  channelId: item.channelId,
+                  channelName: item.channelName,
+                  threadTs: item.threadTs,
+                  type: 'thread',
+                  threadPreview: {
+                    text: firstLine,
+                    user: firstMsg.user,
+                    userName: firstMsg.userName || '',
+                    ts: firstMsg.ts
+                  }
+                });
+                
                 console.log(
                   chalk.yellow(`[${index + 1}]`) + ' ' +
                   chalk.gray(time) + ' ' +
                   '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
                 );
                 console.log(
-                  '    ' + chalk.gray(`└─ ${msgTime} ${firstMsg.user}:`) + ' ' + previewText
+                  '    ' + chalk.gray(`└─ ${msgTime} ${firstMsg.userName || firstMsg.user}:`) + ' ' + previewText
                 );
               }
             } catch (error) {
