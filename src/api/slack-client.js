@@ -543,18 +543,56 @@ class SlackClient {
       console.error(`[DEBUG] メンション検索: "${query}"`);
     }
 
-    // Special mentions (group mentions)
+    // Special mentions
     const specialMentions = [
       { id: 'channel', displayName: 'channel', realName: 'このチャンネルのメンバー全員に通知', type: 'special' },
       { id: 'here', displayName: 'here', realName: 'オンライン中のメンバーに通知', type: 'special' },
       { id: 'everyone', displayName: 'everyone', realName: 'ワークスペースの全員に通知', type: 'special' }
     ];
 
+    // Get usergroups (fetch once if not already fetched)
+    let usergroups = [];
+    if (!this.usergroupsFetched) {
+      try {
+        const result = await this.client.usergroups.list({
+          include_disabled: false,
+          include_count: false,
+          include_users: false
+        });
+        const groups = result.usergroups || [];
+        
+        // Cache all usergroups
+        for (const group of groups) {
+          const groupInfo = {
+            id: group.id,
+            handle: group.handle,
+            name: group.name,
+            displayName: group.handle,
+            realName: group.name || group.handle,
+            type: 'usergroup'
+          };
+          this.usergroupCache.set(group.id, groupInfo);
+          usergroups.push(groupInfo);
+        }
+        
+        this.usergroupsFetched = true;
+      } catch (error) {
+        // If error, mark as fetched to avoid repeated calls
+        this.usergroupsFetched = true;
+        if (process.env.DEBUG_MENTIONS) {
+          console.error('[DEBUG] グループ取得失敗 (スコープがない可能性)');
+        }
+      }
+    } else {
+      // Use cached usergroups
+      usergroups = Array.from(this.usergroupCache.values());
+    }
+
     // Get all users from cache
     const allUsers = await this.listAllUsers();
     
     if (process.env.DEBUG_MENTIONS) {
-      console.error(`[DEBUG] ${allUsers.length}件のユーザーから検索`);
+      console.error(`[DEBUG] ${allUsers.length}件のユーザー, ${usergroups.length}件のグループから検索`);
     }
 
     const searchTerm = query.toLowerCase();
@@ -565,6 +603,13 @@ class SlackClient {
       mention.realName.toLowerCase().includes(searchTerm)
     );
 
+    // Filter usergroups
+    const filteredUsergroups = usergroups.filter(group =>
+      group.displayName.toLowerCase().includes(searchTerm) ||
+      group.realName.toLowerCase().includes(searchTerm) ||
+      group.handle.toLowerCase().includes(searchTerm)
+    );
+
     // Filter users
     const filteredUsers = allUsers.filter(user => 
       user.displayName.toLowerCase().includes(searchTerm) ||
@@ -572,14 +617,14 @@ class SlackClient {
       user.name.toLowerCase().includes(searchTerm)
     );
 
-    // Combine: special mentions first, then users
-    const results = [...filteredSpecial, ...filteredUsers];
+    // Combine: special mentions first, then usergroups, then users
+    const results = [...filteredSpecial, ...filteredUsergroups, ...filteredUsers];
 
     if (process.env.DEBUG_MENTIONS) {
-      console.error(`[DEBUG] 検索結果: ${results.length}件 (特殊:${filteredSpecial.length}, ユーザー:${filteredUsers.length})`);
+      console.error(`[DEBUG] 検索結果: ${results.length}件 (特殊:${filteredSpecial.length}, グループ:${filteredUsergroups.length}, ユーザー:${filteredUsers.length})`);
       if (results.length > 0 && results.length <= 5) {
         results.forEach(r => {
-          console.error(`[DEBUG]   → @${r.displayName} (${r.realName})`);
+          console.error(`[DEBUG]   → @${r.displayName} (${r.realName}) [${r.type}]`);
         });
       }
     }

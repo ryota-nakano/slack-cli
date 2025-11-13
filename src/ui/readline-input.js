@@ -616,7 +616,12 @@ class ReadlineInput {
       if (selectedMention.type === 'special') {
         this.input = beforeAt + `<!${selectedMention.id}>` + afterCursor;
         this.cursorPos = beforeAt.length + selectedMention.id.length + 3;
+      } else if (selectedMention.type === 'usergroup') {
+        // User group mention format: <!subteam^GROUP_ID|@handle>
+        this.input = beforeAt + `<!subteam^${selectedMention.id}|@${selectedMention.handle}>` + afterCursor;
+        this.cursorPos = beforeAt.length + `<!subteam^${selectedMention.id}|@${selectedMention.handle}>`.length;
       } else {
+        // Regular user mention
         this.input = beforeAt + `<@${selectedMention.id}>` + afterCursor;
         this.cursorPos = beforeAt.length + selectedMention.id.length + 3;
       }
