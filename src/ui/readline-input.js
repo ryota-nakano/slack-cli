@@ -76,7 +76,8 @@ class ReadlineInput {
           this.cursorPos++;
           this.clearSuggestions();
           this.redrawInput();
-          this.updateSuggestions();
+          // DON'T update suggestions after newline - no need for mentions on new line
+          // this.updateSuggestions();
           return;
         }
 
@@ -275,6 +276,17 @@ class ReadlineInput {
     const currentLineIdx = linesBeforeCursor.length - 1;
     const currentLineText = linesBeforeCursor[currentLineIdx];
     
+    // DEBUG
+    if (process.env.DEBUG_READLINE) {
+      console.error(`\n[DEBUG] redrawInput called:`);
+      console.error(`  input: ${JSON.stringify(this.input)}`);
+      console.error(`  cursorPos: ${this.cursorPos}`);
+      console.error(`  screenCursorLine (before): ${this.screenCursorLine}`);
+      console.error(`  currentLineIdx: ${currentLineIdx}`);
+      console.error(`  lines.length: ${lines.length}`);
+      console.error(`  previousLineCount: ${this.previousLineCount}`);
+    }
+    
     // Move to the first line using the tracked screen cursor position
     if (this.screenCursorLine > 0) {
       process.stdout.write(`\x1b[${this.screenCursorLine}A`);
@@ -326,6 +338,11 @@ class ReadlineInput {
     // Update tracked positions
     this.previousLineCount = lines.length;
     this.screenCursorLine = currentLineIdx; // Update screen cursor position
+    
+    // DEBUG
+    if (process.env.DEBUG_READLINE) {
+      console.error(`  screenCursorLine (after): ${this.screenCursorLine}\n`);
+    }
   }
 
   /**
