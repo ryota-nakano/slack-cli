@@ -76,9 +76,13 @@ class ReadlineInput {
           this.input = this.input.substring(0, this.cursorPos) + '\n' + this.input.substring(this.cursorPos);
           this.cursorPos++;
           this.clearSuggestions();
+          
+          // Update screenCursorLine immediately after newline insertion
+          const beforeCursor = this.input.substring(0, this.cursorPos);
+          const linesBeforeCursor = beforeCursor.split('\n');
+          this.screenCursorLine = linesBeforeCursor.length - 1;
+          
           this.redrawInput();
-          // DON'T update suggestions after newline - no need for mentions on new line
-          // this.updateSuggestions();
           return;
         }
 
