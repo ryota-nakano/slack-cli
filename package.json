@@ -7,7 +7,7 @@
     "slack-cli": "./src/index.js"
   },
   "scripts": {
-    "start": "node src/index.js --help",
+    "start": "node src/index.js channel",
     "channels": "node src/index.js channels",
     "help": "node src/index.js --help"
   },
