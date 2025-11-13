@@ -528,7 +528,7 @@ async function channelChat() {
     if (history.length > 0) {
       console.log(chalk.cyan('📜 今日の履歴:\n'));
       
-      history.slice(0, 5).forEach((item, index) => {
+      history.slice(0, 10).forEach((item, index) => {
         const icon = item.type === 'thread' ? '💬' : '#';
         const typeLabel = item.type === 'thread' ? chalk.gray('[スレッド]') : '';
         const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
@@ -536,12 +536,13 @@ async function channelChat() {
           minute: '2-digit' 
         });
         console.log(
-          '  ' + chalk.gray(time) + ' ' +
+          '  ' + chalk.yellow(`[${index + 1}]`) + ' ' +
+          chalk.gray(time) + ' ' +
           `${icon} ${chalk.green(item.channelName)}${typeLabel}`
         );
       });
       
-      console.log('');
+      console.log(chalk.gray('\n💡 ヒント: /数字 で履歴から開く（例: /1）\n'));
     }
     
     // Initial prompt with channel selection (auto-trigger channel mode)
@@ -553,6 +554,23 @@ async function channelChat() {
     if (result === '__EMPTY__') {
       console.log(chalk.yellow('⚠️  入力がキャンセルされました'));
       return;
+    }
+    
+    // Handle /number command for history selection
+    if (typeof result === 'string' && result.startsWith('/')) {
+      const number = parseInt(result.substring(1).trim());
+      
+      if (!isNaN(number) && number > 0 && number <= history.length) {
+        const item = history[number - 1];
+        console.log(chalk.cyan(`\n📂 ${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''} を開いています...\n`));
+        
+        const session = new ChatSession(item.channelId, item.channelName, item.threadTs);
+        await session.start();
+        return;
+      } else {
+        console.log(chalk.yellow(`\n⚠️  履歴番号 ${number} は存在しません`));
+        return;
+      }
     }
     
     if (typeof result === 'object' && result.type === 'channel') {
