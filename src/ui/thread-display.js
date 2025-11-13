@@ -34,12 +34,18 @@ class ThreadDisplay {
       const prefix = i === 0 ? '📌' : '  ↳';
       const index = replies.length - displayReplies.length + i + 1;
       
-      // Show thread indicator if message has replies
-      const threadIndicator = reply.hasThread 
-        ? chalk.blue(` [💬${reply.replyCount}]`) 
-        : '';
+      // Format index with fixed width (right-aligned, 3 chars)
+      const indexStr = String(index).padStart(3, ' ');
       
-      console.log(`${prefix} ${chalk.gray(`[${index}]`)} ${chalk.gray(`[${time}]`)}${threadIndicator} ${chalk.yellow(reply.user)}: ${reply.text}`);
+      // Show thread indicator with fixed width
+      const threadIndicator = reply.hasThread 
+        ? chalk.blue(`[💬${String(reply.replyCount).padStart(2, ' ')}]`) 
+        : '      '; // 6 spaces to match [💬NN]
+      
+      // Format user name with fixed width (left-aligned, 12 chars)
+      const userStr = reply.user.padEnd(12, ' ').substring(0, 12);
+      
+      console.log(`${prefix} ${chalk.gray(indexStr)} ${chalk.gray(time)} ${threadIndicator} ${chalk.yellow(userStr)} ${reply.text}`);
     });
 
     console.log('');
@@ -62,12 +68,15 @@ class ThreadDisplay {
         second: '2-digit'
       });
       
-      // Show thread indicator if message has replies
+      // Show thread indicator with fixed width
       const threadIndicator = reply.hasThread 
-        ? chalk.blue(` [💬${reply.replyCount}]`) 
-        : '';
+        ? chalk.blue(`[💬${String(reply.replyCount).padStart(2, ' ')}]`) 
+        : '      '; // 6 spaces
       
-      console.log(`  ↳${chalk.gray(`[${time}]`)}${threadIndicator} ${chalk.yellow(reply.user)}: ${reply.text}`);
+      // Format user name with fixed width
+      const userStr = reply.user.padEnd(12, ' ').substring(0, 12);
+      
+      console.log(`  ↳ ${chalk.gray(time)} ${threadIndicator} ${chalk.yellow(userStr)} ${reply.text}`);
     });
   }
 }
@@ -85,12 +94,18 @@ function displayMessages(messages) {
       second: '2-digit'
     });
 
-    // Show thread indicator if message has replies
-    const threadIndicator = msg.hasThread 
-      ? chalk.blue(` [💬${msg.replyCount}]`) 
-      : '';
+    // Format index with fixed width (right-aligned, 3 chars)
+    const indexStr = String(i + 1).padStart(3, ' ');
 
-    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(`[${time}]`)}${threadIndicator} ${chalk.yellow(msg.user)}: ${msg.text}`);
+    // Show thread indicator with fixed width
+    const threadIndicator = msg.hasThread 
+      ? chalk.blue(`[💬${String(msg.replyCount).padStart(2, ' ')}]`) 
+      : '      '; // 6 spaces
+
+    // Format user name with fixed width (left-aligned, 12 chars)
+    const userStr = msg.user.padEnd(12, ' ').substring(0, 12);
+
+    console.log(`${chalk.gray(indexStr)} ${chalk.gray(time)} ${threadIndicator} ${chalk.yellow(userStr)} ${msg.text}`);
   });
   console.log('');
 }
