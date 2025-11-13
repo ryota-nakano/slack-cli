@@ -70,11 +70,12 @@ class ChatSession {
   /**
    * Fetch messages based on context
    */
-  async fetchMessages(limit = 100) {
+  async fetchMessages(limit = null) {
     if (this.isThread()) {
       this.messages = await this.client.getThreadReplies(this.channelId, this.threadTs);
     } else {
-      this.messages = await this.client.getChannelHistory(this.channelId, limit);
+      // For channels, default to today's messages (oldest = today's 0:00)
+      this.messages = await this.client.getChannelHistory(this.channelId, limit, null);
     }
   }
 
@@ -264,7 +265,8 @@ class ChatSession {
    */
   async handleHistory(limit) {
     console.log(chalk.cyan(`\n📜 直近${limit}件の履歴を取得中...\n`));
-    await this.fetchMessages(limit);
+    // When using /history command with limit, fetch from beginning (oldest = 0)
+    this.messages = await this.client.getChannelHistory(this.channelId, limit, 0);
     this.displayMessages();
   }
 
@@ -276,8 +278,9 @@ class ChatSession {
     
     if (!this.isThread()) {
       console.log(chalk.yellow('  /<番号>') + chalk.gray('        - 指定した投稿のスレッドに入る（例: /3）'));
-      console.log(chalk.yellow('  /history [件数]') + chalk.gray(' - 履歴を表示 (デフォルト: 20件)'));
-      console.log(chalk.yellow('  /h [件数]') + chalk.gray('       - 履歴を表示 (短縮形)'));
+      console.log(chalk.yellow('  /history [件数]') + chalk.gray(' - 過去の履歴を表示 (デフォルト: 20件)'));
+      console.log(chalk.yellow('  /h [件数]') + chalk.gray('       - 過去の履歴を表示 (短縮形)'));
+      console.log(chalk.gray('    💡 デフォルトでは今日のメッセージのみ表示されます'));
     }
     
     console.log(chalk.yellow('  /rm <番号>') + chalk.gray('      - 指定したメッセージを削除（例: /rm 5）'));

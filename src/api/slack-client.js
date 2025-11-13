@@ -540,13 +540,30 @@ class SlackClient {
 
   /**
    * Get channel message history
+   * @param {string} channelId - Channel ID
+   * @param {number|null} limit - Max messages to fetch (null = no limit)
+   * @param {number|null} oldest - Oldest timestamp to fetch from (null = default to today)
    */
-  async getChannelHistory(channelId, limit = 20) {
+  async getChannelHistory(channelId, limit = null, oldest = null) {
     try {
-      const result = await this.client.conversations.history({
+      // Default to today's 0:00 if oldest not specified
+      if (oldest === null) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        oldest = today.getTime() / 1000; // Convert to Unix timestamp
+      }
+
+      const params = {
         channel: channelId,
-        limit: limit
-      });
+        oldest: oldest
+      };
+
+      // Only add limit if specified
+      if (limit !== null) {
+        params.limit = limit;
+      }
+
+      const result = await this.client.conversations.history(params);
 
       const messages = result.messages || [];
       const history = [];
