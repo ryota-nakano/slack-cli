@@ -190,9 +190,52 @@ class SlackClient {
   }
 
   /**
-   * Convert Slack mentions and special mentions to display names
-   * @param {string} text - Message text with Slack formatting
+   * Get user group information with caching
    */
+  async getUsergroupInfo(usergroupId) {
+    // If already in cache, return it
+    if (this.usergroupCache.has(usergroupId)) {
+      return this.usergroupCache.get(usergroupId);
+    }
+
+    // If we haven't tried to fetch usergroups yet, try once
+    if (!this.usergroupsFetched) {
+      try {
+        const result = await this.client.usergroups.list({
+          include_disabled: false,
+          include_count: false,
+          include_users: false
+        });
+        const usergroups = result.usergroups || [];
+        
+        // Cache all usergroups
+        for (const group of usergroups) {
+          const groupInfo = {
+            id: group.id,
+            handle: group.handle,
+            name: group.name
+          };
+          this.usergroupCache.set(group.id, groupInfo);
+        }
+        
+        this.usergroupsFetched = true;
+      } catch (error) {
+        // If missing scope or other error, mark as fetched to avoid repeated calls
+        this.usergroupsFetched = true;
+        if (error.data && error.data.error === 'missing_scope') {
+          console.error('[WARN] usergroups:read スコープがありません。グループメンションはIDで表示されます。');
+        }
+      }
+    }
+
+    // Return cached value or fallback
+    return this.usergroupCache.get(usergroupId) || {
+      id: usergroupId,
+      handle: usergroupId,
+      name: usergroupId
+    };
+  }
+
   /**
    * Convert Slack mentions and special mentions to display names
    * @param {string} text - Message text with Slack formatting
