@@ -191,6 +191,12 @@ class ChatSession {
           return;
         }
 
+        // Handle /back command (thread only) - Return to channel
+        if (this.isThread() && (trimmedText === '/back' || trimmedText === '/b')) {
+          await this.backToChannel();
+          return;
+        }
+
         // Handle /rm command
         if (trimmedText.startsWith('/rm ')) {
           const msgNumber = trimmedText.substring(4).trim();
@@ -293,6 +299,18 @@ class ChatSession {
   }
 
   /**
+   * Return to channel from thread
+   */
+  async backToChannel() {
+    this.cleanup(false);
+    
+    console.log(chalk.cyan(`\n⬅️  チャンネルに戻ります...\n`));
+    
+    const channelSession = new ChatSession(this.channelId, this.channelName);
+    await channelSession.start();
+  }
+
+  /**
    * Handle message deletion
    */
   async handleDeleteMessage(msgNumber) {
@@ -343,6 +361,8 @@ class ChatSession {
       console.log(chalk.yellow('  /history [件数]') + chalk.gray(' - 過去の履歴を表示 (デフォルト: 20件)'));
       console.log(chalk.yellow('  /h [件数]') + chalk.gray('       - 過去の履歴を表示 (短縮形)'));
       console.log(chalk.gray('    💡 デフォルトでは今日のメッセージのみ表示されます'));
+    } else {
+      console.log(chalk.yellow('  /back, /b') + chalk.gray('       - チャンネルに戻る'));
     }
     
     console.log(chalk.yellow('  /rm <番号>') + chalk.gray('      - 指定したメッセージを削除（例: /rm 5）'));
