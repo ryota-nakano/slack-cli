@@ -275,15 +275,14 @@ class ReadlineInput {
     const currentLineIdx = linesBeforeCursor.length - 1;
     const currentLineText = linesBeforeCursor[currentLineIdx];
     
-    // IMPORTANT: Move to the first line FIRST before clearing
-    // Assume we might be on any line from 0 to previousLineCount-1
-    // Move up to the first line
-    if (this.previousLineCount > 1) {
-      // Move up to first line (assuming we could be at any previous line)
-      process.stdout.write(`\x1b[${this.previousLineCount - 1}A`);
+    // IMPORTANT: Move to the first line from CURRENT cursor position
+    // currentLineIdx tells us which line we're on (0-based)
+    if (currentLineIdx > 0) {
+      // Move up from current line to first line
+      process.stdout.write(`\x1b[${currentLineIdx}A`);
     }
     
-    // Now we're at the first line (or already were)
+    // Now we're at the first line
     // Move to start of line and clear from cursor to end of screen
     process.stdout.write('\r\x1b[J');
     
