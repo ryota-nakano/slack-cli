@@ -39,10 +39,14 @@ class ThreadDisplay {
         ? chalk.blue(` [💬${reply.replyCount}]`) 
         : '';
       
-      // First line: Number (bright), time, thread indicator, user
-      console.log(`${prefix} ${chalk.bold.white(`[${index}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.user)}`);
-      // Second line: Message text (indented)
-      console.log(`     ${reply.text}`);
+      // First line: Number, time, thread indicator, user
+      console.log(`${prefix} ${chalk.gray(`[${index}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.user)}`);
+      
+      // Second line: Message text (indented, handle multi-line)
+      const lines = reply.text.split('\n');
+      lines.forEach(line => {
+        console.log(`     ${line}`);
+      });
     });
 
     console.log('');
@@ -72,8 +76,12 @@ class ThreadDisplay {
       
       // First line: time, thread indicator, user
       console.log(`  ↳ ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.user)}`);
-      // Second line: Message text (indented)
-      console.log(`     ${reply.text}`);
+      
+      // Second line: Message text (indented, handle multi-line)
+      const lines = reply.text.split('\n');
+      lines.forEach(line => {
+        console.log(`     ${line}`);
+      });
     });
   }
 }
@@ -96,10 +104,14 @@ function displayMessages(messages) {
       ? chalk.blue(` [💬${msg.replyCount}]`) 
       : '';
 
-    // First line: Number (bright), time, thread indicator, user
-    console.log(`${chalk.bold.white(`[${i + 1}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(msg.user)}`);
-    // Second line: Message text (indented)
-    console.log(`     ${msg.text}`);
+    // First line: Number, time, thread indicator, user
+    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(msg.user)}`);
+    
+    // Second line: Message text (indented, handle multi-line)
+    const lines = msg.text.split('\n');
+    lines.forEach(line => {
+      console.log(`     ${line}`);
+    });
   });
   console.log('');
 }
