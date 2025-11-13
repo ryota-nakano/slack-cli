@@ -23,6 +23,7 @@ class ChatSession {
     this.updateInterval = null;
     this.membersLoaded = false;
     this.display = null;
+    this.channelsPreloaded = false; // Track if channels are preloaded
   }
 
   /**
@@ -58,7 +59,7 @@ class ChatSession {
     // Display messages
     this.displayMessages();
 
-    // Load members asynchronously
+    // Load members asynchronously (no need to preload channels anymore)
     this.loadMembersAsync();
 
     // Start update polling
@@ -141,8 +142,7 @@ class ChatSession {
   async inputLoop() {
     while (true) {
       try {
-        const channels = await this.client.listChannels();
-        const readlineInput = new ReadlineInput(this.channelMembers, channels);
+        const readlineInput = new ReadlineInput(this.channelMembers, this.client);
         const text = await readlineInput.prompt(this.getContextName());
 
         // Switch to editor mode
@@ -379,15 +379,12 @@ async function channelChat() {
   const client = new SlackClient(token);
 
   try {
-    console.log(chalk.cyan('📋 チャンネルを選択してください...\n'));
-    
-    // Get all channels
-    const channels = await client.listChannels();
+    console.log(chalk.cyan('📋 チャンネルを選択してください\n'));
     
     // Initial prompt with channel selection (auto-trigger channel mode)
-    const readlineInput = new ReadlineInput([], channels);
+    const readlineInput = new ReadlineInput([], client);
     
-    console.log(chalk.yellow('💡 ヒント: チャンネル名を入力して検索・選択できます'));
+    console.log(chalk.yellow('💡 ヒント: チャンネル名を入力してTabキーで検索（#は不要）'));
     const result = await readlineInput.prompt('チャンネル選択', true); // true = auto-trigger channel mode
     
     if (result === '__EMPTY__') {

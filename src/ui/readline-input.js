@@ -8,9 +8,9 @@ const chalk = require('chalk');
 const stringWidth = require('string-width');
 
 class ReadlineInput {
-  constructor(channelMembers = [], channels = []) {
+  constructor(channelMembers = [], slackClient = null) {
     this.members = channelMembers;
-    this.channels = channels;
+    this.slackClient = slackClient; // SlackClient instance for dynamic channel search
     this.input = '';
     this.cursorPos = 0;
     this.suggestions = [];
@@ -20,6 +20,8 @@ class ReadlineInput {
     this.previousLineCount = 1;
     this.screenCursorLine = 0; // Track which line the cursor is actually on screen (0-based)
     this.autoChannelMode = false; // Auto channel selection mode (no # required)
+    this.lastChannelQuery = null; // Track last channel query to avoid duplicate searches
+    this.isLoadingChannels = false; // Prevent concurrent channel loads
   }
 
   /**
@@ -43,13 +45,8 @@ class ReadlineInput {
       // Show initial prompt using redrawInput
       this.redrawInput(); // This will draw "> " with empty input
 
-      // Auto-trigger channel suggestions if in channel selection mode
-      if (autoChannelMode && this.channels.length > 0) {
-        this.suggestions = this.channels.slice(0, 10);
-        this.suggestionType = 'channel';
-        this.selectedIndex = 0;
-        this.showSuggestions();
-      }
+      // In auto channel mode, show hint but don't auto-trigger
+      // Let user start typing to trigger suggestions
 
       readline.emitKeypressEvents(process.stdin, this.rl);
       if (process.stdin.isTTY) {
@@ -66,7 +63,7 @@ class ReadlineInput {
         }
       };
 
-      const onKeypress = (str, key) => {
+      const onKeypress = async (str, key) => {
         if (!key) return;
 
         // Ctrl+C: Exit
@@ -112,7 +109,7 @@ class ReadlineInput {
               return;
             }
             
-            this.updateSuggestions();
+            // Don't auto-update after selection
             return;
           }
 
@@ -154,13 +151,34 @@ class ReadlineInput {
             return;
           }
         } else if (key.name === 'tab') {
+          // Clear any existing suggestions first
+          this.clearSuggestions();
+          
           // Try channel context first
           const channelResult = this.findChannelContext();
-          if (channelResult && channelResult.candidates.length > 0) {
-            this.suggestions = channelResult.candidates;
-            this.suggestionType = 'channel';
-            this.selectedIndex = 0;
-            this.showSuggestions();
+          if (channelResult && channelResult.needsLoad) {
+            // Show loading indicator
+            process.stdout.write(chalk.gray('\n🔍 検索中...'));
+            
+            await this.loadChannelSuggestions(channelResult.searchTerm);
+            
+            // Clear loading indicator
+            readline.moveCursor(process.stdout, 0, -1);
+            readline.cursorTo(process.stdout, 0);
+            readline.clearLine(process.stdout, 0);
+            
+            if (this.suggestions.length > 0) {
+              this.showSuggestions();
+            } else {
+              // Show "no results" message temporarily
+              process.stdout.write(chalk.yellow('\n💡 該当するチャンネルが見つかりませんでした'));
+              setTimeout(() => {
+                readline.moveCursor(process.stdout, 0, -1);
+                readline.cursorTo(process.stdout, 0);
+                readline.clearLine(process.stdout, 0);
+                this.setCursorPosition();
+              }, 1000);
+            }
             return;
           }
           
@@ -195,11 +213,57 @@ class ReadlineInput {
         // Update display
         this.clearSuggestions();
         this.redrawInput();
-        this.updateSuggestions();
+        
+        // Don't auto-update suggestions on each keystroke
+        // User should press Tab to trigger search
       };
 
       process.stdin.on('keypress', onKeypress);
     });
+  }
+
+  /**
+   * Load channel suggestions based on search query
+   */
+  async loadChannelSuggestions(searchTerm) {
+    if (!this.slackClient) {
+      this.suggestions = [];
+      return;
+    }
+
+    // Skip if same query or already loading
+    if (this.lastChannelQuery === searchTerm || this.isLoadingChannels) {
+      if (process.env.DEBUG_CHANNELS) {
+        console.error(`[DEBUG] チャンネル検索スキップ: "${searchTerm}" (重複/ロード中)`);
+      }
+      return;
+    }
+
+    this.isLoadingChannels = true;
+    this.lastChannelQuery = searchTerm;
+
+    if (process.env.DEBUG_CHANNELS) {
+      console.error(`[DEBUG] チャンネル検索: "${searchTerm}"`);
+    }
+
+    try {
+      const channels = await this.slackClient.searchChannels(searchTerm, 10);
+      this.suggestions = channels;
+      this.suggestionType = 'channel';
+      this.selectedIndex = this.suggestions.length > 0 ? 0 : -1;
+
+      if (process.env.DEBUG_CHANNELS) {
+        console.error(`[DEBUG] 検索結果: ${channels.length}件`);
+      }
+    } catch (error) {
+      if (process.env.DEBUG_CHANNELS) {
+        console.error(`[DEBUG] チャンネル検索エラー: ${error.message}`);
+      }
+      this.suggestions = [];
+      this.selectedIndex = -1;
+    } finally {
+      this.isLoadingChannels = false;
+    }
   }
 
   /**
@@ -237,18 +301,13 @@ class ReadlineInput {
   findChannelContext() {
     // In auto channel mode, treat entire input as channel search
     if (this.autoChannelMode && this.input.indexOf('#') === -1) {
-      const searchTerm = this.input.toLowerCase();
-      const candidates = this.channels.filter(channel => {
-        return channel.name.toLowerCase().includes(searchTerm);
-      });
-
-      if (candidates.length === 0) return null;
+      const searchTerm = this.input;
 
       return {
         type: 'channel',
         startIndex: 0,
-        searchTerm: this.input,
-        candidates: candidates.slice(0, 10)
+        searchTerm: searchTerm,
+        needsLoad: true // Signal that we need to load suggestions
       };
     }
 
@@ -262,44 +321,22 @@ class ReadlineInput {
     const afterHash = beforeCursor.substring(lastHashIndex + 1);
     if (afterHash.includes(' ')) return null;
 
-    const searchTerm = afterHash.toLowerCase();
-    const candidates = this.channels.filter(channel => {
-      return channel.name.toLowerCase().includes(searchTerm);
-    });
-
-    if (candidates.length === 0) return null;
+    const searchTerm = afterHash;
 
     return {
       type: 'channel',
       startIndex: lastHashIndex,
-      searchTerm: afterHash,
-      candidates: candidates.slice(0, 10)
+      searchTerm: searchTerm,
+      needsLoad: true
     };
   }
 
   /**
-   * Update suggestions based on current input
+   * Update suggestions based on current input (not used anymore - Tab only)
    */
-  updateSuggestions() {
-    // Try channel context first
-    const channelResult = this.findChannelContext();
-    if (channelResult && channelResult.candidates.length > 0) {
-      this.suggestions = channelResult.candidates;
-      this.suggestionType = 'channel';
-      this.selectedIndex = 0;
-      this.showSuggestions();
-      return;
-    }
-
-    // Then try mention context
-    const mentionResult = this.findMentionContext();
-    if (mentionResult && mentionResult.candidates.length > 0) {
-      this.suggestions = mentionResult.candidates;
-      this.suggestionType = 'mention';
-      this.selectedIndex = 0;
-      this.showSuggestions();
-      return;
-    }
+  async updateSuggestions() {
+    // Suggestions are now only triggered by Tab key
+    // This prevents excessive API calls on each keystroke
   }
 
   /**
@@ -351,6 +388,9 @@ class ReadlineInput {
     
     this.suggestions = [];
     this.selectedIndex = -1;
+    
+    // Reset query tracking when clearing suggestions
+    this.lastChannelQuery = null;
     
     // Reset screenCursorLine after cursor movement
     const beforeCursor = this.input.substring(0, this.cursorPos);

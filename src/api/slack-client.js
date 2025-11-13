@@ -4,12 +4,82 @@
  */
 
 const { WebClient } = require('@slack/web-api');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+// Cache directory in user's home
+const CACHE_DIR = path.join(os.homedir(), '.slack-cli');
+const CHANNEL_CACHE_FILE = path.join(CACHE_DIR, 'channels-cache.json');
 
 class SlackClient {
   constructor(token) {
     this.client = new WebClient(token);
     this.userCache = new Map();
+    this.channelCache = null; // Cache all channels
+    this.channelCacheTime = null;
     this.isUserToken = token.startsWith('xoxp-');
+    
+    // Ensure cache directory exists
+    if (!fs.existsSync(CACHE_DIR)) {
+      fs.mkdirSync(CACHE_DIR, { recursive: true });
+    }
+    
+    // Load channel cache from file
+    this.loadChannelCacheFromFile();
+  }
+
+  /**
+   * Load channel cache from file
+   */
+  loadChannelCacheFromFile() {
+    try {
+      if (fs.existsSync(CHANNEL_CACHE_FILE)) {
+        const data = fs.readFileSync(CHANNEL_CACHE_FILE, 'utf8');
+        const cached = JSON.parse(data);
+        
+        // Check if cache is still valid (24 hours)
+        const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours for file cache
+        if (cached.timestamp && (Date.now() - cached.timestamp < CACHE_TTL)) {
+          this.channelCache = cached.channels;
+          this.channelCacheTime = cached.timestamp;
+          
+          if (process.env.DEBUG_CHANNELS) {
+            console.error(`[DEBUG] ファイルからキャッシュ読み込み: ${this.channelCache.length}件 (${new Date(cached.timestamp).toLocaleString()})`);
+          }
+        } else {
+          if (process.env.DEBUG_CHANNELS) {
+            console.error('[DEBUG] キャッシュファイルが古いため無効');
+          }
+        }
+      }
+    } catch (error) {
+      if (process.env.DEBUG_CHANNELS) {
+        console.error(`[DEBUG] キャッシュ読み込みエラー: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Save channel cache to file
+   */
+  saveChannelCacheToFile() {
+    try {
+      const data = {
+        timestamp: this.channelCacheTime,
+        channels: this.channelCache
+      };
+      
+      fs.writeFileSync(CHANNEL_CACHE_FILE, JSON.stringify(data), 'utf8');
+      
+      if (process.env.DEBUG_CHANNELS) {
+        console.error(`[DEBUG] キャッシュをファイルに保存: ${this.channelCache.length}件`);
+      }
+    } catch (error) {
+      if (process.env.DEBUG_CHANNELS) {
+        console.error(`[DEBUG] キャッシュ保存エラー: ${error.message}`);
+      }
+    }
   }
 
   /**
@@ -60,14 +130,119 @@ class SlackClient {
   }
 
   /**
-   * List all channels (public and private)
+   * List all channels (public and private) with caching
+   * @param {boolean} forceRefresh - Force refresh cache
    */
-  async listChannels() {
-    const result = await this.client.conversations.list({
-      types: 'public_channel,private_channel',
-      limit: 200
-    });
-    return result.channels || [];
+  async listChannels(forceRefresh = false) {
+    // Return cached channels if available (cache for 5 minutes in memory)
+    const MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+    if (!forceRefresh && this.channelCache && this.channelCacheTime && 
+        (Date.now() - this.channelCacheTime < MEMORY_CACHE_TTL)) {
+      if (process.env.DEBUG_CHANNELS) {
+        console.error(`[DEBUG] メモリキャッシュから取得: ${this.channelCache.length}件`);
+      }
+      return this.channelCache;
+    }
+
+    if (process.env.DEBUG_CHANNELS) {
+      console.error('[DEBUG] 参加チャンネル取得開始...');
+    }
+
+    const allChannels = [];
+    let cursor = undefined;
+    let pageCount = 0;
+
+    try {
+      do {
+        // Use users.conversations to get only user's channels
+        const result = await this.client.users.conversations({
+          types: 'public_channel,private_channel',
+          limit: 200,
+          cursor: cursor,
+          exclude_archived: true
+        });
+
+        const channels = result.channels || [];
+        allChannels.push(...channels);
+        pageCount++;
+
+        if (process.env.DEBUG_CHANNELS) {
+          console.error(`[DEBUG] ページ${pageCount}: ${channels.length}件取得, 累計: ${allChannels.length}件`);
+          console.error(`[DEBUG] next_cursor: ${result.response_metadata?.next_cursor ? '有り' : '無し'}`);
+        }
+
+        cursor = result.response_metadata?.next_cursor;
+        
+        // Rate limit protection: wait between pages
+        if (cursor) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      } while (cursor);
+
+      if (process.env.DEBUG_CHANNELS) {
+        console.error(`[DEBUG] 取得完了: 合計 ${allChannels.length}件の参加チャンネル (${pageCount}ページ)\n`);
+      }
+
+      // Cache the results
+      this.channelCache = allChannels;
+      this.channelCacheTime = Date.now();
+      
+      // Save to file for next time
+      this.saveChannelCacheToFile();
+
+      return allChannels;
+    } catch (error) {
+      if (process.env.DEBUG_CHANNELS) {
+        console.error(`[DEBUG] チャンネル取得エラー: ${error.message}`);
+      }
+      
+      // If we got some channels before error, return them
+      if (allChannels.length > 0) {
+        this.channelCache = allChannels;
+        this.channelCacheTime = Date.now();
+        this.saveChannelCacheToFile();
+        return allChannels;
+      }
+      
+      // Otherwise return empty or cached data
+      return this.channelCache || [];
+    }
+  }
+
+  /**
+   * Search channels by name (only channels the user is a member of)
+   * Uses cached channel list for fast search
+   * @param {string} query - Search query
+   * @param {number} limit - Max results to return
+   */
+  async searchChannels(query = '', limit = 20) {
+    if (process.env.DEBUG_CHANNELS) {
+      console.error(`[DEBUG] チャンネル検索: "${query}"`);
+    }
+
+    // Get all channels from cache (or fetch if needed)
+    const allChannels = await this.listChannels();
+    
+    if (process.env.DEBUG_CHANNELS) {
+      console.error(`[DEBUG] ${allChannels.length}件のチャンネルから検索`);
+    }
+
+    // Filter by search term
+    const searchTerm = query.toLowerCase();
+    const filtered = allChannels.filter(channel => 
+      channel.name.toLowerCase().includes(searchTerm)
+    );
+
+    if (process.env.DEBUG_CHANNELS) {
+      console.error(`[DEBUG] 検索結果: ${filtered.length}件`);
+      if (filtered.length > 0 && filtered.length <= 5) {
+        filtered.forEach(ch => {
+          console.error(`[DEBUG]   → ${ch.name} (${ch.id})`);
+        });
+      }
+    }
+
+    return filtered.slice(0, limit);
   }
 
   /**
