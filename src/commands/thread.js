@@ -74,7 +74,8 @@ class ChatSession {
    */
   async fetchMessages(limit = null, daysBack = null) {
     if (this.isThread()) {
-      this.messages = await this.client.getChannelHistory(this.channelId, limit, null);
+      // For threads, get all replies (no date filtering)
+      this.messages = await this.client.getThreadReplies(this.channelId, this.threadTs);
     } else {
       // Use daysBack parameter or instance variable
       const days = daysBack !== null ? daysBack : this.daysBack;
