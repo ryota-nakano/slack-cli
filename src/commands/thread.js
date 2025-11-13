@@ -56,9 +56,6 @@ class ChatSession {
     // Display messages
     this.displayMessages();
 
-    // Load members asynchronously (no need to preload channels anymore)
-    this.loadMembersAsync();
-
     // Start update polling
     this.updateInterval = setInterval(() => this.checkUpdates(), 2000);
 
@@ -78,19 +75,6 @@ class ChatSession {
       this.messages = await this.client.getThreadReplies(this.channelId, this.threadTs);
     } else {
       this.messages = await this.client.getChannelHistory(this.channelId, limit);
-    }
-  }
-
-  /**
-   * Load channel members asynchronously
-   */
-  async loadMembersAsync() {
-    try {
-      this.channelMembers = await this.client.getChannelMembers(this.channelId);
-      this.membersLoaded = true;
-      this.displayMessages();
-    } catch (error) {
-      // Silent fail - mention feature just won't be available
     }
   }
 
