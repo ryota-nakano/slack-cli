@@ -8,12 +8,14 @@ const chalk = require('chalk');
 const stringWidth = require('string-width');
 
 class ReadlineInput {
-  constructor(channelMembers = []) {
+  constructor(channelMembers = [], channels = []) {
     this.members = channelMembers;
+    this.channels = channels;
     this.input = '';
     this.cursorPos = 0;
     this.suggestions = [];
     this.selectedIndex = -1;
+    this.suggestionType = null; // 'mention' or 'channel'
     this.rl = null;
     this.previousLineCount = 1;
     this.screenCursorLine = 0; // Track which line the cursor is actually on screen (0-based)
@@ -81,12 +83,20 @@ class ReadlineInput {
           return;
         }
 
-        // Enter: Submit
+        // Enter: Submit or select suggestion
         if (key.name === 'return') {
           if (this.suggestions.length > 0) {
-            this.insertSuggestion();
+            const result = this.insertSuggestion();
             this.clearSuggestions();
             this.redrawInput();
+            
+            // If channel was selected, signal special handling
+            if (result && result.type === 'channel') {
+              cleanup();
+              resolve({ type: 'channel', channel: result.channel });
+              return;
+            }
+            
             this.updateSuggestions();
             return;
           }
@@ -129,9 +139,21 @@ class ReadlineInput {
             return;
           }
         } else if (key.name === 'tab') {
-          const result = this.findMentionContext();
-          if (result && result.candidates.length > 0) {
-            this.suggestions = result.candidates;
+          // Try channel context first
+          const channelResult = this.findChannelContext();
+          if (channelResult && channelResult.candidates.length > 0) {
+            this.suggestions = channelResult.candidates;
+            this.suggestionType = 'channel';
+            this.selectedIndex = 0;
+            this.showSuggestions();
+            return;
+          }
+          
+          // Then try mention context
+          const mentionResult = this.findMentionContext();
+          if (mentionResult && mentionResult.candidates.length > 0) {
+            this.suggestions = mentionResult.candidates;
+            this.suggestionType = 'mention';
             this.selectedIndex = 0;
             this.showSuggestions();
           }
@@ -187,8 +209,37 @@ class ReadlineInput {
     if (candidates.length === 0) return null;
 
     return {
+      type: 'mention',
       startIndex: lastAtIndex,
       searchTerm: afterAt,
+      candidates: candidates.slice(0, 10)
+    };
+  }
+
+  /**
+   * Find channel context at cursor position
+   */
+  findChannelContext() {
+    const beforeCursor = this.input.substring(0, this.cursorPos);
+    const lastHashIndex = beforeCursor.lastIndexOf('#');
+
+    if (lastHashIndex === -1) return null;
+    if (lastHashIndex > 0 && beforeCursor[lastHashIndex - 1] === '<') return null;
+
+    const afterHash = beforeCursor.substring(lastHashIndex + 1);
+    if (afterHash.includes(' ')) return null;
+
+    const searchTerm = afterHash.toLowerCase();
+    const candidates = this.channels.filter(channel => {
+      return channel.name.toLowerCase().includes(searchTerm);
+    });
+
+    if (candidates.length === 0) return null;
+
+    return {
+      type: 'channel',
+      startIndex: lastHashIndex,
+      searchTerm: afterHash,
       candidates: candidates.slice(0, 10)
     };
   }
@@ -197,11 +248,24 @@ class ReadlineInput {
    * Update suggestions based on current input
    */
   updateSuggestions() {
-    const result = this.findMentionContext();
-    if (result && result.candidates.length > 0) {
-      this.suggestions = result.candidates;
+    // Try channel context first
+    const channelResult = this.findChannelContext();
+    if (channelResult && channelResult.candidates.length > 0) {
+      this.suggestions = channelResult.candidates;
+      this.suggestionType = 'channel';
       this.selectedIndex = 0;
       this.showSuggestions();
+      return;
+    }
+
+    // Then try mention context
+    const mentionResult = this.findMentionContext();
+    if (mentionResult && mentionResult.candidates.length > 0) {
+      this.suggestions = mentionResult.candidates;
+      this.suggestionType = 'mention';
+      this.selectedIndex = 0;
+      this.showSuggestions();
+      return;
     }
   }
 
@@ -211,12 +275,22 @@ class ReadlineInput {
   showSuggestions() {
     if (this.suggestions.length === 0) return;
 
-    process.stdout.write('\n' + chalk.gray('候補 (Tab/↑↓で選択, Enter確定):'));
-    this.suggestions.forEach((member, idx) => {
-      const isSelected = idx === this.selectedIndex;
-      const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
-      process.stdout.write('\n' + prefix + chalk.yellow(`@${member.displayName}`) + chalk.gray(` (${member.realName})`));
-    });
+    if (this.suggestionType === 'channel') {
+      process.stdout.write('\n' + chalk.gray('チャンネル候補 (Tab/↑↓で選択, Enter確定):'));
+      this.suggestions.forEach((channel, idx) => {
+        const isSelected = idx === this.selectedIndex;
+        const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
+        const icon = channel.is_private ? '🔒' : '#';
+        process.stdout.write('\n' + prefix + chalk.yellow(`${icon}${channel.name}`) + chalk.gray(` (${channel.id})`));
+      });
+    } else {
+      process.stdout.write('\n' + chalk.gray('メンション候補 (Tab/↑↓で選択, Enter確定):'));
+      this.suggestions.forEach((member, idx) => {
+        const isSelected = idx === this.selectedIndex;
+        const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
+        process.stdout.write('\n' + prefix + chalk.yellow(`@${member.displayName}`) + chalk.gray(` (${member.realName})`));
+      });
+    }
 
     const linesToMove = this.suggestions.length + 1;
     readline.moveCursor(process.stdout, 0, -linesToMove);
@@ -259,16 +333,30 @@ class ReadlineInput {
 
     readline.moveCursor(process.stdout, 0, 2);
 
-    this.suggestions.forEach((member, idx) => {
-      readline.cursorTo(process.stdout, 0);
-      readline.clearLine(process.stdout, 0);
-      const isSelected = idx === this.selectedIndex;
-      const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
-      process.stdout.write(prefix + chalk.yellow(`@${member.displayName}`) + chalk.gray(` (${member.realName})`));
-      if (idx < this.suggestions.length - 1) {
-        readline.moveCursor(process.stdout, 0, 1);
-      }
-    });
+    if (this.suggestionType === 'channel') {
+      this.suggestions.forEach((channel, idx) => {
+        readline.cursorTo(process.stdout, 0);
+        readline.clearLine(process.stdout, 0);
+        const isSelected = idx === this.selectedIndex;
+        const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
+        const icon = channel.is_private ? '🔒' : '#';
+        process.stdout.write(prefix + chalk.yellow(`${icon}${channel.name}`) + chalk.gray(` (${channel.id})`));
+        if (idx < this.suggestions.length - 1) {
+          readline.moveCursor(process.stdout, 0, 1);
+        }
+      });
+    } else {
+      this.suggestions.forEach((member, idx) => {
+        readline.cursorTo(process.stdout, 0);
+        readline.clearLine(process.stdout, 0);
+        const isSelected = idx === this.selectedIndex;
+        const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
+        process.stdout.write(prefix + chalk.yellow(`@${member.displayName}`) + chalk.gray(` (${member.realName})`));
+        if (idx < this.suggestions.length - 1) {
+          readline.moveCursor(process.stdout, 0, 1);
+        }
+      });
+    }
 
     readline.moveCursor(process.stdout, 0, -(this.suggestions.length + 1));
     this.setCursorPosition();
@@ -347,15 +435,31 @@ class ReadlineInput {
   insertSuggestion() {
     if (this.selectedIndex < 0 || this.selectedIndex >= this.suggestions.length) return;
 
-    const result = this.findMentionContext();
-    if (!result) return;
+    if (this.suggestionType === 'channel') {
+      const channelResult = this.findChannelContext();
+      if (!channelResult) return;
 
-    const selectedMember = this.suggestions[this.selectedIndex];
-    const beforeAt = this.input.substring(0, result.startIndex);
-    const afterCursor = this.input.substring(this.cursorPos);
+      const selectedChannel = this.suggestions[this.selectedIndex];
+      const beforeHash = this.input.substring(0, channelResult.startIndex);
+      const afterCursor = this.input.substring(this.cursorPos);
 
-    this.input = beforeAt + `<@${selectedMember.id}>` + afterCursor;
-    this.cursorPos = beforeAt.length + selectedMember.id.length + 3;
+      this.input = beforeHash + `<#${selectedChannel.id}|${selectedChannel.name}>` + afterCursor;
+      this.cursorPos = beforeHash.length + selectedChannel.id.length + selectedChannel.name.length + 5;
+      
+      return { type: 'channel', channel: selectedChannel };
+    } else {
+      const mentionResult = this.findMentionContext();
+      if (!mentionResult) return;
+
+      const selectedMember = this.suggestions[this.selectedIndex];
+      const beforeAt = this.input.substring(0, mentionResult.startIndex);
+      const afterCursor = this.input.substring(this.cursorPos);
+
+      this.input = beforeAt + `<@${selectedMember.id}>` + afterCursor;
+      this.cursorPos = beforeAt.length + selectedMember.id.length + 3;
+      
+      return { type: 'mention', member: selectedMember };
+    }
   }
 }
 

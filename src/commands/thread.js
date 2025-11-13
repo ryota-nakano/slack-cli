@@ -119,7 +119,8 @@ class ThreadChatSession {
   async inputLoop() {
     while (true) {
       try {
-        const readlineInput = new ReadlineInput(this.channelMembers);
+        const channels = await this.client.listChannels();
+        const readlineInput = new ReadlineInput(this.channelMembers, channels);
         const text = await readlineInput.prompt(this.channelName);
 
         // Switch to editor mode

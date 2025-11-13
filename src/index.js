@@ -9,6 +9,7 @@ require('dotenv').config();
 const chalk = require('chalk');
 const { listChannels } = require('./commands/channels');
 const { threadChat } = require('./commands/thread');
+const { channelChat } = require('./commands/channel');
 const { showHelp } = require('./utils/help');
 
 // Validate environment
@@ -43,6 +44,11 @@ async function main() {
           process.exit(1);
         }
         await threadChat(args[1], args[2]);
+        break;
+        
+      case 'channel':
+      case 'chat':
+        await channelChat();
         break;
         
       default:

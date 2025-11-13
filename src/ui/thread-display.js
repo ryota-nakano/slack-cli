@@ -65,4 +65,23 @@ class ThreadDisplay {
   }
 }
 
+/**
+ * Standalone function to display messages (for channel history)
+ */
+function displayMessages(messages) {
+  messages.forEach((msg, i) => {
+    const time = msg.timestamp.toLocaleString('ja-JP', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+
+    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(`[${time}]`)} ${chalk.yellow(msg.user)}: ${msg.text}`);
+  });
+  console.log('');
+}
+
 module.exports = ThreadDisplay;
+module.exports.displayMessages = displayMessages;

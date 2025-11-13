@@ -151,6 +151,43 @@ class SlackClient {
   }
 
   /**
+   * Get channel message history
+   */
+  async getChannelHistory(channelId, limit = 20) {
+    try {
+      const result = await this.client.conversations.history({
+        channel: channelId,
+        limit: limit
+      });
+
+      const messages = result.messages || [];
+      const history = [];
+
+      for (const msg of messages) {
+        let userName = 'Unknown';
+        if (msg.user) {
+          const user = await this.getUserInfo(msg.user);
+          userName = user.displayName;
+        } else if (msg.bot_id) {
+          userName = msg.username || 'Bot';
+        }
+
+        history.push({
+          ts: msg.ts,
+          user: userName,
+          text: msg.text || '',
+          timestamp: new Date(parseFloat(msg.ts) * 1000)
+        });
+      }
+
+      // Reverse to show oldest first
+      return history.reverse();
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
    * Send a message to a channel or thread
    */
   async sendMessage(channelId, text, threadTs = null) {
