@@ -206,6 +206,9 @@ class SlackClient {
       formattedText = formattedText.replace(match[0], `@${user.displayName}`);
     }
 
+    // Replace user group mentions <!subteam^ID|@groupname> with @groupname
+    formattedText = formattedText.replace(/<!subteam\^[A-Z0-9]+\|(@[^>]+)>/g, '$1');
+
     // Replace special mentions
     formattedText = formattedText.replace(/<!channel>/g, '@channel');
     formattedText = formattedText.replace(/<!here>/g, '@here');
