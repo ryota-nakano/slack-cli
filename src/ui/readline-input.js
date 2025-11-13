@@ -245,8 +245,7 @@ class ReadlineInput {
     this.suggestions = [];
     this.selectedIndex = -1;
     
-    // IMPORTANT: Reset screenCursorLine since we moved the cursor
-    // We need to recalculate where we are
+    // Reset screenCursorLine after cursor movement
     const beforeCursor = this.input.substring(0, this.cursorPos);
     const linesBeforeCursor = beforeCursor.split('\n');
     this.screenCursorLine = linesBeforeCursor.length - 1;
@@ -285,17 +284,6 @@ class ReadlineInput {
     const currentLineIdx = linesBeforeCursor.length - 1;
     const currentLineText = linesBeforeCursor[currentLineIdx];
     
-    // DEBUG
-    if (process.env.DEBUG_READLINE) {
-      console.error(`\n[DEBUG] redrawInput called:`);
-      console.error(`  input: ${JSON.stringify(this.input)}`);
-      console.error(`  cursorPos: ${this.cursorPos}`);
-      console.error(`  screenCursorLine (before): ${this.screenCursorLine}`);
-      console.error(`  currentLineIdx: ${currentLineIdx}`);
-      console.error(`  lines.length: ${lines.length}`);
-      console.error(`  previousLineCount: ${this.previousLineCount}`);
-    }
-    
     // Step 1: Move to the first line using the tracked screen cursor position
     if (this.screenCursorLine > 0) {
       process.stdout.write(`\x1b[${this.screenCursorLine}A`);
@@ -307,7 +295,7 @@ class ReadlineInput {
     for (let i = 0; i < maxLines; i++) {
       process.stdout.write('\x1b[2K'); // Clear entire line
       if (i < maxLines - 1) {
-        process.stdout.write('\x1b[B'); // Move down one line (NOT on the last line!)
+        process.stdout.write('\x1b[B'); // Move down one line
       }
     }
     
@@ -320,7 +308,7 @@ class ReadlineInput {
     // Step 4: Draw all lines
     for (let i = 0; i < lines.length; i++) {
       if (i > 0) {
-        process.stdout.write('\n'); // Move to next line before drawing
+        process.stdout.write('\n');
       }
       if (i === 0) {
         process.stdout.write(chalk.green('> ') + lines[i]);
@@ -330,35 +318,27 @@ class ReadlineInput {
     }
     
     // Step 5: Position cursor at correct location
-    // We're currently at the end of the last line
-    // Move up to the correct line
     const linesToMoveUp = lines.length - 1 - currentLineIdx;
     if (linesToMoveUp > 0) {
       process.stdout.write(`\x1b[${linesToMoveUp}A`);
     }
     
-    // Move to correct column
-    process.stdout.write('\r'); // Start of line
-    const col = 2 + stringWidth(currentLineText); // 2 for "> " or "  "
+    process.stdout.write('\r');
+    const col = 2 + stringWidth(currentLineText);
     if (col > 0) {
-      process.stdout.write(`\x1b[${col}C`); // Move right
+      process.stdout.write(`\x1b[${col}C`);
     }
     
     // Step 6: Update tracked positions
     this.previousLineCount = lines.length;
-    this.screenCursorLine = currentLineIdx; // Update screen cursor position
-    
-    // DEBUG
-    if (process.env.DEBUG_READLINE) {
-      console.error(`  screenCursorLine (after): ${this.screenCursorLine}\n`);
-    }
+    this.screenCursorLine = currentLineIdx;
   }
 
   /**
-   * Set cursor position based on input (legacy method, now integrated in redrawInput)
+   * Set cursor position (legacy method for compatibility)
    */
   setCursorPosition(lines = null, linesBeforeCursor = null, currentLineIdx = null) {
-    // This method is kept for compatibility but logic moved to redrawInput
+    // Logic moved to redrawInput()
   }
 
   /**
