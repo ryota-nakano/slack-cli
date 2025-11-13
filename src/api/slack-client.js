@@ -603,12 +603,15 @@ class SlackClient {
       mention.realName.toLowerCase().includes(searchTerm)
     );
 
-    // Filter usergroups
-    const filteredUsergroups = usergroups.filter(group =>
-      group.displayName.toLowerCase().includes(searchTerm) ||
-      group.realName.toLowerCase().includes(searchTerm) ||
-      group.handle.toLowerCase().includes(searchTerm)
-    );
+    // Filter usergroups (with null/undefined safety)
+    const filteredUsergroups = usergroups.filter(group => {
+      const displayName = (group.displayName || '').toLowerCase();
+      const realName = (group.realName || group.name || '').toLowerCase();
+      const handle = (group.handle || '').toLowerCase();
+      return displayName.includes(searchTerm) ||
+             realName.includes(searchTerm) ||
+             handle.includes(searchTerm);
+    });
 
     // Filter users
     const filteredUsers = allUsers.filter(user => 
