@@ -188,6 +188,37 @@ class SlackClient {
   }
 
   /**
+   * Convert Slack mentions and special mentions to display names
+   * @param {string} text - Message text with Slack formatting
+   */
+  async formatMentions(text) {
+    if (!text) return text;
+
+    let formattedText = text;
+
+    // Replace user mentions <@USER_ID> with @DisplayName
+    const userMentionRegex = /<@([A-Z0-9]+)>/g;
+    const userMentions = [...text.matchAll(userMentionRegex)];
+    
+    for (const match of userMentions) {
+      const userId = match[1];
+      const user = await this.getUserInfo(userId);
+      formattedText = formattedText.replace(match[0], `@${user.displayName}`);
+    }
+
+    // Replace special mentions
+    formattedText = formattedText.replace(/<!channel>/g, '@channel');
+    formattedText = formattedText.replace(/<!here>/g, '@here');
+    formattedText = formattedText.replace(/<!everyone>/g, '@everyone');
+
+    // Replace channel mentions <#CHANNEL_ID|channel-name> with #channel-name
+    formattedText = formattedText.replace(/<#[A-Z0-9]+\|([^>]+)>/g, '#$1');
+
+    return formattedText;
+  }
+
+
+  /**
    * List all channels (public and private) with caching
    * @param {boolean} forceRefresh - Force refresh cache
    */
@@ -524,10 +555,13 @@ class SlackClient {
           userName = msg.username || 'Bot';
         }
 
+        // Format mentions in message text
+        const formattedText = await this.formatMentions(msg.text || '');
+
         replies.push({
           ts: msg.ts,
           user: userName,
-          text: msg.text || '',
+          text: formattedText,
           timestamp: new Date(parseFloat(msg.ts) * 1000)
         });
       }
@@ -577,10 +611,13 @@ class SlackClient {
           userName = msg.username || 'Bot';
         }
 
+        // Format mentions in message text (getChannelHistory)
+        const formattedText = await this.formatMentions(msg.text || '');
+
         history.push({
           ts: msg.ts,
           user: userName,
-          text: msg.text || '',
+          text: formattedText,
           timestamp: new Date(parseFloat(msg.ts) * 1000),
           replyCount: msg.reply_count || 0,
           replyUsersCount: msg.reply_users_count || 0,
@@ -629,10 +666,13 @@ class SlackClient {
           userName = msg.username || 'Bot';
         }
 
+        // Format mentions in message text (getChannelHistoryRange)
+        const formattedText = await this.formatMentions(msg.text || '');
+
         history.push({
           ts: msg.ts,
           user: userName,
-          text: msg.text || '',
+          text: formattedText,
           timestamp: new Date(parseFloat(msg.ts) * 1000),
           replyCount: msg.reply_count || 0,
           replyUsersCount: msg.reply_users_count || 0,
