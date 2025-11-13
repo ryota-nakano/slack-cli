@@ -463,19 +463,54 @@ class ChatSession {
 
     console.log(chalk.cyan('\n📜 今日の会話履歴:\n'));
     
-    history.forEach((item, index) => {
-      const icon = item.type === 'thread' ? '💬' : '#';
-      const typeLabel = item.type === 'thread' ? '[スレッド]' : '';
+    // Fetch thread information for threads
+    for (let index = 0; index < history.length; index++) {
+      const item = history[index];
       const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
         hour: '2-digit', 
         minute: '2-digit' 
       });
-      console.log(
-        chalk.yellow(`  [${index + 1}]`) + ' ' +
-        chalk.gray(time) + ' ' +
-        `${icon} ${chalk.green(item.channelName)}${typeLabel ? chalk.gray(typeLabel) : ''}`
-      );
-    });
+      
+      if (item.type === 'thread') {
+        try {
+          // Get the first message of the thread
+          const replies = await this.client.getThreadReplies(item.channelId, item.threadTs);
+          if (replies && replies.length > 0) {
+            const firstMsg = replies[0];
+            const msgTime = new Date(parseFloat(firstMsg.ts) * 1000).toLocaleTimeString('ja-JP', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              second: '2-digit'
+            });
+            const firstLine = firstMsg.text.split('\n')[0];
+            const previewText = firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
+            
+            console.log(
+              chalk.yellow(`[${index + 1}]`) + ' ' +
+              chalk.gray(time) + ' ' +
+              '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
+            );
+            console.log(
+              '    ' + chalk.gray(`└─ ${msgTime} ${firstMsg.user}:`) + ' ' + previewText
+            );
+          }
+        } catch (error) {
+          // Fallback if we can't get thread details
+          console.log(
+            chalk.yellow(`[${index + 1}]`) + ' ' +
+            chalk.gray(time) + ' ' +
+            '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
+          );
+        }
+      } else {
+        // Channel
+        console.log(
+          chalk.yellow(`[${index + 1}]`) + ' ' +
+          chalk.gray(time) + ' ' +
+          '# ' + chalk.green(item.channelName)
+        );
+      }
+    }
     
     console.log(chalk.gray('\n💡 ヒント: /数字 で移動（例: /1）\n'));
     this.showingRecentHistory = true; // Set flag for next command
@@ -554,19 +589,55 @@ async function channelChat() {
     if (history.length > 0) {
       console.log(chalk.cyan('📜 今日の履歴:\n'));
       
-      history.slice(0, 10).forEach((item, index) => {
-        const icon = item.type === 'thread' ? '💬' : '#';
-        const typeLabel = item.type === 'thread' ? chalk.gray('[スレッド]') : '';
+      const displayHistory = history.slice(0, 10);
+      
+      for (let index = 0; index < displayHistory.length; index++) {
+        const item = displayHistory[index];
         const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
           hour: '2-digit', 
           minute: '2-digit' 
         });
-        console.log(
-          '  ' + chalk.yellow(`[${index + 1}]`) + ' ' +
-          chalk.gray(time) + ' ' +
-          `${icon} ${chalk.green(item.channelName)}${typeLabel}`
-        );
-      });
+        
+        if (item.type === 'thread') {
+          try {
+            // Get the first message of the thread
+            const replies = await client.getThreadReplies(item.channelId, item.threadTs);
+            if (replies && replies.length > 0) {
+              const firstMsg = replies[0];
+              const msgTime = new Date(parseFloat(firstMsg.ts) * 1000).toLocaleTimeString('ja-JP', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+              });
+              const firstLine = firstMsg.text.split('\n')[0];
+              const previewText = firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
+              
+              console.log(
+                chalk.yellow(`[${index + 1}]`) + ' ' +
+                chalk.gray(time) + ' ' +
+                '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
+              );
+              console.log(
+                '    ' + chalk.gray(`└─ ${msgTime} ${firstMsg.user}:`) + ' ' + previewText
+              );
+            }
+          } catch (error) {
+            // Fallback if we can't get thread details
+            console.log(
+              chalk.yellow(`[${index + 1}]`) + ' ' +
+              chalk.gray(time) + ' ' +
+              '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
+            );
+          }
+        } else {
+          // Channel
+          console.log(
+            chalk.yellow(`[${index + 1}]`) + ' ' +
+            chalk.gray(time) + ' ' +
+            '# ' + chalk.green(item.channelName)
+          );
+        }
+      }
       
       console.log(chalk.gray('\n💡 ヒント: /数字 で履歴から開く（例: /1）\n'));
     }
