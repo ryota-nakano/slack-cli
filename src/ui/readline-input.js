@@ -23,10 +23,11 @@ class ReadlineInput {
 
   /**
    * Show prompt and wait for input
+   * @param {string} contextName - Context name (already formatted with [スレッド] if needed)
    */
-  async prompt(channelName, isThread = false) {
+  async prompt(contextName) {
     return new Promise((resolve) => {
-      const label = isThread ? `💬 #${channelName}[スレッド]` : `💬 #${channelName}`;
+      const label = `💬 #${contextName}`;
       console.log(chalk.cyan(label));
       
       this.rl = readline.createInterface({
