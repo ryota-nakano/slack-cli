@@ -41,7 +41,7 @@ class HistoryManager {
 
   /**
    * Add or update conversation in history
-   * @param {Object} conversation - { channelId, channelName, threadTs?, type: 'channel'|'thread' }
+   * @param {Object} conversation - { channelId, channelName, threadTs?, type: 'channel'|'thread', threadPreview? }
    */
   addConversation(conversation) {
     const now = new Date();
@@ -69,11 +69,12 @@ class HistoryManager {
       channelName: conversation.channelName,
       threadTs: conversation.threadTs || null,
       type: conversation.type,
-      timestamp: now.toISOString()
+      timestamp: now.toISOString(),
+      threadPreview: conversation.threadPreview || null // Cache thread preview
     };
 
     if (existingIndex >= 0) {
-      // Update timestamp
+      // Update timestamp and preserve/update thread preview
       this.history[existingIndex] = entry;
     } else {
       // Add new entry at the beginning

@@ -61,12 +61,27 @@ class ChatSession {
     // Display messages
     this.displayMessages();
 
+    // Prepare thread preview for caching
+    let threadPreview = null;
+    if (this.isThread() && this.messages.length > 0) {
+      const firstMsg = this.messages[0];
+      const text = firstMsg.text || '';
+      const firstLine = text.split('\n')[0].substring(0, 50);
+      threadPreview = {
+        text: firstLine,
+        user: firstMsg.user,
+        userName: firstMsg.userName || '',
+        ts: firstMsg.ts
+      };
+    }
+
     // Record this conversation in history
     this.historyManager.addConversation({
       channelId: this.channelId,
       channelName: this.channelName,
       threadTs: this.threadTs,
-      type: this.isThread() ? 'thread' : 'channel'
+      type: this.isThread() ? 'thread' : 'channel',
+      threadPreview
     });
 
     // Start update polling
@@ -472,35 +487,57 @@ class ChatSession {
       });
       
       if (item.type === 'thread') {
-        try {
-          // Get the first message of the thread
-          const replies = await this.client.getThreadReplies(item.channelId, item.threadTs);
-          if (replies && replies.length > 0) {
-            const firstMsg = replies[0];
-            const msgTime = new Date(parseFloat(firstMsg.ts) * 1000).toLocaleTimeString('ja-JP', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              second: '2-digit'
-            });
-            const firstLine = firstMsg.text.split('\n')[0];
-            const previewText = firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
-            
-            console.log(
-              chalk.yellow(`[${index + 1}]`) + ' ' +
-              chalk.gray(time) + ' ' +
-              '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
-            );
-            console.log(
-              '    ' + chalk.gray(`└─ ${msgTime} ${firstMsg.user}:`) + ' ' + previewText
-            );
-          }
-        } catch (error) {
-          // Fallback if we can't get thread details
+        // Use cached thread preview if available
+        if (item.threadPreview) {
+          const msgTime = new Date(parseFloat(item.threadPreview.ts) * 1000).toLocaleTimeString('ja-JP', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+          });
+          const previewText = item.threadPreview.text.length > 30 
+            ? item.threadPreview.text.substring(0, 30) + '...' 
+            : item.threadPreview.text;
+          
           console.log(
             chalk.yellow(`[${index + 1}]`) + ' ' +
             chalk.gray(time) + ' ' +
             '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
           );
+          console.log(
+            '    ' + chalk.gray(`└─ ${msgTime} ${item.threadPreview.userName}:`) + ' ' + previewText
+          );
+        } else {
+          // Fallback to API call if no cache
+          try {
+            // Get the first message of the thread
+            const replies = await this.client.getThreadReplies(item.channelId, item.threadTs);
+            if (replies && replies.length > 0) {
+              const firstMsg = replies[0];
+              const msgTime = new Date(parseFloat(firstMsg.ts) * 1000).toLocaleTimeString('ja-JP', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+              });
+              const firstLine = firstMsg.text.split('\n')[0];
+              const previewText = firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
+              
+              console.log(
+                chalk.yellow(`[${index + 1}]`) + ' ' +
+                chalk.gray(time) + ' ' +
+                '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
+              );
+              console.log(
+                '    ' + chalk.gray(`└─ ${msgTime} ${firstMsg.user}:`) + ' ' + previewText
+              );
+            }
+          } catch (error) {
+            // Fallback if we can't get thread details
+            console.log(
+              chalk.yellow(`[${index + 1}]`) + ' ' +
+              chalk.gray(time) + ' ' +
+              '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
+            );
+          }
         }
       } else {
         // Channel
@@ -599,35 +636,57 @@ async function channelChat() {
         });
         
         if (item.type === 'thread') {
-          try {
-            // Get the first message of the thread
-            const replies = await client.getThreadReplies(item.channelId, item.threadTs);
-            if (replies && replies.length > 0) {
-              const firstMsg = replies[0];
-              const msgTime = new Date(parseFloat(firstMsg.ts) * 1000).toLocaleTimeString('ja-JP', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                second: '2-digit'
-              });
-              const firstLine = firstMsg.text.split('\n')[0];
-              const previewText = firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
-              
-              console.log(
-                chalk.yellow(`[${index + 1}]`) + ' ' +
-                chalk.gray(time) + ' ' +
-                '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
-              );
-              console.log(
-                '    ' + chalk.gray(`└─ ${msgTime} ${firstMsg.user}:`) + ' ' + previewText
-              );
-            }
-          } catch (error) {
-            // Fallback if we can't get thread details
+          // Use cached thread preview if available
+          if (item.threadPreview) {
+            const msgTime = new Date(parseFloat(item.threadPreview.ts) * 1000).toLocaleTimeString('ja-JP', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              second: '2-digit'
+            });
+            const previewText = item.threadPreview.text.length > 30 
+              ? item.threadPreview.text.substring(0, 30) + '...' 
+              : item.threadPreview.text;
+            
             console.log(
               chalk.yellow(`[${index + 1}]`) + ' ' +
               chalk.gray(time) + ' ' +
               '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
             );
+            console.log(
+              '    ' + chalk.gray(`└─ ${msgTime} ${item.threadPreview.userName}:`) + ' ' + previewText
+            );
+          } else {
+            // Fallback to API call if no cache
+            try {
+              // Get the first message of the thread
+              const replies = await client.getThreadReplies(item.channelId, item.threadTs);
+              if (replies && replies.length > 0) {
+                const firstMsg = replies[0];
+                const msgTime = new Date(parseFloat(firstMsg.ts) * 1000).toLocaleTimeString('ja-JP', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  second: '2-digit'
+                });
+                const firstLine = firstMsg.text.split('\n')[0];
+                const previewText = firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
+                
+                console.log(
+                  chalk.yellow(`[${index + 1}]`) + ' ' +
+                  chalk.gray(time) + ' ' +
+                  '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
+                );
+                console.log(
+                  '    ' + chalk.gray(`└─ ${msgTime} ${firstMsg.user}:`) + ' ' + previewText
+                );
+              }
+            } catch (error) {
+              // Fallback if we can't get thread details
+              console.log(
+                chalk.yellow(`[${index + 1}]`) + ' ' +
+                chalk.gray(time) + ' ' +
+                '💬 ' + chalk.green(item.channelName) + chalk.gray('[スレッド]')
+              );
+            }
           }
         } else {
           // Channel
