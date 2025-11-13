@@ -19,7 +19,32 @@
 
 ## 📦 インストール
 
+### GitHub Packagesからインストール（推奨）
+
 ```bash
+# 1. GitHub Personal Access Token (classic) を作成
+# https://github.com/settings/tokens で以下のスコープを選択:
+# - read:packages
+
+# 2. npmにGitHub Packagesの認証を設定
+echo "@ryota-nakano:registry=https://npm.pkg.github.com" >> ~/.npmrc
+echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc
+
+# 3. パッケージをグローバルインストール
+npm install -g @ryota-nakano/slack-cli
+
+# 4. 環境設定
+mkdir -p ~/.slack-cli
+# .envファイルを作成してSlackトークンを追加
+```
+
+### ローカル開発用インストール
+
+```bash
+# リポジトリをクローン
+git clone https://github.com/ryota-nakano/slack-cli.git
+cd slack-cli
+
 # 依存関係をインストール
 npm install
 
