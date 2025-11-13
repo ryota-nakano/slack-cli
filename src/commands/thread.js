@@ -1,6 +1,6 @@
 /**
- * Thread Command
- * Interactive thread chat with real-time updates
+ * Unified Chat Session
+ * Handles both channel and thread chats seamlessly
  */
 
 const chalk = require('chalk');
@@ -9,16 +9,16 @@ const ReadlineInput = require('../ui/readline-input');
 const EditorInput = require('../ui/editor-input');
 const ThreadDisplay = require('../ui/thread-display');
 
-class ThreadChatSession {
-  constructor(channelId, threadTs, channelName = null) {
+class ChatSession {
+  constructor(channelId, channelName, threadTs = null) {
     const token = process.env.SLACK_USER_TOKEN || process.env.SLACK_BOT_TOKEN;
     this.client = new SlackClient(token);
     this.channelId = channelId;
-    this.threadTs = threadTs;
-    this.channelName = channelName; // Pre-set channel name if provided
+    this.channelName = channelName;
+    this.threadTs = threadTs; // null = channel chat, value = thread chat
     this.channelMembers = [];
     this.currentUser = null;
-    this.replies = [];
+    this.messages = [];
     this.lastDisplayedCount = 0;
     this.updateInterval = null;
     this.membersLoaded = false;
@@ -26,24 +26,34 @@ class ThreadChatSession {
   }
 
   /**
+   * Check if this is a thread context
+   */
+  isThread() {
+    return this.threadTs !== null;
+  }
+
+  /**
+   * Get context display name
+   */
+  getContextName() {
+    return this.isThread() ? `${this.channelName}[スレッド]` : `${this.channelName}`;
+  }
+
+  /**
    * Initialize and start chat session
    */
   async start() {
-    console.log(chalk.cyan('🔄 スレッド情報を取得中...\n'));
+    const contextType = this.isThread() ? 'スレッド' : 'チャンネル';
+    console.log(chalk.cyan(`🔄 ${contextType}情報を取得中...\n`));
 
-    // Get channel info if not provided
-    if (!this.channelName) {
-      const channel = await this.client.getChannelInfo(this.channelId);
-      this.channelName = channel ? channel.name : this.channelId;
-    }
-    this.display = new ThreadDisplay(this.channelName);
+    this.display = new ThreadDisplay(this.getContextName());
 
     // Get current user
     this.currentUser = await this.client.getCurrentUser();
 
-    // Get initial thread replies
-    this.replies = await this.client.getThreadReplies(this.channelId, this.threadTs);
-    this.lastDisplayedCount = this.replies.length;
+    // Get initial messages
+    await this.fetchMessages();
+    this.lastDisplayedCount = this.messages.length;
 
     // Display messages
     this.displayMessages();
@@ -60,6 +70,17 @@ class ThreadChatSession {
 
     // Start input loop
     await this.inputLoop();
+  }
+
+  /**
+   * Fetch messages based on context
+   */
+  async fetchMessages(limit = 100) {
+    if (this.isThread()) {
+      this.messages = await this.client.getThreadReplies(this.channelId, this.threadTs);
+    } else {
+      this.messages = await this.client.getChannelHistory(this.channelId, limit);
+    }
   }
 
   /**
@@ -80,11 +101,10 @@ class ThreadChatSession {
    */
   async checkUpdates() {
     try {
-      const oldCount = this.replies.length;
-      const newReplies = await this.client.getThreadReplies(this.channelId, this.threadTs);
+      const oldCount = this.messages.length;
+      await this.fetchMessages();
 
-      if (newReplies.length > oldCount) {
-        this.replies = newReplies;
+      if (this.messages.length > oldCount) {
         this.displayNewMessages();
       }
     } catch (error) {
@@ -97,21 +117,21 @@ class ThreadChatSession {
    */
   displayMessages() {
     this.display.displayMessages(
-      this.replies,
+      this.messages,
       this.membersLoaded,
       this.channelMembers.length
     );
-    this.lastDisplayedCount = this.replies.length;
+    this.lastDisplayedCount = this.messages.length;
   }
 
   /**
    * Display only new messages
    */
   displayNewMessages() {
-    if (this.replies.length > this.lastDisplayedCount) {
-      const newReplies = this.replies.slice(this.lastDisplayedCount);
-      this.display.displayNewMessages(newReplies);
-      this.lastDisplayedCount = this.replies.length;
+    if (this.messages.length > this.lastDisplayedCount) {
+      const newMessages = this.messages.slice(this.lastDisplayedCount);
+      this.display.displayNewMessages(newMessages);
+      this.lastDisplayedCount = this.messages.length;
     }
   }
 
@@ -123,7 +143,7 @@ class ThreadChatSession {
       try {
         const channels = await this.client.listChannels();
         const readlineInput = new ReadlineInput(this.channelMembers, channels);
-        const text = await readlineInput.prompt(this.channelName, true); // isThread = true
+        const text = await readlineInput.prompt(this.getContextName(), this.isThread());
 
         // Switch to editor mode
         if (text === '__EDITOR__') {
@@ -144,9 +164,22 @@ class ThreadChatSession {
           continue;
         }
 
+        // Handle channel switch
+        if (typeof text === 'object' && text.type === 'channel') {
+          await this.switchToChannel(text.channel);
+          return;
+        }
+
         const trimmedText = text.trim();
         if (trimmedText.length === 0) {
           continue;
+        }
+
+        // Handle /番号 command (enter thread) - only in channel context
+        if (!this.isThread() && trimmedText.match(/^\/\d+$/)) {
+          const msgNumber = trimmedText.substring(1).trim();
+          await this.enterThread(msgNumber);
+          return;
         }
 
         // Handle /rm command
@@ -156,10 +189,24 @@ class ThreadChatSession {
           continue;
         }
 
+        // Handle /history command (channel only)
+        if (!this.isThread() && (trimmedText.startsWith('/history') || trimmedText.startsWith('/h'))) {
+          const parts = trimmedText.split(' ');
+          const limit = parseInt(parts[1]) || 20;
+          await this.handleHistory(limit);
+          continue;
+        }
+
         // Handle /help command
         if (trimmedText === '/help') {
           this.showChatHelp();
           continue;
+        }
+
+        // Handle /exit command
+        if (trimmedText === '/exit' || trimmedText === '/quit' || trimmedText === '/q') {
+          this.cleanup();
+          return;
         }
 
         await this.sendAndDisplay(trimmedText);
@@ -175,25 +222,59 @@ class ThreadChatSession {
   }
 
   /**
+   * Switch to another channel
+   */
+  async switchToChannel(channel) {
+    this.cleanup(false);
+    
+    console.log(chalk.cyan(`\n📬 #${channel.name} に切り替えます...\n`));
+    
+    const newSession = new ChatSession(channel.id, channel.name);
+    await newSession.start();
+  }
+
+  /**
+   * Enter a thread from channel
+   */
+  async enterThread(msgNumber) {
+    const num = parseInt(msgNumber, 10);
+    
+    if (isNaN(num) || num < 1 || num > this.messages.length) {
+      console.log(chalk.red(`\n❌ 無効なメッセージ番号: ${msgNumber}`));
+      console.log(chalk.yellow(`💡 有効な番号: 1-${this.messages.length}`));
+      return;
+    }
+
+    const message = this.messages[num - 1];
+    
+    this.cleanup(false);
+    
+    console.log(chalk.cyan(`\n🧵 スレッドに入ります...\n`));
+    
+    const threadSession = new ChatSession(this.channelId, this.channelName, message.ts);
+    await threadSession.start();
+  }
+
+  /**
    * Handle message deletion
    */
   async handleDeleteMessage(msgNumber) {
     const num = parseInt(msgNumber, 10);
     
-    if (isNaN(num) || num < 1 || num > this.replies.length) {
+    if (isNaN(num) || num < 1 || num > this.messages.length) {
       console.log(chalk.red(`\n❌ 無効なメッセージ番号: ${msgNumber}`));
-      console.log(chalk.yellow(`💡 有効な番号: 1-${this.replies.length}`));
+      console.log(chalk.yellow(`💡 有効な番号: 1-${this.messages.length}`));
       return;
     }
 
-    const message = this.replies[num - 1];
+    const message = this.messages[num - 1];
     
     try {
       await this.client.deleteMessage(this.channelId, message.ts);
       console.log(chalk.green(`\n✅ メッセージ [${num}] を削除しました`));
       
       // Refresh messages
-      this.replies = await this.client.getThreadReplies(this.channelId, this.threadTs);
+      await this.fetchMessages();
       this.displayMessages();
     } catch (error) {
       console.error(chalk.red(`\n❌ 削除失敗: ${error.message}`));
@@ -202,15 +283,34 @@ class ThreadChatSession {
   }
 
   /**
+   * Handle history command
+   */
+  async handleHistory(limit) {
+    console.log(chalk.cyan(`\n📜 直近${limit}件の履歴を取得中...\n`));
+    await this.fetchMessages(limit);
+    this.displayMessages();
+  }
+
+  /**
    * Show chat help
    */
   showChatHelp() {
     console.log(chalk.cyan('\n📖 チャット中のコマンド:'));
-    console.log(chalk.yellow('  /rm <番号>') + chalk.gray('  - 指定したメッセージを削除（例: /rm 5）'));
-    console.log(chalk.yellow('  /help') + chalk.gray('      - このヘルプを表示'));
-    console.log(chalk.yellow('  Ctrl+J') + chalk.gray('    - 改行を挿入（複数行メッセージ）'));
-    console.log(chalk.yellow('  Ctrl+E') + chalk.gray('    - エディタ(vim/nano)を起動'));
-    console.log(chalk.yellow('  Ctrl+C') + chalk.gray('    - 終了'));
+    
+    if (!this.isThread()) {
+      console.log(chalk.yellow('  /<番号>') + chalk.gray('        - 指定した投稿のスレッドに入る（例: /3）'));
+      console.log(chalk.yellow('  /history [件数]') + chalk.gray(' - 履歴を表示 (デフォルト: 20件)'));
+      console.log(chalk.yellow('  /h [件数]') + chalk.gray('       - 履歴を表示 (短縮形)'));
+    }
+    
+    console.log(chalk.yellow('  /rm <番号>') + chalk.gray('      - 指定したメッセージを削除（例: /rm 5）'));
+    console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
+    console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
+    console.log(chalk.yellow('  #channel') + chalk.gray('        - チャンネル切り替え'));
+    console.log(chalk.yellow('  @user') + chalk.gray('           - メンション補完'));
+    console.log(chalk.yellow('  Ctrl+J') + chalk.gray('          - 改行を挿入（複数行メッセージ）'));
+    console.log(chalk.yellow('  Ctrl+E') + chalk.gray('          - エディタ(vim/nano)を起動'));
+    console.log(chalk.yellow('  Ctrl+C') + chalk.gray('          - 終了'));
     console.log();
   }
 
@@ -221,7 +321,7 @@ class ThreadChatSession {
     const result = await this.client.sendMessage(this.channelId, text, this.threadTs);
 
     // Add own message immediately
-    this.replies.push({
+    this.messages.push({
       ts: result.ts,
       user: this.currentUser.displayName,
       text: text,
@@ -232,10 +332,9 @@ class ThreadChatSession {
     this.displayMessages();
 
     // Fetch latest in background
-    this.client.getThreadReplies(this.channelId, this.threadTs)
-      .then(newReplies => {
-        if (newReplies.length > this.replies.length) {
-          this.replies = newReplies;
+    this.fetchMessages()
+      .then(() => {
+        if (this.messages.length > this.lastDisplayedCount) {
           this.displayNewMessages();
         }
       })
@@ -245,18 +344,71 @@ class ThreadChatSession {
   /**
    * Cleanup and exit
    */
-  cleanup() {
+  cleanup(exit = true) {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
     }
-    console.log(chalk.cyan('\n👋 終了しました。'));
-    process.exit(0);
+    if (exit) {
+      console.log(chalk.cyan('\n👋 終了しました。'));
+      process.exit(0);
+    }
   }
 }
 
+/**
+ * Start a thread chat session
+ */
 async function threadChat(channelId, threadTs, channelName = null) {
-  const session = new ThreadChatSession(channelId, threadTs, channelName);
+  // Get channel name if not provided
+  if (!channelName) {
+    const token = process.env.SLACK_USER_TOKEN || process.env.SLACK_BOT_TOKEN;
+    const client = new SlackClient(token);
+    const channel = await client.getChannelInfo(channelId);
+    channelName = channel ? channel.name : channelId;
+  }
+  
+  const session = new ChatSession(channelId, channelName, threadTs);
   await session.start();
 }
 
-module.exports = { threadChat };
+/**
+ * Start a channel chat session with channel selection
+ */
+async function channelChat() {
+  const token = process.env.SLACK_USER_TOKEN || process.env.SLACK_BOT_TOKEN;
+  const client = new SlackClient(token);
+
+  try {
+    console.log(chalk.cyan('📋 チャンネルを選択してください...\n'));
+    
+    // Get all channels
+    const channels = await client.listChannels();
+    
+    // Initial prompt with channel selection
+    const readlineInput = new ReadlineInput([], channels);
+    
+    console.log(chalk.yellow('💡 ヒント: #を入力してチャンネルを検索・選択できます'));
+    const result = await readlineInput.prompt('チャンネル選択');
+    
+    if (result === '__EMPTY__') {
+      console.log(chalk.yellow('⚠️  入力がキャンセルされました'));
+      return;
+    }
+    
+    if (typeof result === 'object' && result.type === 'channel') {
+      const selectedChannel = result.channel;
+      
+      // Start chat session
+      const session = new ChatSession(selectedChannel.id, selectedChannel.name);
+      await session.start();
+    } else {
+      console.log(chalk.yellow('⚠️  チャンネルが選択されませんでした'));
+    }
+    
+  } catch (error) {
+    console.error(chalk.red('❌ エラー:'), error.message);
+    process.exit(1);
+  }
+}
+
+module.exports = { ChatSession, threadChat, channelChat };

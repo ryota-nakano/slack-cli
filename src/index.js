@@ -8,8 +8,7 @@
 require('dotenv').config();
 const chalk = require('chalk');
 const { listChannels } = require('./commands/channels');
-const { threadChat } = require('./commands/thread');
-const { channelChat } = require('./commands/channel');
+const { threadChat, channelChat } = require('./commands/thread');
 const { showHelp } = require('./utils/help');
 
 // Validate environment
