@@ -33,7 +33,13 @@ class ThreadDisplay {
 
       const prefix = i === 0 ? '📌' : '  ↳';
       const index = replies.length - displayReplies.length + i + 1;
-      console.log(`${prefix} ${chalk.gray(`[${index}]`)} ${chalk.gray(`[${time}]`)} ${chalk.yellow(reply.user)}: ${reply.text}`);
+      
+      // Show thread indicator if message has replies
+      const threadIndicator = reply.hasThread 
+        ? chalk.blue(` 💬${reply.replyCount}`) 
+        : '';
+      
+      console.log(`${prefix} ${chalk.gray(`[${index}]`)} ${chalk.gray(`[${time}]`)} ${chalk.yellow(reply.user)}: ${reply.text}${threadIndicator}`);
     });
 
     console.log('');
@@ -55,7 +61,13 @@ class ThreadDisplay {
         minute: '2-digit',
         second: '2-digit'
       });
-      console.log(`  ↳${chalk.gray(`[${time}]`)} ${chalk.yellow(reply.user)}: ${reply.text}`);
+      
+      // Show thread indicator if message has replies
+      const threadIndicator = reply.hasThread 
+        ? chalk.blue(` 💬${reply.replyCount}`) 
+        : '';
+      
+      console.log(`  ↳${chalk.gray(`[${time}]`)} ${chalk.yellow(reply.user)}: ${reply.text}${threadIndicator}`);
     });
   }
 }
@@ -73,7 +85,12 @@ function displayMessages(messages) {
       second: '2-digit'
     });
 
-    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(`[${time}]`)} ${chalk.yellow(msg.user)}: ${msg.text}`);
+    // Show thread indicator if message has replies
+    const threadIndicator = msg.hasThread 
+      ? chalk.blue(` 💬${msg.replyCount}`) 
+      : '';
+
+    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(`[${time}]`)} ${chalk.yellow(msg.user)}: ${msg.text}${threadIndicator}`);
   });
   console.log('');
 }

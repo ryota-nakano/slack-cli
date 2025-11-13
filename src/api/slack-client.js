@@ -581,7 +581,10 @@ class SlackClient {
           ts: msg.ts,
           user: userName,
           text: msg.text || '',
-          timestamp: new Date(parseFloat(msg.ts) * 1000)
+          timestamp: new Date(parseFloat(msg.ts) * 1000),
+          replyCount: msg.reply_count || 0,
+          replyUsersCount: msg.reply_users_count || 0,
+          hasThread: (msg.reply_count || 0) > 0
         });
       }
 
