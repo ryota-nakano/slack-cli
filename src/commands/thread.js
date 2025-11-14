@@ -319,6 +319,12 @@ class ChatSession {
           continue;
         }
 
+        // Handle /refresh command - Search and add today's posts to history
+        if (trimmedText === '/refresh' || trimmedText === '/sync') {
+          await this.refreshTodaysPosts();
+          continue;
+        }
+
         // Handle /recent command - Show today's conversation history
         if (trimmedText === '/recent' || trimmedText === '/r') {
           await this.showRecentHistory();
@@ -451,6 +457,7 @@ class ChatSession {
     }
     
     console.log(chalk.yellow('  /recent, /r') + chalk.gray('      - 今日の会話履歴から選択'));
+    console.log(chalk.yellow('  /refresh') + chalk.gray('        - 今日の投稿を検索して履歴に追加'));
     console.log(chalk.yellow('  /rm <番号>') + chalk.gray('      - 指定したメッセージを削除（例: /rm 5）'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
@@ -460,6 +467,48 @@ class ChatSession {
     console.log(chalk.yellow('  Ctrl+E') + chalk.gray('          - エディタ(vim/nano)を起動'));
     console.log(chalk.yellow('  Ctrl+C') + chalk.gray('          - 終了'));
     console.log();
+  }
+
+  /**
+   * Refresh today's posts - Search and add to history
+   */
+  async refreshTodaysPosts() {
+    console.log(chalk.cyan('\n🔍 今日の投稿を検索中...\n'));
+    
+    const userConversations = await this.client.searchUserMessagesToday();
+    
+    if (userConversations.length === 0) {
+      console.log(chalk.yellow('💡 今日の新しい投稿は見つかりませんでした'));
+      return;
+    }
+    
+    console.log(chalk.green(`✅ ${userConversations.length}件の会話を見つけました\n`));
+    
+    // Add found conversations to history
+    for (const conv of userConversations) {
+      let threadPreview = null;
+      
+      if (conv.type === 'thread') {
+        // Create thread preview from search result
+        const firstLine = conv.text.split('\n')[0].substring(0, 50);
+        threadPreview = {
+          text: firstLine,
+          user: '',
+          userName: '',
+          ts: conv.threadTs
+        };
+      }
+      
+      this.historyManager.addConversation({
+        channelId: conv.channelId,
+        channelName: conv.channelName,
+        threadTs: conv.threadTs,
+        type: conv.type,
+        threadPreview
+      });
+    }
+    
+    console.log(chalk.cyan('💾 履歴を更新しました\n'));
   }
 
   /**
@@ -662,38 +711,6 @@ async function channelChat() {
 
   try {
     console.log(chalk.cyan('📋 チャンネルを選択してください\n'));
-    
-    // Search for user's messages today and add to history
-    console.log(chalk.gray('🔍 今日の投稿を検索中...\n'));
-    const userConversations = await client.searchUserMessagesToday();
-    
-    if (process.env.DEBUG_SEARCH) {
-      console.error(`[DEBUG] 今日の投稿が見つかった会話: ${userConversations.length}件`);
-    }
-    
-    // Add found conversations to history
-    for (const conv of userConversations) {
-      let threadPreview = null;
-      
-      if (conv.type === 'thread') {
-        // Create thread preview from search result
-        const firstLine = conv.text.split('\n')[0].substring(0, 50);
-        threadPreview = {
-          text: firstLine,
-          user: '',
-          userName: '',
-          ts: conv.threadTs
-        };
-      }
-      
-      historyManager.addConversation({
-        channelId: conv.channelId,
-        channelName: conv.channelName,
-        threadTs: conv.threadTs,
-        type: conv.type,
-        threadPreview
-      });
-    }
     
     // Show today's history if available
     const history = historyManager.getTodayHistory();
