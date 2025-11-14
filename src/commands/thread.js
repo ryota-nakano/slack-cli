@@ -9,6 +9,7 @@ const ReadlineInput = require('../ui/readline-input');
 const EditorInput = require('../ui/editor-input');
 const ThreadDisplay = require('../ui/thread-display');
 const HistoryManager = require('../utils/history-manager');
+const MessageCache = require('../utils/message-cache');
 
 class ChatSession {
   constructor(channelId, channelName, threadTs = null) {
@@ -25,6 +26,7 @@ class ChatSession {
     this.currentDate = null; // Track current viewing date (for channels only)
     this.daysBack = 0; // 0 = today, 1 = yesterday, etc.
     this.historyManager = new HistoryManager();
+    this.messageCache = new MessageCache();
     this.showingRecentHistory = false; // Track if /recent was just shown
   }
 
@@ -100,9 +102,20 @@ class ChatSession {
    */
   async fetchMessages(limit = null, daysBack = null) {
     if (this.isThread()) {
+      // Try to get from cache first
+      const cached = this.messageCache.get(this.channelId, this.threadTs);
+      if (cached) {
+        this.messages = cached;
+        return;
+      }
+      
       // For threads, get all replies (no date filtering)
       this.messages = await this.client.getThreadReplies(this.channelId, this.threadTs);
+      
+      // Save to cache
+      this.messageCache.set(this.channelId, this.messages, this.threadTs);
     } else {
+      // For channels, don't cache (messages change frequently by date)
       // Use daysBack parameter or instance variable
       const days = daysBack !== null ? daysBack : this.daysBack;
       
@@ -653,6 +666,11 @@ class ChatSession {
       text: text,
       timestamp: new Date()
     });
+
+    // Invalidate cache when sending a message
+    if (this.isThread()) {
+      this.messageCache.invalidate(this.channelId, this.threadTs);
+    }
 
     // Refresh display
     this.displayMessages();
