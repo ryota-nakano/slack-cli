@@ -567,18 +567,25 @@ class ChatSession {
       return;
     }
 
-    // Separate threads and channels
-    const threads = history.filter(item => item.type === 'thread');
-    const channels = history.filter(item => item.type === 'channel');
+    // Display history grouped by type
+    const threads = [];
+    const channels = [];
     
-    let globalIndex = 0;
+    // Collect items with their original indices
+    for (let index = 0; index < history.length; index++) {
+      const item = { ...history[index], originalIndex: index };
+      if (item.type === 'thread') {
+        threads.push(item);
+      } else {
+        channels.push(item);
+      }
+    }
     
     // Display threads first
     if (threads.length > 0) {
       console.log(chalk.cyan('\n💬 スレッド:\n'));
       
-      for (let i = 0; i < threads.length; i++) {
-        const item = threads[i];
+      for (const item of threads) {
         const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
           hour: '2-digit', 
           minute: '2-digit' 
@@ -596,7 +603,7 @@ class ChatSession {
             : item.threadPreview.text;
           
           console.log(
-            chalk.yellow(`[${globalIndex + 1}]`) + ' ' +
+            chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
             chalk.gray(time) + ' ' +
             chalk.green(item.channelName) + chalk.gray('[スレッド]')
           );
@@ -633,7 +640,7 @@ class ChatSession {
               });
               
               console.log(
-                chalk.yellow(`[${globalIndex + 1}]`) + ' ' +
+                chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
                 chalk.gray(time) + ' ' +
                 chalk.green(item.channelName) + chalk.gray('[スレッド]')
               );
@@ -644,13 +651,12 @@ class ChatSession {
           } catch (error) {
             // Fallback if we can't get thread details
             console.log(
-              chalk.yellow(`[${globalIndex + 1}]`) + ' ' +
+              chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
               chalk.gray(time) + ' ' +
               chalk.green(item.channelName) + chalk.gray('[スレッド]')
             );
           }
         }
-        globalIndex++;
       }
     }
     
@@ -661,19 +667,17 @@ class ChatSession {
       }
       console.log(chalk.cyan('# チャンネル:\n'));
       
-      for (let i = 0; i < channels.length; i++) {
-        const item = channels[i];
+      for (const item of channels) {
         const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
           hour: '2-digit', 
           minute: '2-digit' 
         });
         
         console.log(
-          chalk.yellow(`[${globalIndex + 1}]`) + ' ' +
+          chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
           chalk.gray(time) + ' ' +
           chalk.green(item.channelName)
         );
-        globalIndex++;
       }
     }
     
@@ -788,18 +792,25 @@ async function channelChat() {
     // Show today's history if available
     const history = historyManager.getTodayHistory();
     if (history.length > 0) {
-      // Separate threads and channels
-      const threads = history.filter(item => item.type === 'thread');
-      const channels = history.filter(item => item.type === 'channel');
+      // Display history grouped by type
+      const threads = [];
+      const channels = [];
       
-      let globalIndex = 0;
+      // Collect items with their original indices
+      for (let index = 0; index < history.length; index++) {
+        const item = { ...history[index], originalIndex: index };
+        if (item.type === 'thread') {
+          threads.push(item);
+        } else {
+          channels.push(item);
+        }
+      }
       
       // Display threads first
       if (threads.length > 0) {
         console.log(chalk.cyan('💬 スレッド:\n'));
         
-        for (let i = 0; i < threads.length; i++) {
-          const item = threads[i];
+        for (const item of threads) {
           const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
             hour: '2-digit', 
             minute: '2-digit' 
@@ -817,7 +828,7 @@ async function channelChat() {
               : item.threadPreview.text;
             
             console.log(
-              chalk.yellow(`[${globalIndex + 1}]`) + ' ' +
+              chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
               chalk.gray(time) + ' ' +
               chalk.green(item.channelName) + chalk.gray('[スレッド]')
             );
@@ -854,7 +865,7 @@ async function channelChat() {
                 });
                 
                 console.log(
-                  chalk.yellow(`[${globalIndex + 1}]`) + ' ' +
+                  chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
                   chalk.gray(time) + ' ' +
                   chalk.green(item.channelName) + chalk.gray('[スレッド]')
                 );
@@ -865,13 +876,12 @@ async function channelChat() {
             } catch (error) {
               // Fallback if we can't get thread details
               console.log(
-                chalk.yellow(`[${globalIndex + 1}]`) + ' ' +
+                chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
                 chalk.gray(time) + ' ' +
                 chalk.green(item.channelName) + chalk.gray('[スレッド]')
               );
             }
           }
-          globalIndex++;
         }
       }
       
@@ -882,19 +892,17 @@ async function channelChat() {
         }
         console.log(chalk.cyan('# チャンネル:\n'));
         
-        for (let i = 0; i < channels.length; i++) {
-          const item = channels[i];
+        for (const item of channels) {
           const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
             hour: '2-digit', 
             minute: '2-digit' 
           });
           
           console.log(
-            chalk.yellow(`[${globalIndex + 1}]`) + ' ' +
+            chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
             chalk.gray(time) + ' ' +
             chalk.green(item.channelName)
           );
-          globalIndex++;
         }
       }
       
