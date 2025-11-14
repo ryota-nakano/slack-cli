@@ -85,7 +85,7 @@ class ChatSession {
     });
 
     // Start update polling
-    this.updateInterval = setInterval(() => this.checkUpdates(), 2000);
+    this.updateInterval = setInterval(() => this.checkUpdates(), 10000);
 
     // Handle Ctrl+C
     process.removeAllListeners('SIGINT');
