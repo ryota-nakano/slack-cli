@@ -734,10 +734,9 @@ async function channelChat() {
     if (history.length > 0) {
       console.log(chalk.cyan('📜 今日の履歴:\n'));
       
-      const displayHistory = history.slice(0, 10);
-      
-      for (let index = 0; index < displayHistory.length; index++) {
-        const item = displayHistory[index];
+      // Display all history items (no limit)
+      for (let index = 0; index < history.length; index++) {
+        const item = history[index];
         const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
           hour: '2-digit', 
           minute: '2-digit' 
