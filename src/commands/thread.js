@@ -417,27 +417,60 @@ class ChatSession {
   /**
    * Handle message deletion
    */
-  async handleDeleteMessage(msgNumber) {
-    const num = parseInt(msgNumber, 10);
+  /**
+   * Handle delete message command (supports multiple message numbers)
+   */
+  async handleDeleteMessage(msgNumbers) {
+    const parts = msgNumbers.split(' ').filter(p => p.trim());
+    const numbers = parts.map(p => parseInt(p, 10)).filter(n => !isNaN(n));
     
-    if (isNaN(num) || num < 1 || num > this.messages.length) {
-      console.log(chalk.red(`\n❌ 無効なメッセージ番号: ${msgNumber}`));
-      console.log(chalk.yellow(`💡 有効な番号: 1-${this.messages.length}`));
+    if (numbers.length === 0) {
+      console.log(chalk.yellow('\n⚠️  削除する番号を指定してください（例: /rm 1 3 5）'));
       return;
     }
-
-    const message = this.messages[num - 1];
     
-    try {
-      await this.client.deleteMessage(this.channelId, message.ts);
-      console.log(chalk.green(`\n✅ メッセージ [${num}] を削除しました`));
+    // Sort numbers in descending order to delete from bottom to top
+    // This prevents index shifting issues
+    const sortedNumbers = [...new Set(numbers)].sort((a, b) => b - a);
+    const deletedMessages = [];
+    const invalidNumbers = [];
+    const failedDeletes = [];
+    
+    for (const num of sortedNumbers) {
+      if (num < 1 || num > this.messages.length) {
+        invalidNumbers.push(num);
+        continue;
+      }
       
-      // Refresh messages
+      const message = this.messages[num - 1];
+      
+      try {
+        await this.client.deleteMessage(this.channelId, message.ts);
+        deletedMessages.push(num);
+      } catch (error) {
+        failedDeletes.push({ num, error: error.message });
+      }
+    }
+    
+    // Show results
+    if (deletedMessages.length > 0) {
+      console.log(chalk.green(`\n✅ ${deletedMessages.length}件のメッセージを削除しました: ${deletedMessages.sort((a, b) => a - b).join(', ')}`));
+    }
+    
+    if (invalidNumbers.length > 0) {
+      console.log(chalk.yellow(`\n⚠️  存在しない番号: ${invalidNumbers.join(', ')}`));
+      console.log(chalk.yellow(`💡 有効な番号: 1-${this.messages.length}`));
+    }
+    
+    if (failedDeletes.length > 0) {
+      console.log(chalk.red(`\n❌ 削除失敗: ${failedDeletes.map(f => f.num).join(', ')}`));
+      console.log(chalk.yellow('💡 ヒント: 自分のメッセージか、適切な権限が必要です'));
+    }
+    
+    // Refresh messages if any were deleted
+    if (deletedMessages.length > 0) {
       await this.fetchMessages();
       this.displayMessages();
-    } catch (error) {
-      console.error(chalk.red(`\n❌ 削除失敗: ${error.message}`));
-      console.log(chalk.yellow('💡 ヒント: 自分のメッセージか、適切な権限が必要です'));
     }
   }
 
@@ -471,7 +504,7 @@ class ChatSession {
     
     console.log(chalk.yellow('  /recent, /r') + chalk.gray('      - 今日の会話履歴から選択'));
     console.log(chalk.yellow('  /refresh') + chalk.gray('        - 今日の投稿を検索して履歴に追加'));
-    console.log(chalk.yellow('  /rm <番号>') + chalk.gray('      - 指定したメッセージを削除（例: /rm 5）'));
+    console.log(chalk.yellow('  /rm <番号...>') + chalk.gray('    - メッセージを削除（例: /rm 5 または /rm 1 3 5）'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
     console.log(chalk.yellow('  #channel[Tab]') + chalk.gray('   - チャンネル検索・切り替え（例: #gen[Tab] → [Enter]）'));
@@ -839,20 +872,42 @@ async function channelChat() {
       
       // Handle /delete or /del command
       if (command.startsWith('delete ') || command.startsWith('del ')) {
-        const parts = command.split(' ');
-        const number = parseInt(parts[1]);
+        const parts = command.split(' ').slice(1); // Remove command name
+        const numbers = parts.map(p => parseInt(p)).filter(n => !isNaN(n));
         
-        if (!isNaN(number) && number > 0 && number <= history.length) {
-          const item = history[number - 1];
-          const deleted = historyManager.deleteByIndex(number - 1);
-          
-          if (deleted) {
-            console.log(chalk.green(`\n✅ 履歴から削除しました: ${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''}`));
-          } else {
-            console.log(chalk.yellow('\n⚠️  削除に失敗しました'));
-          }
+        if (numbers.length === 0) {
+          console.log(chalk.yellow('\n⚠️  削除する番号を指定してください（例: /delete 1 3 5）'));
         } else {
-          console.log(chalk.yellow(`\n⚠️  履歴番号 ${number} は存在しません`));
+          // Sort numbers in descending order to delete from bottom to top
+          // This prevents index shifting issues
+          const sortedNumbers = [...new Set(numbers)].sort((a, b) => b - a);
+          const deletedItems = [];
+          const invalidNumbers = [];
+          
+          for (const number of sortedNumbers) {
+            if (number > 0 && number <= history.length) {
+              const item = history[number - 1];
+              const deleted = historyManager.deleteByIndex(number - 1);
+              
+              if (deleted) {
+                deletedItems.push(`${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''}`);
+              }
+            } else {
+              invalidNumbers.push(number);
+            }
+          }
+          
+          // Show results
+          if (deletedItems.length > 0) {
+            console.log(chalk.green(`\n✅ ${deletedItems.length}件の履歴を削除しました:`));
+            deletedItems.forEach(name => {
+              console.log(chalk.gray(`  - ${name}`));
+            });
+          }
+          
+          if (invalidNumbers.length > 0) {
+            console.log(chalk.yellow(`\n⚠️  存在しない番号: ${invalidNumbers.join(', ')}`));
+          }
         }
         
         // Restart channel selection after delete
