@@ -130,7 +130,7 @@ class ReadlineInput {
 
         // Arrow keys when suggestions are shown
         if (this.suggestions.length > 0) {
-          if (key.name === 'up') {
+          if (key.name === 'up' || (key.ctrl && key.name === 'p')) {
             this.selectedIndex = this.selectedIndex > 0
               ? this.selectedIndex - 1
               : this.suggestions.length - 1;
@@ -138,7 +138,7 @@ class ReadlineInput {
             return;
           }
 
-          if (key.name === 'down') {
+          if (key.name === 'down' || (key.ctrl && key.name === 'n')) {
             this.selectedIndex = this.selectedIndex < this.suggestions.length - 1
               ? this.selectedIndex + 1
               : 0;
@@ -147,10 +147,14 @@ class ReadlineInput {
           }
 
           if (key.name === 'tab') {
-            this.insertSuggestion();
+            const result = this.insertSuggestion();
             this.clearSuggestions();
             this.redrawInput();
-            this.updateSuggestions();
+            
+            // Don't re-trigger suggestions for commands - they're complete after selection
+            if (this.suggestionType !== 'command') {
+              await this.updateSuggestions();
+            }
             return;
           }
         } else if (key.name === 'tab') {
@@ -488,7 +492,7 @@ class ReadlineInput {
     if (this.suggestions.length === 0) return;
 
     if (this.suggestionType === 'command') {
-      process.stdout.write('\n' + chalk.gray('コマンド候補 (Tab/↑↓で選択, Enter確定):'));
+      process.stdout.write('\n' + chalk.gray('コマンド候補 (Tab/↑↓/Ctrl+P/N で選択, Enter確定):'));
       this.suggestions.forEach((cmd, idx) => {
         const isSelected = idx === this.selectedIndex;
         const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
@@ -496,7 +500,7 @@ class ReadlineInput {
         process.stdout.write('\n' + prefix + chalk.yellow(cmd.command) + aliasText + chalk.gray(` - ${cmd.description}`));
       });
     } else if (this.suggestionType === 'channel') {
-      process.stdout.write('\n' + chalk.gray('チャンネル候補 (Tab/↑↓で選択, Enter確定):'));
+      process.stdout.write('\n' + chalk.gray('チャンネル候補 (Tab/↑↓/Ctrl+P/N で選択, Enter確定):'));
       this.suggestions.forEach((channel, idx) => {
         const isSelected = idx === this.selectedIndex;
         const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
@@ -504,7 +508,7 @@ class ReadlineInput {
         process.stdout.write('\n' + prefix + chalk.yellow(`${icon}${channel.name}`) + chalk.gray(` (${channel.id})`));
       });
     } else {
-      process.stdout.write('\n' + chalk.gray('メンション候補 (Tab/↑↓で選択, Enter確定):'));
+      process.stdout.write('\n' + chalk.gray('メンション候補 (Tab/↑↓/Ctrl+P/N で選択, Enter確定):'));
       this.suggestions.forEach((member, idx) => {
         const isSelected = idx === this.selectedIndex;
         const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
