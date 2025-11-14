@@ -23,7 +23,9 @@ class ThreadDisplay {
     const displayReplies = replies.slice(-30);
 
     displayReplies.forEach((reply, i) => {
-      const time = reply.timestamp.toLocaleString('ja-JP', {
+      // Convert ts (Unix timestamp as string) to Date
+      const timestamp = new Date(parseFloat(reply.ts) * 1000);
+      const time = timestamp.toLocaleString('ja-JP', {
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
@@ -34,8 +36,8 @@ class ThreadDisplay {
       const index = replies.length - displayReplies.length + i + 1;
       
       // Show thread indicator
-      const threadIndicator = reply.hasThread 
-        ? chalk.blue(` [💬${reply.replyCount}]`) 
+      const threadIndicator = reply.reply_count > 0
+        ? chalk.blue(` [💬${reply.reply_count}]`) 
         : '';
       
       // First line: Number, time, thread indicator, user
@@ -69,19 +71,21 @@ class ThreadDisplay {
     console.log(chalk.cyan('\n🔔 新着メッセージ:'));
     
     newReplies.forEach(reply => {
-      const time = reply.timestamp.toLocaleString('ja-JP', {
+      // Convert ts (Unix timestamp as string) to Date
+      const timestamp = new Date(parseFloat(reply.ts) * 1000);
+      const time = timestamp.toLocaleString('ja-JP', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit'
       });
       
       // Show thread indicator
-      const threadIndicator = reply.hasThread 
-        ? chalk.blue(` [💬${reply.replyCount}]`) 
+      const threadIndicator = reply.reply_count > 0
+        ? chalk.blue(` [💬${reply.reply_count}]`) 
         : '';
       
       // First line: time, thread indicator, user
-      console.log(`${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.user)}`);
+      console.log(`${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.userName || reply.user)}`);
       
       // Second line: Message text (no indent, handle multi-line)
       const lines = reply.text.split('\n');
@@ -104,7 +108,9 @@ class ThreadDisplay {
  */
 function displayMessages(messages) {
   messages.forEach((msg, i) => {
-    const time = msg.timestamp.toLocaleString('ja-JP', {
+    // Convert ts (Unix timestamp as string) to Date
+    const timestamp = new Date(parseFloat(msg.ts) * 1000);
+    const time = timestamp.toLocaleString('ja-JP', {
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
@@ -113,12 +119,12 @@ function displayMessages(messages) {
     });
 
     // Show thread indicator
-    const threadIndicator = msg.hasThread 
-      ? chalk.blue(` [💬${msg.replyCount}]`) 
+    const threadIndicator = msg.reply_count > 0
+      ? chalk.blue(` [💬${msg.reply_count}]`) 
       : '';
 
     // First line: Number, time, thread indicator, user
-    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(msg.user)}`);
+    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(msg.userName || msg.user)}`);
     
     // Second line: Message text (no indent, handle multi-line)
     const lines = msg.text.split('\n');

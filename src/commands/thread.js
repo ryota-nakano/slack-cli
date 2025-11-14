@@ -161,7 +161,14 @@ class ChatSession {
    */
   displayMessages() {
     // Show current viewing date for channels
-    if (!this.isThread() && this.currentDate) {
+    if (!this.isThread()) {
+      // Ensure currentDate is set
+      if (!this.currentDate) {
+        this.currentDate = new Date();
+        this.currentDate.setDate(this.currentDate.getDate() - this.daysBack);
+        this.currentDate.setHours(0, 0, 0, 0);
+      }
+      
       const dateStr = this.currentDate.toLocaleDateString('ja-JP', {
         year: 'numeric',
         month: '2-digit',
