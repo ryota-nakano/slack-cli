@@ -83,18 +83,8 @@ class ReadlineInput {
           return;
         }
 
-        // Ctrl+J: Insert newline
+        // Ctrl+J: Ignore (prevent newline insertion)
         if (key.ctrl && key.name === 'j') {
-          this.input = this.input.substring(0, this.cursorPos) + '\n' + this.input.substring(this.cursorPos);
-          this.cursorPos++;
-          
-          // Update screenCursorLine immediately after newline insertion
-          const beforeCursor = this.input.substring(0, this.cursorPos);
-          const linesBeforeCursor = beforeCursor.split('\n');
-          this.screenCursorLine = linesBeforeCursor.length - 1;
-          
-          this.clearSuggestions();
-          this.redrawInput();
           return;
         }
 

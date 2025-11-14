@@ -463,7 +463,6 @@ class ChatSession {
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
     console.log(chalk.yellow('  #channel[Tab]') + chalk.gray('   - チャンネル検索・切り替え（例: #gen[Tab] → [Enter]）'));
     console.log(chalk.yellow('  @user[Tab]') + chalk.gray('      - メンション補完（例: @tak[Tab]、@channel等）'));
-    console.log(chalk.yellow('  Ctrl+J') + chalk.gray('          - 改行を挿入（複数行メッセージ）'));
     console.log(chalk.yellow('  Ctrl+E') + chalk.gray('          - エディタ(vim/nano)を起動'));
     console.log(chalk.yellow('  Ctrl+C') + chalk.gray('          - 終了'));
     console.log();
