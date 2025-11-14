@@ -101,6 +101,35 @@ class HistoryManager {
   }
 
   /**
+   * Delete a conversation from history by index (from getTodayHistory)
+   * @param {number} index - 0-based index in today's history
+   * @returns {boolean} - true if deleted, false if not found
+   */
+  deleteByIndex(index) {
+    const todayHistory = this.getTodayHistory();
+    
+    if (index < 0 || index >= todayHistory.length) {
+      return false;
+    }
+    
+    const itemToDelete = todayHistory[index];
+    
+    // Find and remove from main history
+    const mainIndex = this.history.findIndex(item => 
+      item.channelId === itemToDelete.channelId && 
+      item.threadTs === itemToDelete.threadTs
+    );
+    
+    if (mainIndex !== -1) {
+      this.history.splice(mainIndex, 1);
+      this.saveHistory();
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
    * Clear all history
    */
   clearHistory() {

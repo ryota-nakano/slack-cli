@@ -836,7 +836,30 @@ async function channelChat() {
     
     // Handle /number command for history selection
     if (typeof result === 'string' && result.startsWith('/')) {
-      const number = parseInt(result.substring(1).trim());
+      const command = result.substring(1).trim();
+      
+      // Handle /delete or /del command
+      if (command.startsWith('delete ') || command.startsWith('del ')) {
+        const parts = command.split(' ');
+        const number = parseInt(parts[1]);
+        
+        if (!isNaN(number) && number > 0 && number <= history.length) {
+          const item = history[number - 1];
+          const deleted = historyManager.deleteByIndex(number - 1);
+          
+          if (deleted) {
+            console.log(chalk.green(`\n✅ 履歴から削除しました: ${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''}`));
+          } else {
+            console.log(chalk.yellow('\n⚠️  削除に失敗しました'));
+          }
+        } else {
+          console.log(chalk.yellow(`\n⚠️  履歴番号 ${number} は存在しません`));
+        }
+        return;
+      }
+      
+      // Handle /number for opening
+      const number = parseInt(command);
       
       if (!isNaN(number) && number > 0 && number <= history.length) {
         const item = history[number - 1];

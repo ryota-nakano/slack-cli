@@ -391,7 +391,8 @@ class ReadlineInput {
     if (this.contextType === 'selection') {
       // Channel selection screen
       return [
-        { command: '/<番号>', description: '履歴から選択（例: /1）' }
+        { command: '/<番号>', description: '履歴から選択（例: /1）' },
+        { command: '/delete', description: '履歴から削除（例: /delete 1）', alias: '/del' }
       ];
     } else if (this.contextType === 'thread') {
       // Thread context
