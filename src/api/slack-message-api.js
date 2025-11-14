@@ -1,0 +1,228 @@
+/**
+ * Slack Message API
+ * Handles message-related operations
+ */
+
+const { WebClient } = require('@slack/web-api');
+
+class SlackMessageAPI {
+  constructor(token) {
+    this.client = new WebClient(token);
+  }
+
+  /**
+   * Get thread replies
+   */
+  async getThreadReplies(channelId, threadTs) {
+    try {
+      const result = await this.client.conversations.replies({
+        channel: channelId,
+        ts: threadTs,
+        limit: 1000
+      });
+
+      if (!result.messages || result.messages.length === 0) {
+        return [];
+      }
+
+      return result.messages.map(msg => ({
+        ts: msg.ts,
+        user: msg.user,
+        userName: msg.user_profile?.display_name || msg.user_profile?.real_name || msg.user || '',
+        text: msg.text || '',
+        thread_ts: msg.thread_ts,
+        reply_count: msg.reply_count || 0,
+        reactions: msg.reactions || [],
+        files: msg.files || [],
+        edited: msg.edited ? true : false
+      }));
+    } catch (error) {
+      console.error('Failed to fetch thread replies:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Get channel history
+   */
+  async getChannelHistory(channelId, limit = null, oldest = null) {
+    try {
+      const options = {
+        channel: channelId,
+        limit: limit || 1000
+      };
+
+      if (oldest !== null) {
+        options.oldest = oldest;
+      }
+
+      const result = await this.client.conversations.history(options);
+
+      if (!result.messages || result.messages.length === 0) {
+        return [];
+      }
+
+      return result.messages.reverse().map(msg => ({
+        ts: msg.ts,
+        user: msg.user,
+        userName: msg.user_profile?.display_name || msg.user_profile?.real_name || msg.user || '',
+        text: msg.text || '',
+        thread_ts: msg.thread_ts,
+        reply_count: msg.reply_count || 0,
+        reactions: msg.reactions || [],
+        files: msg.files || [],
+        edited: msg.edited ? true : false
+      }));
+    } catch (error) {
+      console.error('Failed to fetch channel history:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Get channel history within a date range
+   */
+  async getChannelHistoryRange(channelId, oldest, latest, limit = null) {
+    try {
+      const options = {
+        channel: channelId,
+        oldest: oldest.toString(),
+        latest: latest.toString(),
+        limit: limit || 1000
+      };
+
+      const result = await this.client.conversations.history(options);
+
+      if (!result.messages || result.messages.length === 0) {
+        return [];
+      }
+
+      return result.messages.reverse().map(msg => ({
+        ts: msg.ts,
+        user: msg.user,
+        userName: msg.user_profile?.display_name || msg.user_profile?.real_name || msg.user || '',
+        text: msg.text || '',
+        thread_ts: msg.thread_ts,
+        reply_count: msg.reply_count || 0,
+        reactions: msg.reactions || [],
+        files: msg.files || [],
+        edited: msg.edited ? true : false
+      }));
+    } catch (error) {
+      console.error('Failed to fetch channel history range:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Send a message to channel or thread
+   */
+  async sendMessage(channelId, text, threadTs = null) {
+    try {
+      const options = {
+        channel: channelId,
+        text: text
+      };
+
+      if (threadTs) {
+        options.thread_ts = threadTs;
+      }
+
+      await this.client.chat.postMessage(options);
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to send message: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete a message
+   */
+  async deleteMessage(channelId, ts) {
+    try {
+      await this.client.chat.delete({
+        channel: channelId,
+        ts: ts
+      });
+      return true;
+    } catch (error) {
+      throw new Error(`Failed to delete message: ${error.message}`);
+    }
+  }
+
+  /**
+   * Mark channel as read
+   */
+  async markAsRead(channelId, ts) {
+    try {
+      await this.client.conversations.mark({
+        channel: channelId,
+        ts: ts
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to mark as read:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Search for user's messages today
+   */
+  async searchUserMessagesToday(currentUserId) {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayTimestamp = Math.floor(today.getTime() / 1000);
+
+      const result = await this.client.search.messages({
+        query: `from:<@${currentUserId}> after:${todayTimestamp}`,
+        sort: 'timestamp',
+        sort_dir: 'desc',
+        count: 100
+      });
+
+      if (!result.messages || !result.messages.matches) {
+        return [];
+      }
+
+      const conversations = [];
+      const seenChannels = new Set();
+      const seenThreads = new Set();
+
+      for (const match of result.messages.matches) {
+        const channelId = match.channel.id;
+        const channelName = match.channel.name;
+        const threadTs = match.ts === match.thread_ts ? null : match.thread_ts;
+        const key = threadTs ? `${channelId}:${threadTs}` : channelId;
+
+        if (threadTs && !seenThreads.has(key)) {
+          seenThreads.add(key);
+          conversations.push({
+            channelId,
+            channelName,
+            threadTs,
+            type: 'thread',
+            text: match.text
+          });
+        } else if (!threadTs && !seenChannels.has(channelId)) {
+          seenChannels.add(channelId);
+          conversations.push({
+            channelId,
+            channelName,
+            threadTs: null,
+            type: 'channel',
+            text: match.text
+          });
+        }
+      }
+
+      return conversations;
+    } catch (error) {
+      console.error('Failed to search user messages:', error.message);
+      return [];
+    }
+  }
+}
+
+module.exports = SlackMessageAPI;
