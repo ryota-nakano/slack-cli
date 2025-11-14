@@ -68,18 +68,28 @@ slack setup
 2. 新しいアプリを作成するか既存のアプリを選択
 3. "OAuth & Permissions" に移動
 4. 必要なスコープを追加：
+
+   **必須スコープ：**
    - `channels:history` - チャンネルの履歴を読む
    - `channels:read` - チャンネル一覧を読む
    - `chat:write` - メッセージを送信
    - `users:read` - ユーザー情報を読む
    - `groups:history` - プライベートチャンネルの履歴を読む
    - `groups:read` - プライベートチャンネル一覧を読む
-   - `usergroups:read` - ユーザーグループ（@developers等）の名前を表示 ⭐
+   - `search:read` - メッセージ検索（/refreshコマンド用）
+   
+   **オプションスコープ：**
+   - `usergroups:read` - ユーザーグループ（@developers等）の名前を表示
+   - `channels:write` - 既読マーク機能（チャンネル用）
+   - `groups:write` - 既読マーク機能（プライベートチャンネル用）
+   
 5. ワークスペースにインストールしてトークンを取得
 
 **推奨：** 自分の名前で投稿するにはUser Token（`xoxp-`で始まる）を使用してください
 
-**Note:** `usergroups:read` スコープがない場合、グループメンションは `@<GROUP_ID>` 形式で表示されます
+**Note:** 
+- `usergroups:read` スコープがない場合、グループメンションは `@<GROUP_ID>` 形式で表示されます
+- `channels:write`/`groups:write` スコープがない場合、既読マーク機能は動作しませんが、他の機能は正常に使えます
 
 ### 設定ファイルの場所
 
