@@ -6,8 +6,19 @@
 const { WebClient } = require('@slack/web-api');
 
 class SlackMessageAPI {
-  constructor(token) {
+  constructor(token, userAPI) {
     this.client = new WebClient(token);
+    this.userAPI = userAPI;
+  }
+
+  /**
+   * Resolve user name from user ID (uses cache)
+   */
+  resolveUserName(userId, usersCache) {
+    if (!userId) return '';
+    
+    const user = usersCache.find(u => u.id === userId);
+    return user?.display_name || user?.real_name || userId;
   }
 
   /**
@@ -25,17 +36,29 @@ class SlackMessageAPI {
         return [];
       }
 
-      return result.messages.map(msg => ({
-        ts: msg.ts,
-        user: msg.user,
-        userName: msg.user_profile?.display_name || msg.user_profile?.real_name || msg.user || '',
-        text: msg.text || '',
-        thread_ts: msg.thread_ts,
-        reply_count: msg.reply_count || 0,
-        reactions: msg.reactions || [],
-        files: msg.files || [],
-        edited: msg.edited ? true : false
-      }));
+      // Load all users once for efficient lookup
+      const users = await this.userAPI.listAllUsers();
+
+      // Map messages and resolve user names from cache
+      const messages = result.messages.map(msg => {
+        const userName = msg.user_profile?.display_name 
+          || msg.user_profile?.real_name 
+          || this.resolveUserName(msg.user, users);
+        
+        return {
+          ts: msg.ts,
+          user: msg.user,
+          userName,
+          text: msg.text || '',
+          thread_ts: msg.thread_ts,
+          reply_count: msg.reply_count || 0,
+          reactions: msg.reactions || [],
+          files: msg.files || [],
+          edited: msg.edited ? true : false
+        };
+      });
+
+      return messages;
     } catch (error) {
       console.error('Failed to fetch thread replies:', error.message);
       return [];
@@ -62,17 +85,29 @@ class SlackMessageAPI {
         return [];
       }
 
-      return result.messages.reverse().map(msg => ({
-        ts: msg.ts,
-        user: msg.user,
-        userName: msg.user_profile?.display_name || msg.user_profile?.real_name || msg.user || '',
-        text: msg.text || '',
-        thread_ts: msg.thread_ts,
-        reply_count: msg.reply_count || 0,
-        reactions: msg.reactions || [],
-        files: msg.files || [],
-        edited: msg.edited ? true : false
-      }));
+      // Load all users once for efficient lookup
+      const users = await this.userAPI.listAllUsers();
+
+      // Map messages and resolve user names from cache
+      const messages = result.messages.map(msg => {
+        const userName = msg.user_profile?.display_name 
+          || msg.user_profile?.real_name 
+          || this.resolveUserName(msg.user, users);
+        
+        return {
+          ts: msg.ts,
+          user: msg.user,
+          userName,
+          text: msg.text || '',
+          thread_ts: msg.thread_ts,
+          reply_count: msg.reply_count || 0,
+          reactions: msg.reactions || [],
+          files: msg.files || [],
+          edited: msg.edited ? true : false
+        };
+      });
+
+      return messages.reverse();
     } catch (error) {
       console.error('Failed to fetch channel history:', error.message);
       return [];
@@ -97,17 +132,29 @@ class SlackMessageAPI {
         return [];
       }
 
-      return result.messages.reverse().map(msg => ({
-        ts: msg.ts,
-        user: msg.user,
-        userName: msg.user_profile?.display_name || msg.user_profile?.real_name || msg.user || '',
-        text: msg.text || '',
-        thread_ts: msg.thread_ts,
-        reply_count: msg.reply_count || 0,
-        reactions: msg.reactions || [],
-        files: msg.files || [],
-        edited: msg.edited ? true : false
-      }));
+      // Load all users once for efficient lookup
+      const users = await this.userAPI.listAllUsers();
+
+      // Map messages and resolve user names from cache
+      const messages = result.messages.map(msg => {
+        const userName = msg.user_profile?.display_name 
+          || msg.user_profile?.real_name 
+          || this.resolveUserName(msg.user, users);
+        
+        return {
+          ts: msg.ts,
+          user: msg.user,
+          userName,
+          text: msg.text || '',
+          thread_ts: msg.thread_ts,
+          reply_count: msg.reply_count || 0,
+          reactions: msg.reactions || [],
+          files: msg.files || [],
+          edited: msg.edited ? true : false
+        };
+      });
+
+      return messages.reverse();
     } catch (error) {
       console.error('Failed to fetch channel history range:', error.message);
       return [];

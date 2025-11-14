@@ -14,7 +14,7 @@ class SlackClient {
     this.cache = new SlackCache();
     this.userAPI = new SlackUserAPI(token, this.cache);
     this.channelAPI = new SlackChannelAPI(token, this.cache);
-    this.messageAPI = new SlackMessageAPI(token);
+    this.messageAPI = new SlackMessageAPI(token, this.userAPI);
     this.currentUserId = null;
   }
 
