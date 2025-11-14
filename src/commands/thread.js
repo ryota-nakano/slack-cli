@@ -854,7 +854,10 @@ async function channelChat() {
         } else {
           console.log(chalk.yellow(`\n⚠️  履歴番号 ${number} は存在しません`));
         }
-        return;
+        
+        // Restart channel selection after delete
+        console.log('');
+        return await channelChat();
       }
       
       // Handle /number for opening
