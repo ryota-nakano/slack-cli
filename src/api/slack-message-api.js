@@ -161,6 +161,7 @@ class SlackMessageAPI {
       });
       return true;
     } catch (error) {
+      // Show the error but don't crash the app
       console.error('Failed to mark as read:', error.message);
       return false;
     }
