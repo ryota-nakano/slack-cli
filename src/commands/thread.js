@@ -11,6 +11,7 @@ const ThreadDisplay = require('../ui/thread-display');
 const HistoryManager = require('../utils/history-manager');
 const MessageCache = require('../utils/message-cache');
 const { displayGroupedHistory } = require('../utils/history-display');
+const CommandHandler = require('./command-handler');
 
 class ChatSession {
   constructor(channelId, channelName, threadTs = null) {
@@ -29,6 +30,7 @@ class ChatSession {
     this.historyManager = new HistoryManager();
     this.messageCache = new MessageCache();
     this.showingRecentHistory = false; // Track if /recent was just shown
+    this.commandHandler = new CommandHandler(this); // Command handler
   }
 
   /**
@@ -238,7 +240,7 @@ class ChatSession {
 
         // Handle channel switch
         if (typeof text === 'object' && text.type === 'channel') {
-          await this.switchToChannel(text.channel);
+          await this.commandHandler.switchToChannel(text.channel);
           return;
         }
 
@@ -272,7 +274,7 @@ class ChatSession {
           
           // Otherwise, in channel context, enter thread
           if (!this.isThread()) {
-            await this.enterThread(number.toString());
+            await this.commandHandler.enterThread(number.toString());
             return;
           }
           
@@ -286,14 +288,14 @@ class ChatSession {
 
         // Handle /back command (thread only) - Return to channel
         if (this.isThread() && (trimmedText === '/back' || trimmedText === '/b')) {
-          await this.backToChannel();
+          await this.commandHandler.backToChannel();
           return;
         }
 
         // Handle /rm command
         if (trimmedText.startsWith('/rm ')) {
           const msgNumber = trimmedText.substring(4).trim();
-          await this.handleDeleteMessage(msgNumber);
+          await this.commandHandler.handleDeleteMessage(msgNumber);
           continue;
         }
 
@@ -301,7 +303,7 @@ class ChatSession {
         if (!this.isThread() && (trimmedText.startsWith('/history') || trimmedText.startsWith('/h'))) {
           const parts = trimmedText.split(' ');
           const limit = parseInt(parts[1]) || 20;
-          await this.handleHistory(limit);
+          await this.commandHandler.handleHistory(limit);
           continue;
         }
 
@@ -335,13 +337,13 @@ class ChatSession {
 
         // Handle /refresh command - Search and add today's posts to history
         if (trimmedText === '/refresh' || trimmedText === '/sync') {
-          await this.refreshTodaysPosts();
+          await this.commandHandler.refreshTodaysPosts();
           continue;
         }
 
         // Handle /recent command - Show today's conversation history
         if (trimmedText === '/recent' || trimmedText === '/r') {
-          await this.showRecentHistory();
+          await this.commandHandler.showRecentHistory();
           continue;
         }
 
@@ -367,122 +369,6 @@ class ChatSession {
         }
       }
     }
-  }
-
-  /**
-   * Switch to another channel
-   */
-  async switchToChannel(channel) {
-    this.cleanup(false);
-    
-    console.log(chalk.cyan(`\n📬 #${channel.name} に切り替えます...\n`));
-    
-    const newSession = new ChatSession(channel.id, channel.name);
-    await newSession.start();
-  }
-
-  /**
-   * Enter a thread from channel
-   */
-  async enterThread(msgNumber) {
-    const num = parseInt(msgNumber, 10);
-    
-    if (isNaN(num) || num < 1 || num > this.messages.length) {
-      console.log(chalk.red(`\n❌ 無効なメッセージ番号: ${msgNumber}`));
-      console.log(chalk.yellow(`💡 有効な番号: 1-${this.messages.length}`));
-      return;
-    }
-
-    const message = this.messages[num - 1];
-    
-    this.cleanup(false);
-    
-    console.log(chalk.cyan(`\n🧵 スレッドに入ります...\n`));
-    
-    const threadSession = new ChatSession(this.channelId, this.channelName, message.ts);
-    await threadSession.start();
-  }
-
-  /**
-   * Return to channel from thread
-   */
-  async backToChannel() {
-    this.cleanup(false);
-    
-    console.log(chalk.cyan(`\n⬅️  チャンネルに戻ります...\n`));
-    
-    const channelSession = new ChatSession(this.channelId, this.channelName);
-    await channelSession.start();
-  }
-
-  /**
-   * Handle message deletion
-   */
-  /**
-   * Handle delete message command (supports multiple message numbers)
-   */
-  async handleDeleteMessage(msgNumbers) {
-    const parts = msgNumbers.split(' ').filter(p => p.trim());
-    const numbers = parts.map(p => parseInt(p, 10)).filter(n => !isNaN(n));
-    
-    if (numbers.length === 0) {
-      console.log(chalk.yellow('\n⚠️  削除する番号を指定してください（例: /rm 1 3 5）'));
-      return;
-    }
-    
-    // Sort numbers in descending order to delete from bottom to top
-    // This prevents index shifting issues
-    const sortedNumbers = [...new Set(numbers)].sort((a, b) => b - a);
-    const deletedMessages = [];
-    const invalidNumbers = [];
-    const failedDeletes = [];
-    
-    for (const num of sortedNumbers) {
-      if (num < 1 || num > this.messages.length) {
-        invalidNumbers.push(num);
-        continue;
-      }
-      
-      const message = this.messages[num - 1];
-      
-      try {
-        await this.client.deleteMessage(this.channelId, message.ts);
-        deletedMessages.push(num);
-      } catch (error) {
-        failedDeletes.push({ num, error: error.message });
-      }
-    }
-    
-    // Show results
-    if (deletedMessages.length > 0) {
-      console.log(chalk.green(`\n✅ ${deletedMessages.length}件のメッセージを削除しました: ${deletedMessages.sort((a, b) => a - b).join(', ')}`));
-    }
-    
-    if (invalidNumbers.length > 0) {
-      console.log(chalk.yellow(`\n⚠️  存在しない番号: ${invalidNumbers.join(', ')}`));
-      console.log(chalk.yellow(`💡 有効な番号: 1-${this.messages.length}`));
-    }
-    
-    if (failedDeletes.length > 0) {
-      console.log(chalk.red(`\n❌ 削除失敗: ${failedDeletes.map(f => f.num).join(', ')}`));
-      console.log(chalk.yellow('💡 ヒント: 自分のメッセージか、適切な権限が必要です'));
-    }
-    
-    // Refresh messages if any were deleted
-    if (deletedMessages.length > 0) {
-      await this.fetchMessages();
-      this.displayMessages();
-    }
-  }
-
-  /**
-   * Handle history command
-   */
-  async handleHistory(limit) {
-    console.log(chalk.cyan(`\n📜 直近${limit}件の履歴を取得中...\n`));
-    // When using /history command with limit, fetch from beginning (oldest = 0)
-    this.messages = await this.client.getChannelHistory(this.channelId, limit, 0);
-    this.displayMessages();
   }
 
   /**
@@ -513,64 +399,6 @@ class ChatSession {
     console.log(chalk.yellow('  Ctrl+E') + chalk.gray('          - エディタ(vim/nano)を起動'));
     console.log(chalk.yellow('  Ctrl+C') + chalk.gray('          - 終了'));
     console.log();
-  }
-
-  /**
-   * Refresh today's posts - Search and add to history
-   */
-  async refreshTodaysPosts() {
-    console.log(chalk.cyan('\n🔍 今日の投稿を検索中...\n'));
-    
-    const userConversations = await this.client.searchUserMessagesToday();
-    
-    if (userConversations.length === 0) {
-      console.log(chalk.yellow('💡 今日の新しい投稿は見つかりませんでした'));
-      return;
-    }
-    
-    console.log(chalk.green(`✅ ${userConversations.length}件の会話を見つけました\n`));
-    
-    // Add found conversations to history
-    for (const conv of userConversations) {
-      let threadPreview = null;
-      
-      if (conv.type === 'thread') {
-        // Create thread preview from search result
-        const firstLine = conv.text.split('\n')[0].substring(0, 50);
-        threadPreview = {
-          text: firstLine,
-          user: '',
-          userName: '',
-          ts: conv.threadTs
-        };
-      }
-      
-      this.historyManager.addConversation({
-        channelId: conv.channelId,
-        channelName: conv.channelName,
-        threadTs: conv.threadTs,
-        type: conv.type,
-        threadPreview
-      });
-    }
-    
-    console.log(chalk.cyan('💾 履歴を更新しました\n'));
-  }
-
-  /**
-   * Show recent conversation history and let user select
-   */
-  async showRecentHistory() {
-    const history = this.historyManager.getTodayHistory();
-    
-    if (history.length === 0) {
-      console.log(chalk.yellow('\n💡 今日の履歴はまだありません'));
-      return;
-    }
-
-    await displayGroupedHistory(history, this.client, this.historyManager);
-    console.log(chalk.gray('\n💡 ヒント: /数字 で移動（例: /1）\n'));
-    this.showingRecentHistory = true; // Set flag for next command
   }
 
   /**
