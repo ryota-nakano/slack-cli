@@ -561,6 +561,10 @@ class ReadlineInput {
   redrawSuggestions() {
     if (this.suggestions.length === 0) return;
 
+    // Save current cursor position
+    const currentLine = this.screenCursorLine;
+    
+    // Move to suggestion area (2 lines down from input)
     readline.moveCursor(process.stdout, 0, 2);
 
     if (this.suggestionType === 'command') {
@@ -600,7 +604,9 @@ class ReadlineInput {
       });
     }
 
-    readline.moveCursor(process.stdout, 0, -(this.suggestions.length + 1));
+    // Move back to input line
+    const linesToMove = this.suggestions.length + 1;
+    readline.moveCursor(process.stdout, 0, -linesToMove);
     this.setCursorPosition();
   }
 
