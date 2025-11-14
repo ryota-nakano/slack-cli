@@ -663,6 +663,38 @@ async function channelChat() {
   try {
     console.log(chalk.cyan('📋 チャンネルを選択してください\n'));
     
+    // Search for user's messages today and add to history
+    console.log(chalk.gray('🔍 今日の投稿を検索中...\n'));
+    const userConversations = await client.searchUserMessagesToday();
+    
+    if (process.env.DEBUG_SEARCH) {
+      console.error(`[DEBUG] 今日の投稿が見つかった会話: ${userConversations.length}件`);
+    }
+    
+    // Add found conversations to history
+    for (const conv of userConversations) {
+      let threadPreview = null;
+      
+      if (conv.type === 'thread') {
+        // Create thread preview from search result
+        const firstLine = conv.text.split('\n')[0].substring(0, 50);
+        threadPreview = {
+          text: firstLine,
+          user: '',
+          userName: '',
+          ts: conv.threadTs
+        };
+      }
+      
+      historyManager.addConversation({
+        channelId: conv.channelId,
+        channelName: conv.channelName,
+        threadTs: conv.threadTs,
+        type: conv.type,
+        threadPreview
+      });
+    }
+    
     // Show today's history if available
     const history = historyManager.getTodayHistory();
     if (history.length > 0) {

@@ -927,6 +927,81 @@ class SlackClient {
       }
     }
   }
+
+  /**
+   * Search for user's messages today
+   * Returns channels and threads where user posted today
+   */
+  async searchUserMessagesToday() {
+    try {
+      const currentUser = await this.getCurrentUser();
+      const userId = currentUser.id;
+      
+      // Get today's date range (JST)
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayTimestamp = Math.floor(today.getTime() / 1000);
+      
+      if (process.env.DEBUG_SEARCH) {
+        console.error(`[DEBUG] 今日の投稿を検索: from:<@${userId}> after:${todayTimestamp}`);
+      }
+      
+      // Search messages from user after today's start
+      const result = await this.client.search.messages({
+        query: `from:<@${userId}> after:${todayTimestamp}`,
+        sort: 'timestamp',
+        sort_dir: 'desc',
+        count: 100 // Get up to 100 messages
+      });
+      
+      if (!result.ok) {
+        if (process.env.DEBUG_SEARCH) {
+          console.error(`[DEBUG] 検索失敗: ${result.error}`);
+        }
+        return [];
+      }
+      
+      const matches = result.messages?.matches || [];
+      
+      if (process.env.DEBUG_SEARCH) {
+        console.error(`[DEBUG] 検索結果: ${matches.length}件`);
+      }
+      
+      // Extract unique channels and threads
+      const conversationsMap = new Map();
+      
+      for (const match of matches) {
+        const channelId = match.channel?.id;
+        const channelName = match.channel?.name;
+        const threadTs = match.thread_ts; // null if not in thread
+        const messageTs = match.ts;
+        
+        if (!channelId || !channelName) continue;
+        
+        // Create unique key
+        const key = threadTs ? `${channelId}-${threadTs}` : channelId;
+        
+        if (!conversationsMap.has(key)) {
+          conversationsMap.set(key, {
+            channelId,
+            channelName,
+            threadTs: threadTs || null,
+            type: threadTs ? 'thread' : 'channel',
+            latestTs: messageTs,
+            text: match.text || ''
+          });
+        }
+      }
+      
+      return Array.from(conversationsMap.values());
+      
+    } catch (error) {
+      if (process.env.DEBUG_SEARCH) {
+        console.error(`[DEBUG] 検索エラー: ${error.message}`);
+      }
+      return [];
+    }
+  }
 }
 
 module.exports = SlackClient;
