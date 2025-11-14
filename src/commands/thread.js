@@ -132,6 +132,8 @@ class ChatSession {
 
       if (this.messages.length > oldCount) {
         this.displayNewMessages();
+        // Update history timestamp when new messages arrive
+        this.updateHistoryTimestamp();
       }
     } catch (error) {
       // Silent fail
@@ -166,18 +168,12 @@ class ChatSession {
   }
 
   /**
-   * Display only new messages
+   * Display only new messages (by redrawing entire screen)
    */
   displayNewMessages() {
     if (this.messages.length > this.lastDisplayedCount) {
-      const newMessages = this.messages.slice(this.lastDisplayedCount);
-      this.display.displayNewMessages(newMessages);
-      this.lastDisplayedCount = this.messages.length;
-      
-      // Mark new messages as read (for today's messages only)
-      if (this.daysBack === 0) {
-        this.markMessagesAsRead();
-      }
+      // Redraw entire screen with all messages including new ones
+      this.displayMessages();
     }
   }
 
@@ -569,6 +565,34 @@ class ChatSession {
   }
 
   /**
+   * Update history timestamp for current conversation
+   */
+  updateHistoryTimestamp() {
+    // Prepare thread preview if in thread context
+    let threadPreview = null;
+    if (this.isThread() && this.messages.length > 0) {
+      const firstMsg = this.messages[0];
+      const text = firstMsg.text || '';
+      const firstLine = text.split('\n')[0].substring(0, 50);
+      threadPreview = {
+        text: firstLine,
+        user: firstMsg.user,
+        userName: firstMsg.userName || '',
+        ts: firstMsg.ts
+      };
+    }
+
+    // Update conversation in history
+    this.historyManager.addConversation({
+      channelId: this.channelId,
+      channelName: this.channelName,
+      threadTs: this.threadTs,
+      type: this.isThread() ? 'thread' : 'channel',
+      threadPreview
+    });
+  }
+
+  /**
    * Send message and update display
    */
   async sendAndDisplay(text) {
@@ -584,6 +608,9 @@ class ChatSession {
 
     // Refresh display
     this.displayMessages();
+
+    // Update history immediately when sending a message
+    this.updateHistoryTimestamp();
 
     // Fetch latest in background
     this.fetchMessages()
