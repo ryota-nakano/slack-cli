@@ -937,60 +937,77 @@ class SlackClient {
       const currentUser = await this.getCurrentUser();
       const userId = currentUser.id;
       
-      // Get today's date range (JST)
+      // Get today's start timestamp
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const todayTimestamp = Math.floor(today.getTime() / 1000);
+      const todayTimestamp = today.getTime() / 1000;
       
       if (process.env.DEBUG_SEARCH) {
-        console.error(`[DEBUG] 今日の投稿を検索: from:<@${userId}> after:${todayTimestamp}`);
+        console.error(`[DEBUG] ユーザーID: ${userId}`);
+        console.error(`[DEBUG] 今日の開始時刻: ${todayTimestamp} (${today.toISOString()})`);
       }
       
-      // Search messages from user after today's start
-      const result = await this.client.search.messages({
-        query: `from:<@${userId}> after:${todayTimestamp}`,
-        sort: 'timestamp',
-        sort_dir: 'desc',
-        count: 100 // Get up to 100 messages
-      });
-      
-      if (!result.ok) {
-        if (process.env.DEBUG_SEARCH) {
-          console.error(`[DEBUG] 検索失敗: ${result.error}`);
-        }
-        return [];
-      }
-      
-      const matches = result.messages?.matches || [];
+      // Get list of all channels user is in
+      const channels = await this.listChannels();
       
       if (process.env.DEBUG_SEARCH) {
-        console.error(`[DEBUG] 検索結果: ${matches.length}件`);
+        console.error(`[DEBUG] チャンネル数: ${channels.length}`);
       }
       
-      // Extract unique channels and threads
       const conversationsMap = new Map();
+      let totalMessages = 0;
       
-      for (const match of matches) {
-        const channelId = match.channel?.id;
-        const channelName = match.channel?.name;
-        const threadTs = match.thread_ts; // null if not in thread
-        const messageTs = match.ts;
-        
-        if (!channelId || !channelName) continue;
-        
-        // Create unique key
-        const key = threadTs ? `${channelId}-${threadTs}` : channelId;
-        
-        if (!conversationsMap.has(key)) {
-          conversationsMap.set(key, {
-            channelId,
-            channelName,
-            threadTs: threadTs || null,
-            type: threadTs ? 'thread' : 'channel',
-            latestTs: messageTs,
-            text: match.text || ''
+      // Check each channel for user's messages today
+      // To avoid API rate limits, only check first 20 channels
+      const channelsToCheck = channels.slice(0, 20);
+      
+      for (const channel of channelsToCheck) {
+        try {
+          // Get messages from today
+          const result = await this.client.conversations.history({
+            channel: channel.id,
+            oldest: todayTimestamp.toString(),
+            limit: 100
           });
+          
+          if (!result.ok) continue;
+          
+          const messages = result.messages || [];
+          
+          // Filter messages from current user
+          const userMessages = messages.filter(msg => msg.user === userId);
+          
+          if (userMessages.length > 0) {
+            totalMessages += userMessages.length;
+            
+            // Group by thread or channel
+            for (const msg of userMessages) {
+              const threadTs = msg.thread_ts;
+              const key = threadTs ? `${channel.id}-${threadTs}` : channel.id;
+              
+              if (!conversationsMap.has(key)) {
+                conversationsMap.set(key, {
+                  channelId: channel.id,
+                  channelName: channel.name,
+                  threadTs: threadTs || null,
+                  type: threadTs ? 'thread' : 'channel',
+                  latestTs: msg.ts,
+                  text: msg.text || ''
+                });
+              }
+            }
+          }
+        } catch (error) {
+          if (process.env.DEBUG_SEARCH) {
+            console.error(`[DEBUG] チャンネル ${channel.name} のエラー: ${error.message}`);
+          }
+          continue;
         }
+      }
+      
+      if (process.env.DEBUG_SEARCH) {
+        console.error(`[DEBUG] 今日の投稿数: ${totalMessages}件`);
+        console.error(`[DEBUG] 会話数: ${conversationsMap.size}件`);
       }
       
       return Array.from(conversationsMap.values());
