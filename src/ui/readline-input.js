@@ -8,14 +8,14 @@ const chalk = require('chalk');
 const stringWidth = require('string-width');
 
 class ReadlineInput {
-  constructor(channelMembers = [], slackClient = null) {
+  constructor(channelMembers = [], slackClient = null, contextType = 'channel') {
     this.members = channelMembers; // Deprecated - not used anymore
     this.slackClient = slackClient; // SlackClient instance for dynamic search
     this.input = '';
     this.cursorPos = 0;
     this.suggestions = [];
     this.selectedIndex = -1;
-    this.suggestionType = null; // 'mention' or 'channel'
+    this.suggestionType = null; // 'mention', 'channel', or 'command'
     this.rl = null;
     this.previousLineCount = 1;
     this.screenCursorLine = 0; // Track which line the cursor is actually on screen (0-based)
@@ -24,6 +24,7 @@ class ReadlineInput {
     this.lastMentionQuery = null; // Track last mention query to avoid duplicate searches
     this.isLoadingChannels = false; // Prevent concurrent channel loads
     this.isLoadingMentions = false; // Prevent concurrent mention loads
+    this.contextType = contextType; // 'channel', 'thread', or 'selection'
   }
 
   /**
@@ -234,8 +235,8 @@ class ReadlineInput {
         this.clearSuggestions();
         this.redrawInput();
         
-        // Don't auto-update suggestions on each keystroke
-        // User should press Tab to trigger search
+        // Auto-update suggestions for commands (/ prefix)
+        await this.updateSuggestions();
       };
 
       process.stdin.on('keypress', onKeypress);
@@ -390,10 +391,93 @@ class ReadlineInput {
   }
 
   /**
-   * Update suggestions based on current input (not used anymore - Tab only)
+   * Get available commands based on context
+   */
+  getAvailableCommands() {
+    if (this.contextType === 'selection') {
+      // Channel selection screen
+      return [
+        { command: '/<番号>', description: '履歴から選択（例: /1）' }
+      ];
+    } else if (this.contextType === 'thread') {
+      // Thread context
+      return [
+        { command: '/back', description: 'チャンネルに戻る', alias: '/b' },
+        { command: '/recent', description: '今日の会話履歴から選択', alias: '/r' },
+        { command: '/rm', description: 'メッセージを削除（例: /rm 5）' },
+        { command: '/exit', description: 'チャット終了', alias: '/quit, /q' },
+        { command: '/help', description: 'ヘルプを表示' }
+      ];
+    } else {
+      // Channel context
+      return [
+        { command: '/<番号>', description: 'スレッドに入る（例: /3）' },
+        { command: '/prev', description: '前日の履歴を表示', alias: '/p' },
+        { command: '/next', description: '次の日の履歴を表示', alias: '/n' },
+        { command: '/today', description: '今日の履歴に戻る' },
+        { command: '/history', description: '過去の履歴を表示', alias: '/h [件数]' },
+        { command: '/recent', description: '今日の会話履歴から選択', alias: '/r' },
+        { command: '/rm', description: 'メッセージを削除（例: /rm 5）' },
+        { command: '/exit', description: 'チャット終了', alias: '/quit, /q' },
+        { command: '/help', description: 'ヘルプを表示' }
+      ];
+    }
+  }
+
+  /**
+   * Find command context at cursor position
+   */
+  findCommandContext() {
+    // Check if input starts with / and cursor is near the beginning
+    if (!this.input.startsWith('/')) return null;
+    
+    const beforeCursor = this.input.substring(0, this.cursorPos);
+    
+    // Check if we're still in the command part (no space yet)
+    if (beforeCursor.includes(' ')) return null;
+    
+    const searchTerm = beforeCursor.substring(1); // Remove the /
+    
+    return {
+      type: 'command',
+      startIndex: 0,
+      searchTerm: searchTerm
+    };
+  }
+
+  /**
+   * Load command suggestions based on search query
+   */
+  loadCommandSuggestions(searchTerm) {
+    const commands = this.getAvailableCommands();
+    
+    // Filter commands based on search term
+    const filtered = commands.filter(cmd => {
+      const mainMatch = cmd.command.toLowerCase().includes('/' + searchTerm.toLowerCase());
+      const aliasMatch = cmd.alias && cmd.alias.toLowerCase().includes(searchTerm.toLowerCase());
+      return mainMatch || aliasMatch;
+    });
+    
+    this.suggestions = filtered;
+    this.suggestionType = 'command';
+    this.selectedIndex = filtered.length > 0 ? 0 : -1;
+  }
+
+  /**
+   * Update suggestions based on current input
    */
   async updateSuggestions() {
-    // Suggestions are now only triggered by Tab key
+    // Check for command context first
+    const commandResult = this.findCommandContext();
+    if (commandResult) {
+      this.loadCommandSuggestions(commandResult.searchTerm);
+      if (this.suggestions.length > 0) {
+        this.showSuggestions();
+      }
+      return;
+    }
+    
+    // No auto-suggestions for @ or # anymore - Tab only
     // This prevents excessive API calls on each keystroke
   }
 
@@ -403,7 +487,15 @@ class ReadlineInput {
   showSuggestions() {
     if (this.suggestions.length === 0) return;
 
-    if (this.suggestionType === 'channel') {
+    if (this.suggestionType === 'command') {
+      process.stdout.write('\n' + chalk.gray('コマンド候補 (Tab/↑↓で選択, Enter確定):'));
+      this.suggestions.forEach((cmd, idx) => {
+        const isSelected = idx === this.selectedIndex;
+        const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
+        const aliasText = cmd.alias ? chalk.gray(` (${cmd.alias})`) : '';
+        process.stdout.write('\n' + prefix + chalk.yellow(cmd.command) + aliasText + chalk.gray(` - ${cmd.description}`));
+      });
+    } else if (this.suggestionType === 'channel') {
       process.stdout.write('\n' + chalk.gray('チャンネル候補 (Tab/↑↓で選択, Enter確定):'));
       this.suggestions.forEach((channel, idx) => {
         const isSelected = idx === this.selectedIndex;
@@ -465,7 +557,19 @@ class ReadlineInput {
 
     readline.moveCursor(process.stdout, 0, 2);
 
-    if (this.suggestionType === 'channel') {
+    if (this.suggestionType === 'command') {
+      this.suggestions.forEach((cmd, idx) => {
+        readline.cursorTo(process.stdout, 0);
+        readline.clearLine(process.stdout, 0);
+        const isSelected = idx === this.selectedIndex;
+        const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
+        const aliasText = cmd.alias ? chalk.gray(` (${cmd.alias})`) : '';
+        process.stdout.write(prefix + chalk.yellow(cmd.command) + aliasText + chalk.gray(` - ${cmd.description}`));
+        if (idx < this.suggestions.length - 1) {
+          readline.moveCursor(process.stdout, 0, 1);
+        }
+      });
+    } else if (this.suggestionType === 'channel') {
       this.suggestions.forEach((channel, idx) => {
         readline.cursorTo(process.stdout, 0);
         readline.clearLine(process.stdout, 0);
@@ -581,7 +685,23 @@ class ReadlineInput {
   insertSuggestion() {
     if (this.selectedIndex < 0 || this.selectedIndex >= this.suggestions.length) return;
 
-    if (this.suggestionType === 'channel') {
+    if (this.suggestionType === 'command') {
+      const commandResult = this.findCommandContext();
+      if (!commandResult) return;
+
+      const selectedCommand = this.suggestions[this.selectedIndex];
+      
+      // Replace the / part with the selected command
+      const afterCursor = this.input.substring(this.cursorPos);
+      
+      // Extract just the command name (e.g., "/back" from the display)
+      const commandName = selectedCommand.command.split(' ')[0];
+      
+      this.input = commandName + ' ' + afterCursor;
+      this.cursorPos = commandName.length + 1;
+      
+      return { type: 'command', command: selectedCommand };
+    } else if (this.suggestionType === 'channel') {
       const channelResult = this.findChannelContext();
       if (!channelResult) return;
 

@@ -203,7 +203,8 @@ class ChatSession {
   async inputLoop() {
     while (true) {
       try {
-        const readlineInput = new ReadlineInput([], this.client);
+        const contextType = this.isThread() ? 'thread' : 'channel';
+        const readlineInput = new ReadlineInput([], this.client, contextType);
         const text = await readlineInput.prompt(this.getContextName());
 
         // Switch to editor mode
@@ -730,7 +731,7 @@ async function channelChat() {
     }
     
     // Initial prompt with channel selection (auto-trigger channel mode)
-    const readlineInput = new ReadlineInput([], client);
+    const readlineInput = new ReadlineInput([], client, 'selection');
     
     console.log(chalk.yellow('💡 ヒント: チャンネル名を入力してTabキーで検索（#は不要）'));
     const result = await readlineInput.prompt('チャンネル選択', true); // true = auto-trigger channel mode
