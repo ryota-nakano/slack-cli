@@ -41,7 +41,7 @@ class ThreadDisplay {
         : '';
       
       // First line: Number, time, thread indicator, user
-      console.log(`${chalk.gray(`[${index}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.user)}`);
+      console.log(`${chalk.gray(`[${index}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.userName || reply.user)}`);
       
       // Second line: Message text (no indent, handle multi-line)
       const lines = reply.text.split('\n');
