@@ -41,8 +41,11 @@ class SlackMessageAPI {
 
       // Map messages and resolve user names from cache
       const messages = result.messages.map(msg => {
-        const userName = msg.user_profile?.display_name 
-          || msg.user_profile?.real_name 
+        // Try user_profile first, but only if not empty
+        const profileDisplayName = msg.user_profile?.display_name?.trim();
+        const profileRealName = msg.user_profile?.real_name?.trim();
+        const userName = profileDisplayName 
+          || profileRealName 
           || this.resolveUserName(msg.user, users);
         
         return {
@@ -90,8 +93,11 @@ class SlackMessageAPI {
 
       // Map messages and resolve user names from cache
       const messages = result.messages.map(msg => {
-        const userName = msg.user_profile?.display_name 
-          || msg.user_profile?.real_name 
+        // Try user_profile first, but only if not empty
+        const profileDisplayName = msg.user_profile?.display_name?.trim();
+        const profileRealName = msg.user_profile?.real_name?.trim();
+        const userName = profileDisplayName 
+          || profileRealName 
           || this.resolveUserName(msg.user, users);
         
         return {
@@ -137,8 +143,11 @@ class SlackMessageAPI {
 
       // Map messages and resolve user names from cache
       const messages = result.messages.map(msg => {
-        const userName = msg.user_profile?.display_name 
-          || msg.user_profile?.real_name 
+        // Try user_profile first, but only if not empty
+        const profileDisplayName = msg.user_profile?.display_name?.trim();
+        const profileRealName = msg.user_profile?.real_name?.trim();
+        const userName = profileDisplayName 
+          || profileRealName 
           || this.resolveUserName(msg.user, users);
         
         return {

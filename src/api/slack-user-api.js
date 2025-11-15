@@ -195,14 +195,11 @@ class SlackUserAPI {
 
       // Get user info for each member
       const users = await this.getUsersByIds(memberIds);
-      
-      // Filter out bots if needed
-      const activeUsers = users.filter(user => !user.is_bot);
 
-      // Cache the channel members
-      this.cache.updateChannelMembers(channelId, activeUsers);
+      // Cache the channel members (include all users, not just non-bots)
+      this.cache.updateChannelMembers(channelId, users);
       
-      return activeUsers;
+      return users;
     } catch (error) {
       console.error(`Failed to fetch channel users for ${channelId}:`, error.message);
       return this.cache.getChannelMembers(channelId) || [];
