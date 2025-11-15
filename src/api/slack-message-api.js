@@ -4,6 +4,7 @@
  */
 
 const { WebClient } = require('@slack/web-api');
+const UserHelper = require('../utils/user-helper');
 
 class SlackMessageAPI {
   constructor(token, userAPI) {
@@ -18,19 +19,14 @@ class SlackMessageAPI {
     if (!userId) return '';
     
     const user = usersCache.find(u => u.id === userId);
-    return user?.display_name || user?.real_name || userId;
+    return user ? UserHelper.getDisplayName(user) : userId;
   }
 
   /**
    * Map raw Slack message to formatted message object
    */
   async mapMessage(msg, users, usergroups) {
-    // Try user_profile first, but only if not empty
-    const profileDisplayName = msg.user_profile?.display_name?.trim();
-    const profileRealName = msg.user_profile?.real_name?.trim();
-    const userName = profileDisplayName 
-      || profileRealName 
-      || this.resolveUserName(msg.user, users);
+    const userName = UserHelper.getMessageUserName(msg, msg.user, users);
     
     // Format mentions in text
     const formattedText = await this.formatMentionsInText(msg.text, users, usergroups);
@@ -58,7 +54,7 @@ class SlackMessageAPI {
     let formattedText = text.replace(/<@([A-Z0-9]+)>/g, (match, userId) => {
       const user = usersCache.find(u => u.id === userId);
       if (user) {
-        return `@${user.display_name || user.real_name || userId}`;
+        return `@${UserHelper.getDisplayName(user)}`;
       }
       return match; // Keep original if user not found
     });

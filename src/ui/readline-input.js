@@ -6,6 +6,7 @@
 const readline = require('readline');
 const chalk = require('chalk');
 const stringWidth = require('string-width');
+const UserHelper = require('../utils/user-helper');
 
 class ReadlineInput {
   constructor(channelMembers = [], slackClient = null, contextType = 'channel', channelId = null) {
@@ -507,9 +508,7 @@ class ReadlineInput {
         const isSelected = idx === this.selectedIndex;
         const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
         
-        // Handle both display_name and name formats for special mentions
-        const displayName = member.display_name || member.name;
-        const realName = member.real_name || member.display_name || '';
+        const { displayName, realName } = UserHelper.formatForDisplay(member);
         
         process.stdout.write('\n' + prefix + chalk.yellow(`@${displayName}`) + chalk.gray(` (${realName})`));
       });
@@ -595,9 +594,7 @@ class ReadlineInput {
         const isSelected = idx === this.selectedIndex;
         const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
         
-        // Handle both display_name and name formats for special mentions
-        const displayName = member.display_name || member.name;
-        const realName = member.real_name || member.display_name || '';
+        const { displayName, realName } = UserHelper.formatForDisplay(member);
         
         process.stdout.write(prefix + chalk.yellow(`@${displayName}`) + chalk.gray(` (${realName})`));
         if (idx < this.suggestions.length - 1) {
