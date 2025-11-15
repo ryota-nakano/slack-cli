@@ -244,7 +244,7 @@ class SlackUserAPI {
   }
 
   /**
-   * Search mentions in a specific channel (users and special mentions)
+   * Search mentions in a specific channel (users, groups, and special mentions)
    */
   async searchMentions(query = '', limit = 20, channelId = null) {
     // Special mentions that always appear
@@ -254,21 +254,39 @@ class SlackUserAPI {
       { id: 'everyone', name: '@everyone', display_name: '全員に通知', type: 'special' }
     ];
 
+    // Get usergroups
+    const usergroups = await this.listUsergroups();
+    const usergroupMentions = usergroups.map(ug => ({
+      id: ug.id,
+      name: `@${ug.name}`,
+      display_name: ug.name,
+      handle: ug.handle,
+      real_name: `グループ: ${ug.name}`,
+      type: 'usergroup'
+    }));
+
     if (!query) {
-      return specialMentions.slice(0, limit);
+      return [...specialMentions, ...usergroupMentions].slice(0, limit);
     }
 
     const lowerQuery = query.toLowerCase();
 
-    // Filter special mentions first
+    // Filter special mentions
     const matchedSpecial = specialMentions.filter(mention =>
       mention.name.toLowerCase().includes(lowerQuery) ||
       mention.display_name.toLowerCase().includes(lowerQuery)
     );
 
-    // If no channel specified, return only special mentions
+    // Filter usergroup mentions
+    const matchedUsergroups = usergroupMentions.filter(ug =>
+      ug.name.toLowerCase().includes(lowerQuery) ||
+      ug.display_name.toLowerCase().includes(lowerQuery) ||
+      ug.handle.toLowerCase().includes(lowerQuery)
+    );
+
+    // If no channel specified, return special mentions and usergroups
     if (!channelId) {
-      return matchedSpecial.slice(0, limit);
+      return [...matchedSpecial, ...matchedUsergroups].slice(0, limit);
     }
 
     // Get channel users
@@ -296,7 +314,7 @@ class SlackUserAPI {
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
-    return [...matchedSpecial, ...matchedUsers].slice(0, limit);
+    return [...matchedSpecial, ...matchedUsergroups, ...matchedUsers].slice(0, limit);
   }
 
   /**
