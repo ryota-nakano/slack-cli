@@ -22,6 +22,33 @@ class SlackMessageAPI {
   }
 
   /**
+   * Map raw Slack message to formatted message object
+   */
+  async mapMessage(msg, users, usergroups) {
+    // Try user_profile first, but only if not empty
+    const profileDisplayName = msg.user_profile?.display_name?.trim();
+    const profileRealName = msg.user_profile?.real_name?.trim();
+    const userName = profileDisplayName 
+      || profileRealName 
+      || this.resolveUserName(msg.user, users);
+    
+    // Format mentions in text
+    const formattedText = await this.formatMentionsInText(msg.text, users, usergroups);
+    
+    return {
+      ts: msg.ts,
+      user: msg.user,
+      userName,
+      text: formattedText || '',
+      thread_ts: msg.thread_ts,
+      reply_count: msg.reply_count || 0,
+      reactions: msg.reactions || [],
+      files: msg.files || [],
+      edited: msg.edited ? true : false
+    };
+  }
+
+  /**
    * Format mentions in text (<@USER_ID> -> @display_name)
    */
   async formatMentionsInText(text, usersCache, usergroupsCache = null) {
@@ -82,29 +109,9 @@ class SlackMessageAPI {
       const usergroups = await this.userAPI.listUsergroups();
 
       // Map messages and resolve user names from cache
-      const messages = await Promise.all(result.messages.map(async msg => {
-        // Try user_profile first, but only if not empty
-        const profileDisplayName = msg.user_profile?.display_name?.trim();
-        const profileRealName = msg.user_profile?.real_name?.trim();
-        const userName = profileDisplayName 
-          || profileRealName 
-          || this.resolveUserName(msg.user, users);
-        
-        // Format mentions in text
-        const formattedText = await this.formatMentionsInText(msg.text, users, usergroups);
-        
-        return {
-          ts: msg.ts,
-          user: msg.user,
-          userName,
-          text: formattedText || '',
-          thread_ts: msg.thread_ts,
-          reply_count: msg.reply_count || 0,
-          reactions: msg.reactions || [],
-          files: msg.files || [],
-          edited: msg.edited ? true : false
-        };
-      }));
+      const messages = await Promise.all(result.messages.map(msg => 
+        this.mapMessage(msg, users, usergroups)
+      ));
 
       return messages;
     } catch (error) {
@@ -138,29 +145,9 @@ class SlackMessageAPI {
       const usergroups = await this.userAPI.listUsergroups();
 
       // Map messages and resolve user names from cache
-      const messages = await Promise.all(result.messages.map(async msg => {
-        // Try user_profile first, but only if not empty
-        const profileDisplayName = msg.user_profile?.display_name?.trim();
-        const profileRealName = msg.user_profile?.real_name?.trim();
-        const userName = profileDisplayName 
-          || profileRealName 
-          || this.resolveUserName(msg.user, users);
-        
-        // Format mentions in text
-        const formattedText = await this.formatMentionsInText(msg.text, users, usergroups);
-        
-        return {
-          ts: msg.ts,
-          user: msg.user,
-          userName,
-          text: formattedText || '',
-          thread_ts: msg.thread_ts,
-          reply_count: msg.reply_count || 0,
-          reactions: msg.reactions || [],
-          files: msg.files || [],
-          edited: msg.edited ? true : false
-        };
-      }));
+      const messages = await Promise.all(result.messages.map(msg => 
+        this.mapMessage(msg, users, usergroups)
+      ));
 
       return messages.reverse();
     } catch (error) {
@@ -192,29 +179,9 @@ class SlackMessageAPI {
       const usergroups = await this.userAPI.listUsergroups();
 
       // Map messages and resolve user names from cache
-      const messages = await Promise.all(result.messages.map(async msg => {
-        // Try user_profile first, but only if not empty
-        const profileDisplayName = msg.user_profile?.display_name?.trim();
-        const profileRealName = msg.user_profile?.real_name?.trim();
-        const userName = profileDisplayName 
-          || profileRealName 
-          || this.resolveUserName(msg.user, users);
-        
-        // Format mentions in text
-        const formattedText = await this.formatMentionsInText(msg.text, users, usergroups);
-        
-        return {
-          ts: msg.ts,
-          user: msg.user,
-          userName,
-          text: formattedText || '',
-          thread_ts: msg.thread_ts,
-          reply_count: msg.reply_count || 0,
-          reactions: msg.reactions || [],
-          files: msg.files || [],
-          edited: msg.edited ? true : false
-        };
-      }));
+      const messages = await Promise.all(result.messages.map(msg => 
+        this.mapMessage(msg, users, usergroups)
+      ));
 
       return messages.reverse();
     } catch (error) {
