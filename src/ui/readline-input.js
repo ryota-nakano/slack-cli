@@ -506,7 +506,12 @@ class ReadlineInput {
       this.suggestions.forEach((member, idx) => {
         const isSelected = idx === this.selectedIndex;
         const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
-        process.stdout.write('\n' + prefix + chalk.yellow(`@${member.displayName}`) + chalk.gray(` (${member.realName})`));
+        
+        // Handle both display_name and name formats for special mentions
+        const displayName = member.display_name || member.name;
+        const realName = member.real_name || member.display_name || '';
+        
+        process.stdout.write('\n' + prefix + chalk.yellow(`@${displayName}`) + chalk.gray(` (${realName})`));
       });
     }
 
@@ -589,7 +594,12 @@ class ReadlineInput {
         readline.clearLine(process.stdout, 0);
         const isSelected = idx === this.selectedIndex;
         const prefix = isSelected ? chalk.cyan('❯ ') : '  ';
-        process.stdout.write(prefix + chalk.yellow(`@${member.displayName}`) + chalk.gray(` (${member.realName})`));
+        
+        // Handle both display_name and name formats for special mentions
+        const displayName = member.display_name || member.name;
+        const realName = member.real_name || member.display_name || '';
+        
+        process.stdout.write(prefix + chalk.yellow(`@${displayName}`) + chalk.gray(` (${realName})`));
         if (idx < this.suggestions.length - 1) {
           readline.moveCursor(process.stdout, 0, 1);
         }
