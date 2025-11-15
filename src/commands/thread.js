@@ -223,7 +223,7 @@ class ChatSession {
     while (true) {
       try {
         const contextType = this.isThread() ? 'thread' : 'channel';
-        const readlineInput = new ReadlineInput([], this.client, contextType);
+        const readlineInput = new ReadlineInput([], this.client, contextType, this.channelId);
         const text = await readlineInput.prompt(this.getContextName());
 
         // Switch to editor mode

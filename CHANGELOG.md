@@ -1,5 +1,39 @@
 # 変更履歴
 
+## バージョン 2.3.1 (2024-11-15)
+
+### ⚡ パフォーマンス改善
+
+- **チャンネル単位のユーザー取得**: ワークスペース全体ではなく、チャンネルメンバーのみを取得
+- **API呼び出しの最適化**: `conversations.members` + `users.info` で必要なユーザーのみ取得
+- **チャンネル別キャッシュ**: チャンネルごとにメンバー情報をキャッシュ（1時間有効）
+- **段階的ユーザー取得**: キャッシュを優先し、未取得のユーザーのみAPIで取得
+
+### 🎯 変更内容
+
+**slack-user-api.js**:
+- `listChannelUsers()`: チャンネルメンバーのみを取得する新メソッド
+- `getUsersByIds()`: 複数のユーザーIDから効率的にユーザー情報を取得
+- `searchMentions()`: `channelId`パラメータを追加し、チャンネル内のユーザーのみ検索
+- `formatMentions()`: `channelId`パラメータを追加
+
+**slack-cache.js**:
+- チャンネルメンバーキャッシュ機能を追加
+- `updateChannelMembers()`, `getChannelMembers()`, `isChannelMembersCacheValid()`
+- `addUser()`: 個別ユーザーをキャッシュに追加
+
+**UI Components**:
+- `ReadlineInput`, `SuggestionManager`: `channelId`パラメータをサポート
+- `ChatSession`: 現在のチャンネルIDを入力コンポーネントに渡す
+
+### 📊 改善効果
+
+- **大規模ワークスペース対応**: 数千人のワークスペースでも高速
+- **API制限の回避**: 必要最小限のAPI呼び出しのみ
+- **レスポンス向上**: メンション補完が即座に表示
+
+---
+
 ## バージョン 2.2.5 (2024-11-13)
 
 ### 🧹 クリーンアップ

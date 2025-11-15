@@ -83,7 +83,47 @@ class SlackUserAPI {
   }
 
   /**
-   * List all users (with caching)
+   * Get users by IDs (with caching and batching)
+   */
+  async getUsersByIds(userIds) {
+    const users = [];
+    const uncachedIds = [];
+
+    // Check cache first
+    for (const userId of userIds) {
+      const cachedUser = this.cache.findUserById(userId);
+      if (cachedUser) {
+        users.push(cachedUser);
+      } else {
+        uncachedIds.push(userId);
+      }
+    }
+
+    // Fetch uncached users
+    for (const userId of uncachedIds) {
+      try {
+        const result = await this.client.users.info({ user: userId });
+        if (result.user && !result.user.deleted) {
+          const user = {
+            id: result.user.id,
+            name: result.user.name,
+            real_name: result.user.real_name,
+            display_name: result.user.profile?.display_name || result.user.real_name,
+            is_bot: result.user.is_bot || false
+          };
+          users.push(user);
+          this.cache.addUser(user);
+        }
+      } catch (error) {
+        console.error(`Failed to fetch user ${userId}:`, error.message);
+      }
+    }
+
+    return users;
+  }
+
+  /**
+   * List all users (kept for compatibility, but prefer listChannelUsers for better performance)
    */
   async listAllUsers(forceRefresh = false) {
     if (!forceRefresh && this.cache.isUsersCacheValid()) {
@@ -126,11 +166,53 @@ class SlackUserAPI {
   }
 
   /**
-   * Search mentions (users and special mentions)
+   * List users in a specific channel (with caching)
    */
-  async searchMentions(query = '', limit = 20) {
-    const users = await this.listAllUsers();
+  async listChannelUsers(channelId, forceRefresh = false) {
+    // Check if we have cached members for this channel
+    if (!forceRefresh && this.cache.isChannelMembersCacheValid(channelId)) {
+      return this.cache.getChannelMembers(channelId);
+    }
 
+    try {
+      // Get member IDs from channel
+      let memberIds = [];
+      let cursor = undefined;
+
+      do {
+        const result = await this.client.conversations.members({
+          channel: channelId,
+          limit: 1000,
+          cursor: cursor
+        });
+
+        if (result.members) {
+          memberIds = memberIds.concat(result.members);
+        }
+
+        cursor = result.response_metadata?.next_cursor;
+      } while (cursor);
+
+      // Get user info for each member
+      const users = await this.getUsersByIds(memberIds);
+      
+      // Filter out bots if needed
+      const activeUsers = users.filter(user => !user.is_bot);
+
+      // Cache the channel members
+      this.cache.updateChannelMembers(channelId, activeUsers);
+      
+      return activeUsers;
+    } catch (error) {
+      console.error(`Failed to fetch channel users for ${channelId}:`, error.message);
+      return this.cache.getChannelMembers(channelId) || [];
+    }
+  }
+
+  /**
+   * Search mentions in a specific channel (users and special mentions)
+   */
+  async searchMentions(query = '', limit = 20, channelId = null) {
     // Special mentions that always appear
     const specialMentions = [
       { id: 'channel', name: '@channel', display_name: '全員に通知', type: 'special' },
@@ -143,6 +225,20 @@ class SlackUserAPI {
     }
 
     const lowerQuery = query.toLowerCase();
+
+    // Filter special mentions first
+    const matchedSpecial = specialMentions.filter(mention =>
+      mention.name.toLowerCase().includes(lowerQuery) ||
+      mention.display_name.toLowerCase().includes(lowerQuery)
+    );
+
+    // If no channel specified, return only special mentions
+    if (!channelId) {
+      return matchedSpecial.slice(0, limit);
+    }
+
+    // Get channel users
+    const users = await this.listChannelUsers(channelId);
 
     // Filter and score users
     const matchedUsers = users
@@ -166,21 +262,13 @@ class SlackUserAPI {
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
-    // Filter special mentions
-    const matchedSpecial = specialMentions.filter(mention =>
-      mention.name.toLowerCase().includes(lowerQuery) ||
-      mention.display_name.toLowerCase().includes(lowerQuery)
-    );
-
     return [...matchedSpecial, ...matchedUsers].slice(0, limit);
   }
 
   /**
    * Format mentions in text (@user -> <@USER_ID>)
    */
-  async formatMentions(text) {
-    const users = await this.listAllUsers();
-
+  async formatMentions(text, channelId = null) {
     // Replace @username with <@USER_ID>
     let formattedText = text;
 
@@ -191,15 +279,19 @@ class SlackUserAPI {
       formattedText = formattedText.replace(mentionPattern, `<!${mention.substring(1)}>`);
     }
 
-    // User mentions
-    for (const user of users) {
-      const patterns = [
-        new RegExp(`@${user.name}\\b`, 'gi'),
-        new RegExp(`@${user.display_name}\\b`, 'gi')
-      ];
+    // User mentions - only if channel is specified
+    if (channelId) {
+      const users = await this.listChannelUsers(channelId);
+      
+      for (const user of users) {
+        const patterns = [
+          new RegExp(`@${user.name}\\b`, 'gi'),
+          new RegExp(`@${user.display_name}\\b`, 'gi')
+        ];
 
-      for (const pattern of patterns) {
-        formattedText = formattedText.replace(pattern, `<@${user.id}>`);
+        for (const pattern of patterns) {
+          formattedText = formattedText.replace(pattern, `<@${user.id}>`);
+        }
       }
     }
 

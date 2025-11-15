@@ -4,9 +4,10 @@
  */
 
 class SuggestionManager {
-  constructor(slackClient, contextType = 'channel') {
+  constructor(slackClient, contextType = 'channel', channelId = null) {
     this.slackClient = slackClient;
     this.contextType = contextType;
+    this.channelId = channelId; // Current channel ID for channel-specific user search
     this.suggestions = [];
     this.selectedIndex = -1;
     this.suggestionType = null; // 'mention', 'channel', or 'command'
@@ -62,7 +63,7 @@ class SuggestionManager {
     this.lastMentionQuery = searchTerm;
 
     try {
-      const mentions = await this.slackClient.searchMentions(searchTerm, 10);
+      const mentions = await this.slackClient.searchMentions(searchTerm, 10, this.channelId);
       const mappedSuggestions = mentions.map(m => ({
         value: m.name || m.id,
         display: m.type === 'special' 

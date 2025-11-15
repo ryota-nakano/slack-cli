@@ -39,12 +39,16 @@ class SlackClient {
     return this.userAPI.listAllUsers(forceRefresh);
   }
 
-  async searchMentions(query = '', limit = 20) {
-    return this.userAPI.searchMentions(query, limit);
+  async listChannelUsers(channelId, forceRefresh = false) {
+    return this.userAPI.listChannelUsers(channelId, forceRefresh);
   }
 
-  async formatMentions(text) {
-    return this.userAPI.formatMentions(text);
+  async searchMentions(query = '', limit = 20, channelId = null) {
+    return this.userAPI.searchMentions(query, limit, channelId);
+  }
+
+  async formatMentions(text, channelId = null) {
+    return this.userAPI.formatMentions(text, channelId);
   }
 
   // ============ Channel API Methods ============

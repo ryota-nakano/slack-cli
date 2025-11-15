@@ -12,6 +12,7 @@ class SlackCache {
     this.cacheDir = path.join(os.homedir(), '.slack-cli');
     this.channelCacheFile = path.join(this.cacheDir, 'channels-cache.json');
     this.usersCacheFile = path.join(this.cacheDir, 'users-cache.json');
+    this.channelMembersCacheFile = path.join(this.cacheDir, 'channel-members-cache.json');
     
     // Ensure cache directory exists
     if (!fs.existsSync(this.cacheDir)) {
@@ -20,9 +21,11 @@ class SlackCache {
     
     this.channelCache = { channels: [], timestamp: 0 };
     this.usersCache = { users: [], timestamp: 0 };
+    this.channelMembersCache = {}; // { channelId: { users: [], timestamp: 0 } }
     
     this.loadChannelCacheFromFile();
     this.loadUsersCacheFromFile();
+    this.loadChannelMembersCacheFromFile();
   }
 
   /**
@@ -102,6 +105,45 @@ class SlackCache {
   }
 
   /**
+   * Load channel members cache from file
+   */
+  loadChannelMembersCacheFromFile() {
+    try {
+      if (fs.existsSync(this.channelMembersCacheFile)) {
+        const data = fs.readFileSync(this.channelMembersCacheFile, 'utf8');
+        this.channelMembersCache = JSON.parse(data);
+        
+        // Check and clean old caches
+        const oneHour = 60 * 60 * 1000;
+        for (const channelId in this.channelMembersCache) {
+          const cacheAge = Date.now() - this.channelMembersCache[channelId].timestamp;
+          if (cacheAge > oneHour) {
+            delete this.channelMembersCache[channelId];
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load channel members cache:', error.message);
+      this.channelMembersCache = {};
+    }
+  }
+
+  /**
+   * Save channel members cache to file
+   */
+  saveChannelMembersCacheToFile() {
+    try {
+      fs.writeFileSync(
+        this.channelMembersCacheFile,
+        JSON.stringify(this.channelMembersCache, null, 2),
+        'utf8'
+      );
+    } catch (error) {
+      console.error('Failed to save channel members cache:', error.message);
+    }
+  }
+
+  /**
    * Get cached channels
    */
   getChannels() {
@@ -156,6 +198,51 @@ class SlackCache {
    */
   findUserById(userId) {
     return this.usersCache.users.find(u => u.id === userId);
+  }
+
+  /**
+   * Add a single user to cache
+   */
+  addUser(user) {
+    const existingIndex = this.usersCache.users.findIndex(u => u.id === user.id);
+    if (existingIndex >= 0) {
+      this.usersCache.users[existingIndex] = user;
+    } else {
+      this.usersCache.users.push(user);
+    }
+    this.saveUsersCacheToFile();
+  }
+
+  /**
+   * Get channel members from cache
+   */
+  getChannelMembers(channelId) {
+    return this.channelMembersCache[channelId]?.users || [];
+  }
+
+  /**
+   * Update channel members cache
+   */
+  updateChannelMembers(channelId, users) {
+    this.channelMembersCache[channelId] = {
+      users,
+      timestamp: Date.now()
+    };
+    this.saveChannelMembersCacheToFile();
+  }
+
+  /**
+   * Check if channel members cache is valid
+   */
+  isChannelMembersCacheValid(channelId) {
+    const cache = this.channelMembersCache[channelId];
+    if (!cache || cache.users.length === 0) {
+      return false;
+    }
+    
+    const oneHour = 60 * 60 * 1000;
+    const cacheAge = Date.now() - cache.timestamp;
+    return cacheAge < oneHour;
   }
 
   /**

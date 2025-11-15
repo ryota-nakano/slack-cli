@@ -8,9 +8,10 @@ const chalk = require('chalk');
 const stringWidth = require('string-width');
 
 class ReadlineInput {
-  constructor(channelMembers = [], slackClient = null, contextType = 'channel') {
+  constructor(channelMembers = [], slackClient = null, contextType = 'channel', channelId = null) {
     this.members = channelMembers; // Deprecated - not used anymore
     this.slackClient = slackClient; // SlackClient instance for dynamic search
+    this.channelId = channelId; // Current channel ID for channel-specific user search
     this.input = '';
     this.cursorPos = 0;
     this.suggestions = [];
@@ -302,11 +303,11 @@ class ReadlineInput {
     this.lastMentionQuery = searchTerm;
 
     if (process.env.DEBUG_MENTIONS) {
-      console.error(`[DEBUG] メンション検索: "${searchTerm}"`);
+      console.error(`[DEBUG] メンション検索: "${searchTerm}", channelId: ${this.channelId}`);
     }
 
     try {
-      const mentions = await this.slackClient.searchMentions(searchTerm, 10);
+      const mentions = await this.slackClient.searchMentions(searchTerm, 10, this.channelId);
       this.suggestions = mentions;
       this.suggestionType = 'mention';
       this.selectedIndex = this.suggestions.length > 0 ? 0 : -1;
