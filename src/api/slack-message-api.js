@@ -18,6 +18,18 @@ class SlackMessageAPI {
     if (!userId) return '';
     
     const user = usersCache.find(u => u.id === userId);
+    
+    if (process.env.DEBUG_USER) {
+      console.error(`[DEBUG] resolveUserName: userId=${userId}`);
+      console.error(`[DEBUG]   found=${!!user}`);
+      console.error(`[DEBUG]   usersCache.length=${usersCache.length}`);
+      if (user) {
+        console.error(`[DEBUG]   user=`, JSON.stringify(user, null, 2));
+      } else if (usersCache.length > 0) {
+        console.error(`[DEBUG]   First user in cache:`, JSON.stringify(usersCache[0], null, 2));
+      }
+    }
+    
     return user?.display_name || user?.real_name || userId;
   }
 
@@ -39,6 +51,15 @@ class SlackMessageAPI {
       // Load channel users for efficient lookup
       const users = await this.userAPI.listChannelUsers(channelId);
 
+      if (process.env.DEBUG_USER) {
+        console.error(`\n[DEBUG] getThreadReplies: channelId=${channelId}`);
+        console.error(`[DEBUG]   users.length=${users.length}`);
+        if (users.length > 0) {
+          console.error(`[DEBUG]   First user:`, JSON.stringify(users[0], null, 2));
+        }
+        console.error(`[DEBUG]   messages.length=${result.messages.length}\n`);
+      }
+
       // Map messages and resolve user names from cache
       const messages = result.messages.map(msg => {
         // Try user_profile first, but only if not empty
@@ -47,6 +68,15 @@ class SlackMessageAPI {
         const userName = profileDisplayName 
           || profileRealName 
           || this.resolveUserName(msg.user, users);
+        
+        if (process.env.DEBUG_USER) {
+          console.error(`[DEBUG] Message:`);
+          console.error(`[DEBUG]   user=${msg.user}`);
+          console.error(`[DEBUG]   has_profile=${!!msg.user_profile}`);
+          console.error(`[DEBUG]   profile_display="${msg.user_profile?.display_name}"`);
+          console.error(`[DEBUG]   profile_real="${msg.user_profile?.real_name}"`);
+          console.error(`[DEBUG]   → userName="${userName}"\n`);
+        }
         
         return {
           ts: msg.ts,
