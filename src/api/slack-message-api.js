@@ -36,8 +36,8 @@ class SlackMessageAPI {
         return [];
       }
 
-      // Load all users once for efficient lookup
-      const users = await this.userAPI.listAllUsers();
+      // Load channel users for efficient lookup
+      const users = await this.userAPI.listChannelUsers(channelId);
 
       // Map messages and resolve user names from cache
       const messages = result.messages.map(msg => {
@@ -85,8 +85,8 @@ class SlackMessageAPI {
         return [];
       }
 
-      // Load all users once for efficient lookup
-      const users = await this.userAPI.listAllUsers();
+      // Load channel users for efficient lookup
+      const users = await this.userAPI.listChannelUsers(channelId);
 
       // Map messages and resolve user names from cache
       const messages = result.messages.map(msg => {
@@ -132,8 +132,8 @@ class SlackMessageAPI {
         return [];
       }
 
-      // Load all users once for efficient lookup
-      const users = await this.userAPI.listAllUsers();
+      // Load channel users for efficient lookup
+      const users = await this.userAPI.listChannelUsers(channelId);
 
       // Map messages and resolve user names from cache
       const messages = result.messages.map(msg => {
