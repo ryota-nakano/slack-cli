@@ -22,6 +22,29 @@ class SlackMessageAPI {
   }
 
   /**
+   * Format mentions in text (<@USER_ID> -> @display_name)
+   */
+  formatMentionsInText(text, usersCache) {
+    if (!text) return '';
+    
+    // Replace user mentions <@USER_ID> with @display_name
+    let formattedText = text.replace(/<@([A-Z0-9]+)>/g, (match, userId) => {
+      const user = usersCache.find(u => u.id === userId);
+      if (user) {
+        return `@${user.display_name || user.real_name || userId}`;
+      }
+      return match; // Keep original if user not found
+    });
+    
+    // Replace special mentions
+    formattedText = formattedText.replace(/<!channel>/g, '@channel');
+    formattedText = formattedText.replace(/<!here>/g, '@here');
+    formattedText = formattedText.replace(/<!everyone>/g, '@everyone');
+    
+    return formattedText;
+  }
+
+  /**
    * Get thread replies
    */
   async getThreadReplies(channelId, threadTs) {
@@ -48,11 +71,14 @@ class SlackMessageAPI {
           || profileRealName 
           || this.resolveUserName(msg.user, users);
         
+        // Format mentions in text
+        const formattedText = this.formatMentionsInText(msg.text, users);
+        
         return {
           ts: msg.ts,
           user: msg.user,
           userName,
-          text: msg.text || '',
+          text: formattedText || '',
           thread_ts: msg.thread_ts,
           reply_count: msg.reply_count || 0,
           reactions: msg.reactions || [],
@@ -100,11 +126,14 @@ class SlackMessageAPI {
           || profileRealName 
           || this.resolveUserName(msg.user, users);
         
+        // Format mentions in text
+        const formattedText = this.formatMentionsInText(msg.text, users);
+        
         return {
           ts: msg.ts,
           user: msg.user,
           userName,
-          text: msg.text || '',
+          text: formattedText || '',
           thread_ts: msg.thread_ts,
           reply_count: msg.reply_count || 0,
           reactions: msg.reactions || [],
@@ -150,11 +179,14 @@ class SlackMessageAPI {
           || profileRealName 
           || this.resolveUserName(msg.user, users);
         
+        // Format mentions in text
+        const formattedText = this.formatMentionsInText(msg.text, users);
+        
         return {
           ts: msg.ts,
           user: msg.user,
           userName,
-          text: msg.text || '',
+          text: formattedText || '',
           thread_ts: msg.thread_ts,
           reply_count: msg.reply_count || 0,
           reactions: msg.reactions || [],
