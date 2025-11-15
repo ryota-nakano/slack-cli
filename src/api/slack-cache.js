@@ -13,6 +13,7 @@ class SlackCache {
     this.channelCacheFile = path.join(this.cacheDir, 'channels-cache.json');
     this.usersCacheFile = path.join(this.cacheDir, 'users-cache.json');
     this.channelMembersCacheFile = path.join(this.cacheDir, 'channel-members-cache.json');
+    this.usergroupsCacheFile = path.join(this.cacheDir, 'usergroups-cache.json');
     
     // Ensure cache directory exists
     if (!fs.existsSync(this.cacheDir)) {
@@ -22,10 +23,12 @@ class SlackCache {
     this.channelCache = { channels: [], timestamp: 0 };
     this.usersCache = { users: [], timestamp: 0 };
     this.channelMembersCache = {}; // { channelId: { users: [], timestamp: 0 } }
+    this.usergroupsCache = { usergroups: [], timestamp: 0 };
     
     this.loadChannelCacheFromFile();
     this.loadUsersCacheFromFile();
     this.loadChannelMembersCacheFromFile();
+    this.loadUsergroupsCacheFromFile();
   }
 
   /**
@@ -250,6 +253,69 @@ class SlackCache {
    */
   findChannelById(channelId) {
     return this.channelCache.channels.find(c => c.id === channelId);
+  }
+
+  /**
+   * Load usergroups cache from file
+   */
+  loadUsergroupsCacheFromFile() {
+    try {
+      if (fs.existsSync(this.usergroupsCacheFile)) {
+        const data = fs.readFileSync(this.usergroupsCacheFile, 'utf8');
+        this.usergroupsCache = JSON.parse(data);
+        
+        // Check if cache is older than 1 hour
+        const cacheAge = Date.now() - this.usergroupsCache.timestamp;
+        const oneHour = 60 * 60 * 1000;
+        
+        if (cacheAge > oneHour) {
+          this.usergroupsCache = { usergroups: [], timestamp: 0 };
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load usergroups cache:', error.message);
+      this.usergroupsCache = { usergroups: [], timestamp: 0 };
+    }
+  }
+
+  /**
+   * Save usergroups cache to file
+   */
+  saveUsergroupsCacheToFile() {
+    try {
+      fs.writeFileSync(
+        this.usergroupsCacheFile,
+        JSON.stringify(this.usergroupsCache, null, 2),
+        'utf8'
+      );
+    } catch (error) {
+      console.error('Failed to save usergroups cache:', error.message);
+    }
+  }
+
+  /**
+   * Get cached usergroups
+   */
+  getUsergroups() {
+    return this.usergroupsCache.usergroups;
+  }
+
+  /**
+   * Update usergroups cache
+   */
+  updateUsergroups(usergroups) {
+    this.usergroupsCache = {
+      usergroups,
+      timestamp: Date.now()
+    };
+    this.saveUsergroupsCacheToFile();
+  }
+
+  /**
+   * Check if usergroups cache is valid
+   */
+  isUsergroupsCacheValid() {
+    return this.usergroupsCache.usergroups.length > 0 && this.usergroupsCache.timestamp > 0;
   }
 }
 

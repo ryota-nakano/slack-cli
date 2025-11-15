@@ -58,6 +58,11 @@ class SlackUserAPI {
    * Get all usergroups (with caching)
    */
   async listUsergroups() {
+    // Check cache first
+    if (this.cache.isUsergroupsCacheValid()) {
+      return this.cache.getUsergroups();
+    }
+
     try {
       const result = await this.client.usergroups.list({
         include_users: false,
@@ -66,14 +71,21 @@ class SlackUserAPI {
       });
 
       if (result.usergroups) {
-        return result.usergroups.map(ug => ({
+        const usergroups = result.usergroups.map(ug => ({
           id: ug.id,
           handle: ug.handle,
           name: ug.name
         }));
+        
+        // Update cache
+        this.cache.updateUsergroups(usergroups);
+        
+        return usergroups;
       }
     } catch (error) {
       console.error('Failed to fetch usergroups:', error.message);
+      // Return cached data if available, even if expired
+      return this.cache.getUsergroups();
     }
 
     return [];
