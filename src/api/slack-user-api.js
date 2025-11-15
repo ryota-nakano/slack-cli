@@ -55,6 +55,31 @@ class SlackUserAPI {
   }
 
   /**
+   * Get all usergroups (with caching)
+   */
+  async listUsergroups() {
+    try {
+      const result = await this.client.usergroups.list({
+        include_users: false,
+        include_count: false,
+        include_disabled: false
+      });
+
+      if (result.usergroups) {
+        return result.usergroups.map(ug => ({
+          id: ug.id,
+          handle: ug.handle,
+          name: ug.name
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch usergroups:', error.message);
+    }
+
+    return [];
+  }
+
+  /**
    * Get usergroup information by usergroup ID
    */
   async getUsergroupInfo(usergroupId) {
