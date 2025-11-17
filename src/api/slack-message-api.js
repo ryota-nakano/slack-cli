@@ -407,6 +407,27 @@ class SlackMessageAPI {
       const conversations = [];
       const seenChannels = new Set();
       const seenThreads = new Set();
+      
+      // Pre-fetch channel names in parallel
+      const channelIds = new Set();
+      for (const item of result.items) {
+        if (item.type === 'message' && item.message) {
+          channelIds.add(item.channel);
+        }
+      }
+      
+      // Fetch all channel names at once
+      const channelNameCache = {};
+      await Promise.all(
+        Array.from(channelIds).map(async (channelId) => {
+          try {
+            const channelInfo = await this.client.conversations.info({ channel: channelId });
+            channelNameCache[channelId] = channelInfo.channel.name;
+          } catch (error) {
+            channelNameCache[channelId] = channelId;
+          }
+        })
+      );
 
       for (const item of result.items) {
         // Only process message type items
@@ -418,14 +439,8 @@ class SlackMessageAPI {
         const message = item.message;
         const threadTs = message.thread_ts || null;
         
-        // Get channel info
-        let channelName = channelId;
-        try {
-          const channelInfo = await this.client.conversations.info({ channel: channelId });
-          channelName = channelInfo.channel.name;
-        } catch (error) {
-          // If we can't get channel name, use ID
-        }
+        // Get channel name from cache
+        const channelName = channelNameCache[channelId] || channelId;
 
         // Check if this message is part of a thread or is a thread parent
         const isThreadReply = threadTs && message.ts !== threadTs;
@@ -441,32 +456,13 @@ class SlackMessageAPI {
         if (actualThreadTs && !seenThreads.has(key)) {
           seenThreads.add(key);
           
-          // Try to get thread preview
-          let threadPreview = null;
-          try {
-            const replies = await this.client.conversations.replies({
-              channel: channelId,
-              ts: actualThreadTs,
-              limit: 1
-            });
-            if (replies.messages && replies.messages.length > 0) {
-              const firstMsg = replies.messages[0];
-              threadPreview = {
-                text: firstMsg.text?.split('\n')[0] || '',
-                user: firstMsg.user,
-                userName: '',
-                ts: firstMsg.ts
-              };
-            }
-          } catch (error) {
-            // If we can't get thread preview, use the message text
-            threadPreview = {
-              text: message.text?.split('\n')[0] || '',
-              user: message.user,
-              userName: '',
-              ts: message.ts
-            };
-          }
+          // Use message text as preview (no API call)
+          const threadPreview = {
+            text: message.text?.split('\n')[0] || '',
+            user: message.user,
+            userName: '',
+            ts: message.ts
+          };
 
           // Get user's reactions on this message
           const yourReactions = message.reactions?.filter(r => 
