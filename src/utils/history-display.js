@@ -55,8 +55,10 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
   // Separate into CLI threads, CLI channels, and eyes reactions
   const cliThreads = [];
   const cliChannels = [];
-  const eyesThreads = [];
-  const eyesChannels = [];
+  const eyesItems = [];
+  
+  // Create a set of CLI thread/channel identifiers for quick lookup
+  const cliIdentifiers = new Set();
   
   // Collect items with their original indices
   for (let index = 0; index < history.length; index++) {
@@ -68,17 +70,38 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
     // Check if this is from CLI (no reactions array means it's from history)
     const isFromCLI = !item.reactions;
     
-    if (hasEyesReaction) {
-      if (item.type === 'thread') {
-        eyesThreads.push(item);
-      } else {
-        eyesChannels.push(item);
-      }
-    } else if (isFromCLI) {
+    if (isFromCLI) {
+      // Build identifier for this CLI item
+      const identifier = item.threadTs 
+        ? `${item.channelId}:${item.threadTs}` 
+        : item.channelId;
+      cliIdentifiers.add(identifier);
+      
       if (item.type === 'thread') {
         cliThreads.push(item);
       } else {
         cliChannels.push(item);
+      }
+    } else if (hasEyesReaction) {
+      eyesItems.push(item);
+    }
+  }
+  
+  // Filter eyes reactions to only show items NOT in CLI history
+  const eyesThreads = [];
+  const eyesChannels = [];
+  
+  for (const item of eyesItems) {
+    const identifier = item.threadTs 
+      ? `${item.channelId}:${item.threadTs}` 
+      : item.channelId;
+    
+    // Only add if NOT in CLI history
+    if (!cliIdentifiers.has(identifier)) {
+      if (item.type === 'thread') {
+        eyesThreads.push(item);
+      } else {
+        eyesChannels.push(item);
       }
     }
   }
@@ -104,7 +127,7 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
     }
   }
   
-  // Display eyes reactions (threads and channels together)
+  // Display eyes reactions (threads and channels together, excluding CLI history)
   const allEyesReactions = [...eyesThreads, ...eyesChannels];
   if (allEyesReactions.length > 0) {
     if (cliThreads.length > 0 || cliChannels.length > 0) {
