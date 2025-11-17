@@ -632,8 +632,8 @@ async function channelChat() {
           const invalidNumbers = [];
           
           for (const number of sortedNumbers) {
-            if (number > 0 && number <= history.length) {
-              const item = history[number - 1];
+            if (number > 0 && number <= mergedHistory.length) {
+              const item = mergedHistory[number - 1];
               const deleted = historyManager.deleteByIndex(number - 1);
               
               if (deleted) {
@@ -665,8 +665,8 @@ async function channelChat() {
       // Handle /number for opening
       const number = parseInt(command);
       
-      if (!isNaN(number) && number > 0 && number <= history.length) {
-        const item = history[number - 1];
+      if (!isNaN(number) && number > 0 && number <= mergedHistory.length) {
+        const item = mergedHistory[number - 1];
         console.log(chalk.cyan(`\n📂 ${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''} を開いています...\n`));
         
         const session = new ChatSession(item.channelId, item.channelName, item.threadTs);
