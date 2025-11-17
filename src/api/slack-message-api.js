@@ -31,6 +31,16 @@ class SlackMessageAPI {
     // Format mentions in text
     const formattedText = await this.formatMentionsInText(msg.text, users, usergroups);
     
+    // Map files to include necessary information
+    const files = (msg.files || []).map(file => ({
+      id: file.id,
+      name: file.name,
+      title: file.title,
+      url: file.url_private || file.url_private_download || file.permalink,
+      mimetype: file.mimetype,
+      size: file.size
+    }));
+    
     return {
       ts: msg.ts,
       user: msg.user,
@@ -39,7 +49,7 @@ class SlackMessageAPI {
       thread_ts: msg.thread_ts,
       reply_count: msg.reply_count || 0,
       reactions: msg.reactions || [],
-      files: msg.files || [],
+      files: files,
       edited: msg.edited ? true : false
     };
   }
