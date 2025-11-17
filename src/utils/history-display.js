@@ -113,9 +113,9 @@ async function displayThreadItem(item, client, historyManager) {
       minute: '2-digit',
       second: '2-digit'
     });
-    const previewText = item.threadPreview.text.length > 30 
-      ? item.threadPreview.text.substring(0, 30) + '...' 
-      : item.threadPreview.text;
+    
+    // Show full text instead of truncated preview
+    const fullText = item.threadPreview.text || '(no text)';
     
     // Show reactions if available
     const reactionIndicator = item.reactions && item.reactions.length > 0
@@ -127,9 +127,13 @@ async function displayThreadItem(item, client, historyManager) {
       chalk.gray(time) + ' ' +
       chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator
     );
-    console.log(
-      '    ' + chalk.gray(`└─ ${msgTime}:`) + ' ' + formatMentions(previewText)
-    );
+    
+    // Display full message text with mention formatting
+    const lines = fullText.split('\n');
+    for (const line of lines) {
+      console.log('    ' + chalk.gray(`└─ `) + formatMentions(line));
+    }
+    console.log(''); // Add blank line after each thread
   } else if (client && historyManager) {
     // Fallback to API call if no cache and client is available
     try {
@@ -141,8 +145,9 @@ async function displayThreadItem(item, client, historyManager) {
           minute: '2-digit',
           second: '2-digit'
         });
-        const firstLine = firstMsg.text.split('\n')[0];
-        const previewText = firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
+        
+        // Show full text
+        const fullText = firstMsg.text || '(no text)';
         
         // Cache the thread preview for future use
         historyManager.addConversation({
@@ -151,28 +156,39 @@ async function displayThreadItem(item, client, historyManager) {
           threadTs: item.threadTs,
           type: 'thread',
           threadPreview: {
-            text: firstLine,
+            text: fullText,
             user: firstMsg.user,
             userName: firstMsg.userName || '',
             ts: firstMsg.ts
           }
         });
         
+        const reactionIndicator = item.reactions && item.reactions.length > 0
+          ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
+          : '';
+        
         console.log(
           chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
           chalk.gray(time) + ' ' +
-          chalk.green(item.channelName) + chalk.gray('[スレッド]')
+          chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator
         );
-        console.log(
-          '    ' + chalk.gray(`└─ ${msgTime}:`) + ' ' + formatMentions(previewText)
-        );
+        
+        // Display full message text
+        const lines = fullText.split('\n');
+        for (const line of lines) {
+          console.log('    ' + chalk.gray(`└─ `) + formatMentions(line));
+        }
+        console.log(''); // Add blank line
       }
     } catch (error) {
       // Fallback if we can't get thread details
+      const reactionIndicator = item.reactions && item.reactions.length > 0
+        ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
+        : '';
       console.log(
         chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
         chalk.gray(time) + ' ' +
-        chalk.green(item.channelName) + chalk.gray('[スレッド]')
+        chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator
       );
     }
   } else {
