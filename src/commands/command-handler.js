@@ -104,10 +104,9 @@ class CommandHandler {
       let threadPreview = null;
       
       if (conv.type === 'thread') {
-        // Create thread preview from search result
-        const firstLine = conv.text.split('\n')[0].substring(0, 50);
+        // Create thread preview from search result (full text)
         threadPreview = {
-          text: firstLine,
+          text: conv.text,
           user: '',
           userName: '',
           ts: conv.threadTs
@@ -226,11 +225,24 @@ class CommandHandler {
     }
 
     // Save thread to history before going back
+    // Get first message from session if available
+    let threadPreview = null;
+    if (this.session.messages && this.session.messages.length > 0) {
+      const firstMsg = this.session.messages[0];
+      threadPreview = {
+        text: firstMsg.text || '',
+        user: firstMsg.user,
+        userName: firstMsg.userName || '',
+        ts: firstMsg.ts
+      };
+    }
+    
     this.historyManager.addConversation({
       channelId: this.session.channelId,
       channelName: this.session.channelName,
       threadTs: this.session.threadTs,
-      type: 'thread'
+      type: 'thread',
+      threadPreview
     });
 
     console.log(chalk.cyan(`\n📂 チャンネルに戻ります...\n`));
