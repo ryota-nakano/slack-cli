@@ -6,13 +6,38 @@
 const chalk = require('chalk');
 
 /**
- * Format text with mentions highlighted in yellow
+ * Format text with mentions converted to display names and highlighted in yellow
+ * @param {string} text - Text to format
+ * @param {Object} client - SlackClient instance for fetching user info
+ * @returns {Promise<string>} Formatted text
  */
-function formatMentions(text) {
+async function formatMentions(text, client = null) {
   if (!text) return '';
   
-  // Highlight @mentions in yellow
-  return text.replace(/@(\S+)/g, (match) => chalk.yellow(match));
+  let formattedText = text;
+  
+  // Convert user mentions <@U123456> to display names
+  if (client) {
+    const userMentionRegex = /<@([UW][A-Z0-9]+)>/g;
+    const matches = [...text.matchAll(userMentionRegex)];
+    
+    for (const match of matches) {
+      const userId = match[1];
+      try {
+        const userInfo = await client.getUserInfo(userId);
+        const displayName = userInfo.profile?.display_name || userInfo.real_name || userInfo.name;
+        formattedText = formattedText.replace(match[0], chalk.yellow(`@${displayName}`));
+      } catch (error) {
+        // If we can't get user info, just highlight the mention
+        formattedText = formattedText.replace(match[0], chalk.yellow(match[0]));
+      }
+    }
+  }
+  
+  // Highlight remaining @mentions
+  formattedText = formattedText.replace(/@(\S+)/g, (match) => chalk.yellow(match));
+  
+  return formattedText;
 }
 
 /**
@@ -117,21 +142,35 @@ async function displayThreadItem(item, client, historyManager) {
     // Show full text instead of truncated preview
     const fullText = item.threadPreview.text || '(no text)';
     
+    // Get user name
+    let userName = '';
+    if (item.threadPreview.user && client) {
+      try {
+        const userInfo = await client.getUserInfo(item.threadPreview.user);
+        userName = userInfo.profile?.display_name || userInfo.real_name || userInfo.name;
+      } catch (error) {
+        userName = item.threadPreview.user;
+      }
+    }
+    
     // Show reactions if available
     const reactionIndicator = item.reactions && item.reactions.length > 0
       ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
       : '';
     
+    const userNameDisplay = userName ? ' ' + chalk.cyan(`by ${userName}`) : '';
+    
     console.log(
       chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
       chalk.gray(time) + ' ' +
-      chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator
+      chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator + userNameDisplay
     );
     
     // Display full message text with mention formatting
     const lines = fullText.split('\n');
     for (const line of lines) {
-      console.log('    ' + chalk.gray(`└─ `) + formatMentions(line));
+      const formattedLine = await formatMentions(line, client);
+      console.log('    ' + chalk.gray(`└─ `) + formattedLine);
     }
     console.log(''); // Add blank line after each thread
   } else if (client && historyManager) {
@@ -149,6 +188,17 @@ async function displayThreadItem(item, client, historyManager) {
         // Show full text
         const fullText = firstMsg.text || '(no text)';
         
+        // Get user name
+        let userName = '';
+        if (firstMsg.user) {
+          try {
+            const userInfo = await client.getUserInfo(firstMsg.user);
+            userName = userInfo.profile?.display_name || userInfo.real_name || userInfo.name;
+          } catch (error) {
+            userName = firstMsg.user;
+          }
+        }
+        
         // Cache the thread preview for future use
         historyManager.addConversation({
           channelId: item.channelId,
@@ -158,7 +208,7 @@ async function displayThreadItem(item, client, historyManager) {
           threadPreview: {
             text: fullText,
             user: firstMsg.user,
-            userName: firstMsg.userName || '',
+            userName: userName,
             ts: firstMsg.ts
           }
         });
@@ -167,16 +217,19 @@ async function displayThreadItem(item, client, historyManager) {
           ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
           : '';
         
+        const userNameDisplay = userName ? ' ' + chalk.cyan(`by ${userName}`) : '';
+        
         console.log(
           chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
           chalk.gray(time) + ' ' +
-          chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator
+          chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator + userNameDisplay
         );
         
         // Display full message text
         const lines = fullText.split('\n');
         for (const line of lines) {
-          console.log('    ' + chalk.gray(`└─ `) + formatMentions(line));
+          const formattedLine = await formatMentions(line, client);
+          console.log('    ' + chalk.gray(`└─ `) + formattedLine);
         }
         console.log(''); // Add blank line
       }
