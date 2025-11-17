@@ -286,6 +286,14 @@ class SlackMessageAPI {
    * Mark channel as read
    */
   async markAsRead(channelId, ts) {
+    // Validate parameters
+    if (!channelId || !ts) {
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] markAsRead: 無効なパラメータ channelId=${channelId}, ts=${ts}`);
+      }
+      return false;
+    }
+
     try {
       await this.client.conversations.mark({
         channel: channelId,
@@ -294,7 +302,9 @@ class SlackMessageAPI {
       return true;
     } catch (error) {
       // Show the error but don't crash the app
-      console.error('Failed to mark as read:', error.message);
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] Failed to mark as read: ${error.message}`);
+      }
       return false;
     }
   }

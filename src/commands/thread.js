@@ -103,13 +103,15 @@ class ChatSession {
   /**
    * Fetch messages based on context
    */
-  async fetchMessages(limit = null, daysBack = null) {
+  async fetchMessages(limit = null, daysBack = null, skipCache = false) {
     if (this.isThread()) {
-      // Try to get from cache first
-      const cached = this.messageCache.get(this.channelId, this.threadTs);
-      if (cached) {
-        this.messages = cached;
-        return;
+      // Try to get from cache first (unless skipCache is true)
+      if (!skipCache) {
+        const cached = this.messageCache.get(this.channelId, this.threadTs);
+        if (cached) {
+          this.messages = cached;
+          return;
+        }
       }
       
       // For threads, get all replies (no date filtering)
@@ -144,7 +146,8 @@ class ChatSession {
   async checkUpdates() {
     try {
       const oldCount = this.messages.length;
-      await this.fetchMessages();
+      // Skip cache to get fresh data during polling
+      await this.fetchMessages(null, null, true);
 
       if (this.messages.length > oldCount) {
         this.displayNewMessages();
@@ -204,15 +207,51 @@ class ChatSession {
    * Mark messages as read
    */
   async markMessagesAsRead() {
-    if (this.messages.length === 0) return;
+    // Skip marking as read for threads - it's handled by the parent message
+    if (this.isThread()) {
+      if (process.env.DEBUG_PERF) {
+        console.error('[DEBUG] markAsRead: スレッドなのでスキップ');
+      }
+      return;
+    }
+    
+    if (this.messages.length === 0) {
+      if (process.env.DEBUG_PERF) {
+        console.error('[DEBUG] markAsRead: メッセージが0件');
+      }
+      return;
+    }
     
     // Get the latest message timestamp
     const latestMessage = this.messages[this.messages.length - 1];
     
+    if (process.env.DEBUG_PERF) {
+      console.error(`[DEBUG] markAsRead: チャンネル, messages.length=${this.messages.length}`);
+    }
+    
+    // Validate that we have a valid timestamp
+    if (!latestMessage || !latestMessage.ts) {
+      if (process.env.DEBUG_PERF) {
+        console.error('[DEBUG] markAsRead: latestMessage.tsがありません');
+      }
+      return;
+    }
+    
     try {
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] markAsRead: tsToMark=${latestMessage.ts}`);
+      }
+      
       await this.client.markAsRead(this.channelId, latestMessage.ts);
+      
+      if (process.env.DEBUG_PERF) {
+        console.error('[DEBUG] markAsRead: 成功');
+      }
     } catch (error) {
       // Silent fail - not critical
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] markAsRead失敗: ${error.message}`);
+      }
     }
   }
 
