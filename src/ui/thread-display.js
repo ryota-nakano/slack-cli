@@ -40,8 +40,8 @@ class ThreadDisplay {
         ? chalk.blue(` [💬${reply.reply_count}]`) 
         : '';
       
-      // First line: Number, time, thread indicator, user (gray like time)
-      console.log(`${chalk.gray(`[${index}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.gray(reply.userName || reply.user)}`);
+      // First line: Number, time, thread indicator, user
+      console.log(`${chalk.gray(`[${index}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.userName || reply.user)}`);
       
       // Second line: Message text (no indent, handle multi-line)
       const lines = reply.text.split('\n');
@@ -87,8 +87,8 @@ class ThreadDisplay {
         ? chalk.blue(` [💬${reply.reply_count}]`) 
         : '';
       
-      // First line: time, thread indicator, user (gray like time)
-      console.log(`${chalk.gray(time)}${threadIndicator} ${chalk.gray(reply.userName || reply.user)}`);
+      // First line: time, thread indicator, user
+      console.log(`${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.userName || reply.user)}`);
       
       // Second line: Message text (no indent, handle multi-line)
       const lines = reply.text.split('\n');
@@ -129,8 +129,8 @@ function displayMessages(messages) {
       ? chalk.blue(` [💬${msg.reply_count}]`) 
       : '';
 
-    // First line: Number, time, thread indicator, user (gray like time)
-    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.gray(msg.userName || msg.user)}`);
+    // First line: Number, time, thread indicator, user
+    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(msg.userName || msg.user)}`);
     
     // Second line: Message text (no indent, handle multi-line)
     const lines = msg.text.split('\n');
