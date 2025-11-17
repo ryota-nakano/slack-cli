@@ -133,8 +133,9 @@ async function displayThreadItem(item, client, historyManager) {
   
   // Use cached thread preview if available
   if (item.threadPreview) {
-    // Show full text instead of truncated preview
+    // Truncate text to 50 characters
     const fullText = item.threadPreview.text || '(no text)';
+    const truncatedText = fullText.length > 50 ? fullText.substring(0, 50) + '...' : fullText;
     
     // Get user name - prefer cached userName, then fetch from API
     let userName = item.threadPreview.userName || '';
@@ -152,19 +153,14 @@ async function displayThreadItem(item, client, historyManager) {
       ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
       : '';
     
-    // First line: Number, time, reactions, user name (green)
+    // Display on one line: Number, time, channel, reactions, user name, text preview
     console.log(
       chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
       chalk.gray(time) + ' ' +
       chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator + ' ' +
-      chalk.green(userName)
+      chalk.green(userName) + ' ' +
+      truncatedText
     );
-    
-    // Display full message text (already formatted with mentions)
-    const lines = fullText.split('\n');
-    for (const line of lines) {
-      console.log(line);
-    }
     console.log(''); // Add blank line after each thread
   } else if (client && historyManager) {
     // Fallback to API call if no cache and client is available
@@ -173,8 +169,9 @@ async function displayThreadItem(item, client, historyManager) {
       if (replies && replies.length > 0) {
         const firstMsg = replies[0];
         
-        // Show full text
+        // Get full text and truncate to 50 characters
         const fullText = firstMsg.text || '(no text)';
+        const truncatedText = fullText.length > 50 ? fullText.substring(0, 50) + '...' : fullText;
         
         // Get user name
         let userName = '';
@@ -187,14 +184,14 @@ async function displayThreadItem(item, client, historyManager) {
           }
         }
         
-        // Cache the thread preview for future use
+        // Cache the thread preview for future use (store full text)
         historyManager.addConversation({
           channelId: item.channelId,
           channelName: item.channelName,
           threadTs: item.threadTs,
           type: 'thread',
           threadPreview: {
-            text: fullText,
+            text: fullText,  // Cache full text
             user: firstMsg.user,
             userName: userName,
             ts: firstMsg.ts
@@ -205,19 +202,14 @@ async function displayThreadItem(item, client, historyManager) {
           ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
           : '';
         
-        // First line: Number, time, reactions, user name (green)
+        // Display on one line: Number, time, channel, reactions, user name, text preview
         console.log(
           chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
           chalk.gray(time) + ' ' +
           chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator + ' ' +
-          chalk.green(userName)
+          chalk.green(userName) + ' ' +
+          truncatedText
         );
-        
-        // Display full message text (already formatted by mapMessage)
-        const lines = fullText.split('\n');
-        for (const line of lines) {
-          console.log(line);
-        }
         console.log(''); // Add blank line
       }
     } catch (error) {
