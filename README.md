@@ -84,6 +84,7 @@ slack setup
    - `usergroups:read` - ユーザーグループ（@developers等）の名前を表示
    - `channels:write` - 既読マーク機能（チャンネル用）
    - `groups:write` - 既読マーク機能（プライベートチャンネル用）
+   - `reactions:read` - リアクションしたメッセージの一覧取得（/rコマンドで表示）
    
 5. ワークスペースにインストールしてトークンを取得
 
@@ -92,6 +93,7 @@ slack setup
 **Note:** 
 - `usergroups:read` スコープがない場合、グループメンションは `@<GROUP_ID>` 形式で表示されます
 - `channels:write`/`groups:write` スコープがない場合、既読マーク機能は動作しませんが、他の機能は正常に使えます
+- `reactions:read` スコープがない場合、リアクションしたメッセージは履歴に表示されません
 
 ### 設定ファイルの場所
 
