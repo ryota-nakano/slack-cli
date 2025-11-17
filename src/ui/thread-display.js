@@ -55,6 +55,9 @@ class ThreadDisplay {
           console.log(chalk.cyan(`📎 ${file.title || file.name}: ${file.url}`));
         });
       }
+      
+      // Add blank line between messages
+      console.log('');
     });
 
     console.log('');
@@ -99,6 +102,9 @@ class ThreadDisplay {
           console.log(chalk.cyan(`📎 ${file.title || file.name}: ${file.url}`));
         });
       }
+      
+      // Add blank line between messages
+      console.log('');
     });
   }
 }
@@ -138,6 +144,9 @@ function displayMessages(messages) {
         console.log(chalk.cyan(`📎 ${file.title || file.name}: ${file.url}`));
       });
     }
+    
+    // Add blank line between messages
+    console.log('');
   });
   console.log('');
 }
