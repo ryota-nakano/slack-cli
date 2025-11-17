@@ -458,7 +458,7 @@ class SlackMessageAPI {
           
           // Use message text as preview (no API call)
           const threadPreview = {
-            text: message.text?.split('\n')[0] || '',
+            text: message.text || '',
             user: message.user,
             userName: '',
             ts: message.ts
