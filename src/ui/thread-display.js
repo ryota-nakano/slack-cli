@@ -40,14 +40,17 @@ class ThreadDisplay {
         ? chalk.blue(` [💬${reply.reply_count}]`) 
         : '';
       
-      // First line: Number, time, thread indicator, user
-      console.log(`${chalk.gray(`[${index}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.userName || reply.user)}`);
-      
-      // Second line: Message text (no indent, handle multi-line)
+      // Split message text into lines
       const lines = reply.text.split('\n');
-      lines.forEach(line => {
-        console.log(line);
-      });
+      
+      // First line: Number, time, thread indicator, user, and first line of message
+      const firstLine = lines[0] || '';
+      console.log(`${chalk.gray(`[${index}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.userName || reply.user)} ${firstLine}`);
+      
+      // Remaining lines: Message text (no indent)
+      for (let j = 1; j < lines.length; j++) {
+        console.log(lines[j]);
+      }
       
       // Show file attachments if present
       if (reply.files && reply.files.length > 0) {
@@ -84,14 +87,17 @@ class ThreadDisplay {
         ? chalk.blue(` [💬${reply.reply_count}]`) 
         : '';
       
-      // First line: time, thread indicator, user
-      console.log(`${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.userName || reply.user)}`);
-      
-      // Second line: Message text (no indent, handle multi-line)
+      // Split message text into lines
       const lines = reply.text.split('\n');
-      lines.forEach(line => {
-        console.log(line);
-      });
+      
+      // First line: time, thread indicator, user, and first line of message
+      const firstLine = lines[0] || '';
+      console.log(`${chalk.gray(time)}${threadIndicator} ${chalk.yellow(reply.userName || reply.user)} ${firstLine}`);
+      
+      // Remaining lines: Message text (no indent)
+      for (let j = 1; j < lines.length; j++) {
+        console.log(lines[j]);
+      }
       
       // Show file attachments if present
       if (reply.files && reply.files.length > 0) {
@@ -123,14 +129,17 @@ function displayMessages(messages) {
       ? chalk.blue(` [💬${msg.reply_count}]`) 
       : '';
 
-    // First line: Number, time, thread indicator, user
-    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(msg.userName || msg.user)}`);
-    
-    // Second line: Message text (no indent, handle multi-line)
+    // Split message text into lines
     const lines = msg.text.split('\n');
-    lines.forEach(line => {
-      console.log(line);
-    });
+    
+    // First line: Number, time, thread indicator, user, and first line of message
+    const firstLine = lines[0] || '';
+    console.log(`${chalk.gray(`[${i + 1}]`)} ${chalk.gray(time)}${threadIndicator} ${chalk.yellow(msg.userName || msg.user)} ${firstLine}`);
+    
+    // Remaining lines: Message text (no indent)
+    for (let j = 1; j < lines.length; j++) {
+      console.log(lines[j]);
+    }
     
     // Show file attachments if present
     if (msg.files && msg.files.length > 0) {
