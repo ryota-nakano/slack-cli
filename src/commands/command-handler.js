@@ -104,13 +104,27 @@ class CommandHandler {
       let threadPreview = null;
       
       if (conv.type === 'thread') {
-        // Create thread preview from search result (full text)
-        threadPreview = {
-          text: conv.text,
-          user: '',
-          userName: '',
-          ts: conv.threadTs
-        };
+        // Fetch thread to get the full first message
+        try {
+          const replies = await this.client.getThreadReplies(conv.channelId, conv.threadTs);
+          if (replies && replies.length > 0) {
+            const firstMsg = replies[0];
+            threadPreview = {
+              text: firstMsg.text || '',
+              user: firstMsg.user,
+              userName: firstMsg.userName || '',
+              ts: firstMsg.ts
+            };
+          }
+        } catch (error) {
+          // Fallback to search result text if thread fetch fails
+          threadPreview = {
+            text: conv.text || '',
+            user: '',
+            userName: '',
+            ts: conv.threadTs
+          };
+        }
       }
       
       this.historyManager.addConversation({
