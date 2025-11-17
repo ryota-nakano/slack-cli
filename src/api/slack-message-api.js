@@ -417,6 +417,13 @@ class SlackMessageAPI {
           if (item.message.user) {
             userIds.add(item.message.user);
           }
+          
+          // Extract user IDs from mentions in text
+          if (item.message.text) {
+            const mentionRegex = /<@([A-Z0-9]+)>/g;
+            const mentions = [...item.message.text.matchAll(mentionRegex)];
+            mentions.forEach(match => userIds.add(match[1]));
+          }
         }
       }
       
