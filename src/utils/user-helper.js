@@ -14,8 +14,14 @@ class UserHelper {
   static getDisplayName(user) {
     if (!user) return '';
     
-    // Try display_name first (most common)
+    // Try profile.display_name first (from API response)
+    if (user.profile?.display_name) return user.profile.display_name;
+    
+    // Try display_name (from cached objects)
     if (user.display_name) return user.display_name;
+    
+    // Try real_name as fallback
+    if (user.real_name) return user.real_name;
     
     // Fallback to name (for special mentions like @channel)
     if (user.name) return user.name;
