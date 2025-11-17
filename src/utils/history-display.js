@@ -133,12 +133,6 @@ async function displayThreadItem(item, client, historyManager) {
   
   // Use cached thread preview if available
   if (item.threadPreview) {
-    const msgTime = new Date(parseFloat(item.threadPreview.ts) * 1000).toLocaleTimeString('ja-JP', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      second: '2-digit'
-    });
-    
     // Show full text instead of truncated preview
     const fullText = item.threadPreview.text || '(no text)';
     
@@ -158,19 +152,19 @@ async function displayThreadItem(item, client, historyManager) {
       ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
       : '';
     
-    const userNameDisplay = userName ? ' ' + chalk.cyan(`by ${userName}`) : '';
-    
+    // First line: Number, time, reactions, user name (green)
     console.log(
       chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
       chalk.gray(time) + ' ' +
-      chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator + userNameDisplay
+      chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator + ' ' +
+      chalk.green(userName)
     );
     
-    // Display full message text with mention formatting
+    // Display full message text with mention formatting (no indent)
     const lines = fullText.split('\n');
     for (const line of lines) {
       const formattedLine = await formatMentions(line, client);
-      console.log('    ' + chalk.gray(`└─ `) + formattedLine);
+      console.log(formattedLine);
     }
     console.log(''); // Add blank line after each thread
   } else if (client && historyManager) {
@@ -179,11 +173,6 @@ async function displayThreadItem(item, client, historyManager) {
       const replies = await client.getThreadReplies(item.channelId, item.threadTs);
       if (replies && replies.length > 0) {
         const firstMsg = replies[0];
-        const msgTime = new Date(parseFloat(firstMsg.ts) * 1000).toLocaleTimeString('ja-JP', { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          second: '2-digit'
-        });
         
         // Show full text
         const fullText = firstMsg.text || '(no text)';
@@ -217,19 +206,19 @@ async function displayThreadItem(item, client, historyManager) {
           ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
           : '';
         
-        const userNameDisplay = userName ? ' ' + chalk.cyan(`by ${userName}`) : '';
-        
+        // First line: Number, time, reactions, user name (green)
         console.log(
           chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
           chalk.gray(time) + ' ' +
-          chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator + userNameDisplay
+          chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator + ' ' +
+          chalk.green(userName)
         );
         
-        // Display full message text
+        // Display full message text (no indent)
         const lines = fullText.split('\n');
         for (const line of lines) {
           const formattedLine = await formatMentions(line, client);
-          console.log('    ' + chalk.gray(`└─ `) + formattedLine);
+          console.log(formattedLine);
         }
         console.log(''); // Add blank line
       }
