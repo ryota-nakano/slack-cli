@@ -9,7 +9,12 @@ const os = require('os');
 
 class HistoryManager {
   constructor() {
-    this.historyFile = path.join(os.tmpdir(), 'slack-cli-history.json');
+    const configDir = path.join(os.homedir(), '.slack-cli');
+    // Ensure config directory exists
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    this.historyFile = path.join(configDir, 'history.json');
     this.history = this.loadHistory();
   }
 
