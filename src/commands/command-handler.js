@@ -133,16 +133,10 @@ class CommandHandler {
   async showRecentHistory() {
     const history = this.historyManager.getTodayHistory();
     
-    // Get reactions and merge with history
-    const reactions = await this.client.getReactions(50);
-    
-    // Filter reactions to today only
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayTs = todayStart.getTime() / 1000;
-    
-    // Note: reactions don't have timestamp info in the item,
-    // so we include all recent reactions (they're already sorted by recency)
+    // Get recent reactions (limit to 10 to keep it relevant)
+    // Note: reactions.list doesn't provide when the reaction was added,
+    // so we just show the most recent ones
+    const reactions = await this.client.getReactions(10);
     
     // Merge reactions with history
     const mergedHistory = [...history];
