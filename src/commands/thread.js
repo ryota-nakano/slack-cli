@@ -583,6 +583,13 @@ async function channelChat() {
     if (typeof result === 'string' && result.startsWith('/')) {
       const command = result.substring(1).trim();
       
+      // Handle /clear command
+      if (command === 'clear') {
+        historyManager.clearHistory();
+        console.log(chalk.green('\n✅ 履歴キャッシュをクリアしました\n'));
+        return await channelChat();
+      }
+      
       // Handle /delete or /del command
       if (command.startsWith('delete ') || command.startsWith('del ')) {
         const parts = command.split(' ').slice(1); // Remove command name
