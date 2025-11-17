@@ -6,6 +6,16 @@
 const chalk = require('chalk');
 
 /**
+ * Format text with mentions highlighted in yellow
+ */
+function formatMentions(text) {
+  if (!text) return '';
+  
+  // Highlight @mentions in yellow
+  return text.replace(/@(\S+)/g, (match) => chalk.yellow(match));
+}
+
+/**
  * Display history grouped by type (threads and channels)
  * @param {Array} history - Array of history items from HistoryManager
  * @param {Object} client - SlackClient instance for fetching thread details
@@ -79,7 +89,7 @@ async function displayThreadItem(item, client, historyManager) {
       chalk.green(item.channelName) + chalk.gray('[スレッド]')
     );
     console.log(
-      '    ' + chalk.gray(`└─ ${msgTime}:`) + ' ' + previewText
+      '    ' + chalk.gray(`└─ ${msgTime}:`) + ' ' + formatMentions(previewText)
     );
   } else if (client && historyManager) {
     // Fallback to API call if no cache and client is available
@@ -115,7 +125,7 @@ async function displayThreadItem(item, client, historyManager) {
           chalk.green(item.channelName) + chalk.gray('[スレッド]')
         );
         console.log(
-          '    ' + chalk.gray(`└─ ${msgTime}:`) + ' ' + previewText
+          '    ' + chalk.gray(`└─ ${msgTime}:`) + ' ' + formatMentions(previewText)
         );
       }
     } catch (error) {
