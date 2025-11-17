@@ -27,38 +27,63 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
     return;
   }
 
-  // Display history grouped by type
-  const threads = [];
-  const channels = [];
+  // Separate into CLI posts, reactions, and regular history
+  const cliPosts = [];
+  const eyesReactions = [];
+  const regularThreads = [];
+  const regularChannels = [];
   
   // Collect items with their original indices
   for (let index = 0; index < history.length; index++) {
     const item = { ...history[index], originalIndex: index };
-    if (item.type === 'thread') {
-      threads.push(item);
-    } else {
-      channels.push(item);
-    }
-  }
-  
-  // Display threads first
-  if (threads.length > 0) {
-    console.log(chalk.cyan('💬 スレッド:\n'));
     
-    for (const item of threads) {
-      await displayThreadItem(item, client, historyManager);
+    // Check if this is a reaction item (has reactions array)
+    const hasEyesReaction = item.reactions && item.reactions.includes('eyes');
+    
+    // Check if this is from CLI (no reactions array means it's from history)
+    const isFromCLI = !item.reactions;
+    
+    if (hasEyesReaction) {
+      if (item.type === 'thread') {
+        eyesReactions.push(item);
+      } else {
+        eyesReactions.push(item);
+      }
+    } else if (isFromCLI) {
+      if (item.type === 'thread') {
+        cliPosts.push(item);
+      } else {
+        cliPosts.push(item);
+      }
     }
   }
   
-  // Display channels
-  if (channels.length > 0) {
-    if (threads.length > 0) {
+  // Display CLI posts first
+  if (cliPosts.length > 0) {
+    console.log(chalk.bold.cyan('📝 CLI経由で投稿:\n'));
+    
+    for (const item of cliPosts) {
+      if (item.type === 'thread') {
+        await displayThreadItem(item, client, historyManager);
+      } else {
+        displayChannelItem(item);
+      }
+    }
+  }
+  
+  // Display eyes reactions
+  if (eyesReactions.length > 0) {
+    if (cliPosts.length > 0) {
       console.log(''); // Add blank line between sections
     }
-    console.log(chalk.cyan('# チャンネル:\n'));
+    console.log(chalk.bold.yellow('👀 :eyes: リアクション:\n'));
     
-    for (const item of channels) {
-      displayChannelItem(item);
+    for (const item of eyesReactions) {
+      if (item.type === 'thread') {
+        await displayThreadItem(item, client, historyManager);
+      } else {
+        displayChannelItem(item);
+      }
     }
   }
 }

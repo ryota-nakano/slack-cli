@@ -388,8 +388,11 @@ class SlackMessageAPI {
 
   /**
    * Get user's reactions
+   * @param {string} userId - User ID
+   * @param {number} limit - Limit number of items
+   * @param {string} emojiName - Filter by emoji name (e.g., 'eyes', '+1')
    */
-  async getReactions(userId, limit = 100) {
+  async getReactions(userId, limit = 100, emojiName = null) {
     try {
       const result = await this.client.reactions.list({ 
         user: userId, 
@@ -472,6 +475,11 @@ class SlackMessageAPI {
           const reactionNames = yourReactions.map(r => 
             r.name.replace(/::skin-tone-\d+$/, '')
           );
+          
+          // Filter by emoji name if specified
+          if (emojiName && !reactionNames.includes(emojiName)) {
+            continue;
+          }
 
           conversations.push({
             channelId,
@@ -491,6 +499,11 @@ class SlackMessageAPI {
           const reactionNames = yourReactions.map(r => 
             r.name.replace(/::skin-tone-\d+$/, '')
           );
+          
+          // Filter by emoji name if specified
+          if (emojiName && !reactionNames.includes(emojiName)) {
+            continue;
+          }
 
           conversations.push({
             channelId,

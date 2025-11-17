@@ -133,10 +133,8 @@ class CommandHandler {
   async showRecentHistory() {
     const history = this.historyManager.getTodayHistory();
     
-    // Get recent reactions (limit to 10 to keep it relevant)
-    // Note: reactions.list doesn't provide when the reaction was added,
-    // so we just show the most recent ones
-    const reactions = await this.client.getReactions(10);
+    // Get recent :eyes: reactions only (limit to 20 to keep it relevant)
+    const reactions = await this.client.getReactions(20, 'eyes');
     
     // Merge reactions with history
     const mergedHistory = [...history];
@@ -162,7 +160,7 @@ class CommandHandler {
     }
     
     if (mergedHistory.length === 0) {
-      console.log(chalk.yellow('\n💡 履歴とリアクションがありません'));
+      console.log(chalk.yellow('\n💡 履歴と :eyes: リアクションがありません'));
       return;
     }
 

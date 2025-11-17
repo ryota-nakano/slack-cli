@@ -100,9 +100,9 @@ class SlackClient {
     return this.messageAPI.searchUserMessagesToday(userId);
   }
 
-  async getReactions(limit = 100) {
+  async getReactions(limit = 100, emojiName = null) {
     const userId = await this.getCurrentUser();
-    return this.messageAPI.getReactions(userId, limit);
+    return this.messageAPI.getReactions(userId, limit, emojiName);
   }
 }
 
