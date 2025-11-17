@@ -6,6 +6,7 @@
 const { WebClient } = require('@slack/web-api');
 const UserHelper = require('../utils/user-helper');
 const emoji = require('node-emoji');
+const chalk = require('chalk');
 
 class SlackMessageAPI {
   constructor(token, userAPI) {
