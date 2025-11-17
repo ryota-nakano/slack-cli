@@ -560,10 +560,38 @@ async function channelChat() {
   try {
     console.log(chalk.cyan('📋 チャンネルを選択してください\n'));
     
-    // Show today's history if available
+    // Get today's history
     const history = historyManager.getTodayHistory();
-    if (history.length > 0) {
-      await displayGroupedHistory(history, client, historyManager);
+    
+    // Get recent :eyes: reactions (limit to 20)
+    const reactions = await client.getReactions(20, 'eyes');
+    
+    // Merge reactions with history
+    const mergedHistory = [...history];
+    
+    for (const item of reactions) {
+      // Check if this item is already in history
+      const exists = mergedHistory.some(h => 
+        h.channelId === item.channelId && h.threadTs === item.threadTs
+      );
+      
+      if (!exists) {
+        // Add reaction item with current timestamp
+        mergedHistory.unshift({
+          channelId: item.channelId,
+          channelName: item.channelName,
+          threadTs: item.threadTs,
+          type: item.type,
+          timestamp: new Date().toISOString(),
+          threadPreview: item.threadPreview || null,
+          reactions: item.reactions
+        });
+      }
+    }
+    
+    // Show merged history if available
+    if (mergedHistory.length > 0) {
+      await displayGroupedHistory(mergedHistory, client, historyManager);
       console.log(chalk.gray('\n💡 ヒント: /数字 で履歴から開く（例: /1）\n'));
     }
     
