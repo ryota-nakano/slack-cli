@@ -6,6 +6,7 @@
 const { WebClient } = require('@slack/web-api');
 const UserHelper = require('../utils/user-helper');
 const emoji = require('node-emoji');
+const chalk = require('chalk');
 
 class SlackMessageAPI {
   constructor(token, userAPI) {
@@ -61,16 +62,16 @@ class SlackMessageAPI {
   async formatMentionsInText(text, usersCache, usergroupsCache = null) {
     if (!text) return '';
     
-    // Replace user mentions <@USER_ID> with @display_name
+    // Replace user mentions <@USER_ID> with @display_name with background
     let formattedText = text.replace(/<@([A-Z0-9]+)>/g, (match, userId) => {
       const user = usersCache.find(u => u.id === userId);
       if (user) {
-        return `@${UserHelper.getDisplayName(user)}`;
+        return chalk.bgBlue.white(`@${UserHelper.getDisplayName(user)}`);
       }
       return match; // Keep original if user not found
     });
     
-    // Replace group mentions <!subteam^GROUP_ID|@handle> with @group_name
+    // Replace group mentions <!subteam^GROUP_ID|@handle> with @group_name with background
     const groupMentionRegex = /<!subteam\^([A-Z0-9]+)(?:\|@[^>]+)?>/g;
     const groupMatches = [...text.matchAll(groupMentionRegex)];
     
@@ -82,16 +83,16 @@ class SlackMessageAPI {
       formattedText = formattedText.replace(groupMentionRegex, (match, groupId) => {
         const group = usergroups.find(g => g.id === groupId);
         if (group) {
-          return `@${group.name}`;
+          return chalk.bgBlue.white(`@${group.name}`);
         }
         return match; // Keep original if group not found
       });
     }
     
-    // Replace special mentions
-    formattedText = formattedText.replace(/<!channel>/g, '@channel');
-    formattedText = formattedText.replace(/<!here>/g, '@here');
-    formattedText = formattedText.replace(/<!everyone>/g, '@everyone');
+    // Replace special mentions with background
+    formattedText = formattedText.replace(/<!channel>/g, chalk.bgBlue.white('@channel'));
+    formattedText = formattedText.replace(/<!here>/g, chalk.bgBlue.white('@here'));
+    formattedText = formattedText.replace(/<!everyone>/g, chalk.bgBlue.white('@everyone'));
     
     // Replace emoji :emoji_name: with actual emoji
     formattedText = formattedText.replace(/:([a-z0-9_+-]+):/g, (match, emojiName) => {
