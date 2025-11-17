@@ -160,11 +160,10 @@ async function displayThreadItem(item, client, historyManager) {
       chalk.green(userName)
     );
     
-    // Display full message text with mention formatting (no indent)
+    // Display full message text (already formatted with mentions)
     const lines = fullText.split('\n');
     for (const line of lines) {
-      const formattedLine = await formatMentions(line, client);
-      console.log(formattedLine);
+      console.log(line);
     }
     console.log(''); // Add blank line after each thread
   } else if (client && historyManager) {
@@ -214,11 +213,10 @@ async function displayThreadItem(item, client, historyManager) {
           chalk.green(userName)
         );
         
-        // Display full message text (no indent)
+        // Display full message text (already formatted by mapMessage)
         const lines = fullText.split('\n');
         for (const line of lines) {
-          const formattedLine = await formatMentions(line, client);
-          console.log(formattedLine);
+          console.log(line);
         }
         console.log(''); // Add blank line
       }

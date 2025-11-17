@@ -423,6 +423,7 @@ class SlackMessageAPI {
       // Fetch all channel names and user names at once
       const channelNameCache = {};
       const userNameCache = {};
+      const userObjectCache = {}; // Full user objects for mention formatting
       
       await Promise.all([
         // Fetch channel names
@@ -438,12 +439,22 @@ class SlackMessageAPI {
         ...Array.from(userIds).map(async (userId) => {
           try {
             const userInfo = await this.client.users.info({ user: userId });
-            userNameCache[userId] = userInfo.user.profile?.display_name || userInfo.user.real_name || userInfo.user.name;
+            const user = userInfo.user;
+            userNameCache[userId] = user.profile?.display_name || user.real_name || user.name;
+            userObjectCache[userId] = {
+              id: user.id,
+              name: user.name,
+              real_name: user.real_name,
+              profile: user.profile
+            };
           } catch (error) {
             userNameCache[userId] = userId;
           }
         })
       ]);
+      
+      // Convert user object cache to array for formatMentionsInText
+      const usersArray = Object.values(userObjectCache);
 
       for (const item of result.items) {
         // Only process message type items
@@ -472,9 +483,12 @@ class SlackMessageAPI {
         if (actualThreadTs && !seenThreads.has(key)) {
           seenThreads.add(key);
           
+          // Format mentions in text
+          const formattedText = await this.formatMentionsInText(message.text || '', usersArray);
+          
           // Use message text as preview (no API call)
           const threadPreview = {
-            text: message.text || '',
+            text: formattedText,
             user: message.user,
             userName: userNameCache[message.user] || '',
             ts: message.ts
