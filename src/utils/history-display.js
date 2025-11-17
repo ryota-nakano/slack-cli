@@ -133,9 +133,10 @@ async function displayThreadItem(item, client, historyManager) {
   
   // Use cached thread preview if available
   if (item.threadPreview) {
-    // Truncate text to 50 characters
+    // Truncate text to 50 characters and remove newlines
     const fullText = item.threadPreview.text || '(no text)';
-    const truncatedText = fullText.length > 50 ? fullText.substring(0, 50) + '...' : fullText;
+    const singleLine = fullText.replace(/\n/g, ' ');
+    const truncatedText = singleLine.length > 50 ? singleLine.substring(0, 50) + '...' : singleLine;
     
     // Get user name - prefer cached userName, then fetch from API
     let userName = item.threadPreview.userName || '';
@@ -161,7 +162,6 @@ async function displayThreadItem(item, client, historyManager) {
       chalk.green(userName) + ' ' +
       truncatedText
     );
-    console.log(''); // Add blank line after each thread
   } else if (client && historyManager) {
     // Fallback to API call if no cache and client is available
     try {
@@ -169,9 +169,10 @@ async function displayThreadItem(item, client, historyManager) {
       if (replies && replies.length > 0) {
         const firstMsg = replies[0];
         
-        // Get full text and truncate to 50 characters
+        // Get full text, truncate to 50 characters and remove newlines
         const fullText = firstMsg.text || '(no text)';
-        const truncatedText = fullText.length > 50 ? fullText.substring(0, 50) + '...' : fullText;
+        const singleLine = fullText.replace(/\n/g, ' ');
+        const truncatedText = singleLine.length > 50 ? singleLine.substring(0, 50) + '...' : singleLine;
         
         // Get user name
         let userName = '';
@@ -210,7 +211,6 @@ async function displayThreadItem(item, client, historyManager) {
           chalk.green(userName) + ' ' +
           truncatedText
         );
-        console.log(''); // Add blank line
       }
     } catch (error) {
       // Fallback if we can't get thread details
