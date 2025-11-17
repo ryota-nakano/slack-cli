@@ -408,26 +408,42 @@ class SlackMessageAPI {
       const seenChannels = new Set();
       const seenThreads = new Set();
       
-      // Pre-fetch channel names in parallel
+      // Pre-fetch channel names and user names in parallel
       const channelIds = new Set();
+      const userIds = new Set();
       for (const item of result.items) {
         if (item.type === 'message' && item.message) {
           channelIds.add(item.channel);
+          if (item.message.user) {
+            userIds.add(item.message.user);
+          }
         }
       }
       
-      // Fetch all channel names at once
+      // Fetch all channel names and user names at once
       const channelNameCache = {};
-      await Promise.all(
-        Array.from(channelIds).map(async (channelId) => {
+      const userNameCache = {};
+      
+      await Promise.all([
+        // Fetch channel names
+        ...Array.from(channelIds).map(async (channelId) => {
           try {
             const channelInfo = await this.client.conversations.info({ channel: channelId });
             channelNameCache[channelId] = channelInfo.channel.name;
           } catch (error) {
             channelNameCache[channelId] = channelId;
           }
+        }),
+        // Fetch user names
+        ...Array.from(userIds).map(async (userId) => {
+          try {
+            const userInfo = await this.client.users.info({ user: userId });
+            userNameCache[userId] = userInfo.user.profile?.display_name || userInfo.user.real_name || userInfo.user.name;
+          } catch (error) {
+            userNameCache[userId] = userId;
+          }
         })
-      );
+      ]);
 
       for (const item of result.items) {
         // Only process message type items
@@ -460,7 +476,7 @@ class SlackMessageAPI {
           const threadPreview = {
             text: message.text || '',
             user: message.user,
-            userName: '',
+            userName: userNameCache[message.user] || '',
             ts: message.ts
           };
 

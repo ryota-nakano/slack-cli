@@ -136,9 +136,9 @@ async function displayThreadItem(item, client, historyManager) {
     // Show full text instead of truncated preview
     const fullText = item.threadPreview.text || '(no text)';
     
-    // Get user name
-    let userName = '';
-    if (item.threadPreview.user && client) {
+    // Get user name - prefer cached userName, then fetch from API
+    let userName = item.threadPreview.userName || '';
+    if (!userName && item.threadPreview.user && client) {
       try {
         const userInfo = await client.getUserInfo(item.threadPreview.user);
         userName = userInfo.profile?.display_name || userInfo.real_name || userInfo.name;
