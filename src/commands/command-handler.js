@@ -168,6 +168,9 @@ class CommandHandler {
 
     await displayGroupedHistory(mergedHistory, this.client, this.historyManager);
     console.log(chalk.gray('\n💡 ヒント: /数字 で移動（例: /1）\n'));
+    
+    // Store merged history for navigation
+    this.session.recentHistory = mergedHistory;
     this.session.showingRecentHistory = true; // Set flag for next command
   }
 

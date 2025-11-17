@@ -30,6 +30,7 @@ class ChatSession {
     this.historyManager = new HistoryManager();
     this.messageCache = new MessageCache();
     this.showingRecentHistory = false; // Track if /recent was just shown
+    this.recentHistory = null; // Store merged history for navigation
     this.commandHandler = new CommandHandler(this); // Command handler
   }
 
@@ -301,7 +302,7 @@ class ChatSession {
           
           // Check if /recent was just shown - use history navigation
           if (this.showingRecentHistory) {
-            const history = this.historyManager.getTodayHistory();
+            const history = this.recentHistory || this.historyManager.getTodayHistory();
             
             if (number > 0 && number <= history.length) {
               const item = history[number - 1];
@@ -312,8 +313,9 @@ class ChatSession {
               await session.start();
               return;
             } else {
-              console.log(chalk.yellow(`\n⚠️  履歴番号 ${number} は存在しません`));
+              console.log(chalk.yellow(`\n⚠️  履歴番号 ${number} は存在しません (1-${history.length})`));
               this.showingRecentHistory = false;
+              this.recentHistory = null;
               continue;
             }
           }
@@ -331,6 +333,7 @@ class ChatSession {
         
         // Reset showingRecentHistory flag on other commands
         this.showingRecentHistory = false;
+        this.recentHistory = null;
 
         // Handle /back command (thread only) - Return to channel
         if (this.isThread() && (trimmedText === '/back' || trimmedText === '/b')) {
