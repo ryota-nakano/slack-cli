@@ -96,8 +96,8 @@ class SlackMessageAPI {
     // Replace emoji :emoji_name: with actual emoji
     formattedText = formattedText.replace(/:([a-z0-9_+-]+):/g, (match, emojiName) => {
       const emojiChar = emoji.get(emojiName);
-      // If emoji found, use it; otherwise keep original
-      return emojiChar !== `:${emojiName}:` ? emojiChar : match;
+      // If emoji found and not undefined, use it; otherwise keep original
+      return emojiChar && emojiChar !== `:${emojiName}:` ? emojiChar : match;
     });
     
     return formattedText;
