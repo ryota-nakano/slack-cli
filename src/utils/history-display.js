@@ -83,10 +83,15 @@ async function displayThreadItem(item, client, historyManager) {
       ? item.threadPreview.text.substring(0, 30) + '...' 
       : item.threadPreview.text;
     
+    // Show reactions if available
+    const reactionIndicator = item.reactions && item.reactions.length > 0
+      ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
+      : '';
+    
     console.log(
       chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
       chalk.gray(time) + ' ' +
-      chalk.green(item.channelName) + chalk.gray('[スレッド]')
+      chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator
     );
     console.log(
       '    ' + chalk.gray(`└─ ${msgTime}:`) + ' ' + formatMentions(previewText)
@@ -155,10 +160,15 @@ function displayChannelItem(item) {
     minute: '2-digit' 
   });
   
+  // Show reactions if available
+  const reactionIndicator = item.reactions && item.reactions.length > 0
+    ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
+    : '';
+  
   console.log(
     chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
     chalk.gray(time) + ' ' +
-    chalk.green(item.channelName)
+    chalk.green(item.channelName) + reactionIndicator
   );
 }
 

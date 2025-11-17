@@ -133,12 +133,46 @@ class CommandHandler {
   async showRecentHistory() {
     const history = this.historyManager.getTodayHistory();
     
-    if (history.length === 0) {
-      console.log(chalk.yellow('\n💡 今日の履歴はまだありません'));
+    // Get reactions and merge with history
+    const reactions = await this.client.getReactions(50);
+    
+    // Filter reactions to today only
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayTs = todayStart.getTime() / 1000;
+    
+    // Note: reactions don't have timestamp info in the item,
+    // so we include all recent reactions (they're already sorted by recency)
+    
+    // Merge reactions with history
+    const mergedHistory = [...history];
+    
+    for (const item of reactions) {
+      // Check if this item is already in history
+      const exists = mergedHistory.some(h => 
+        h.channelId === item.channelId && h.threadTs === item.threadTs
+      );
+      
+      if (!exists) {
+        // Add reaction item with current timestamp
+        mergedHistory.unshift({
+          channelId: item.channelId,
+          channelName: item.channelName,
+          threadTs: item.threadTs,
+          type: item.type,
+          timestamp: new Date().toISOString(),
+          threadPreview: item.threadPreview || null,
+          reactions: item.reactions
+        });
+      }
+    }
+    
+    if (mergedHistory.length === 0) {
+      console.log(chalk.yellow('\n💡 履歴とリアクションがありません'));
       return;
     }
 
-    await displayGroupedHistory(history, this.client, this.historyManager);
+    await displayGroupedHistory(mergedHistory, this.client, this.historyManager);
     console.log(chalk.gray('\n💡 ヒント: /数字 で移動（例: /1）\n'));
     this.session.showingRecentHistory = true; // Set flag for next command
   }

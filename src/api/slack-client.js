@@ -99,6 +99,11 @@ class SlackClient {
     const userId = await this.getCurrentUser();
     return this.messageAPI.searchUserMessagesToday(userId);
   }
+
+  async getReactions(limit = 100) {
+    const userId = await this.getCurrentUser();
+    return this.messageAPI.getReactions(userId, limit);
+  }
 }
 
 module.exports = SlackClient;

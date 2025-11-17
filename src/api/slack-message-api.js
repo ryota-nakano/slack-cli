@@ -385,6 +385,136 @@ class SlackMessageAPI {
       return [];
     }
   }
+
+  /**
+   * Get user's reactions
+   */
+  async getReactions(userId, limit = 100) {
+    try {
+      const result = await this.client.reactions.list({ 
+        user: userId, 
+        limit,
+        full: true 
+      });
+      
+      if (!result.items || result.items.length === 0) {
+        return [];
+      }
+
+      const conversations = [];
+      const seenChannels = new Set();
+      const seenThreads = new Set();
+
+      for (const item of result.items) {
+        // Only process message type items
+        if (item.type !== 'message' || !item.message) {
+          continue;
+        }
+
+        const channelId = item.channel;
+        const message = item.message;
+        const threadTs = message.thread_ts || null;
+        
+        // Get channel info
+        let channelName = channelId;
+        try {
+          const channelInfo = await this.client.conversations.info({ channel: channelId });
+          channelName = channelInfo.channel.name;
+        } catch (error) {
+          // If we can't get channel name, use ID
+        }
+
+        // Check if this message is part of a thread or is a thread parent
+        const isThreadReply = threadTs && message.ts !== threadTs;
+        const isThreadParent = (threadTs && message.ts === threadTs) || 
+                               (message.reply_count && message.reply_count > 0);
+        
+        // Use thread_ts if it's a reply, or message.ts if it's a thread parent
+        const actualThreadTs = isThreadReply ? threadTs : 
+                               (isThreadParent ? message.ts : null);
+        
+        const key = actualThreadTs ? `${channelId}:${actualThreadTs}` : channelId;
+
+        if (actualThreadTs && !seenThreads.has(key)) {
+          seenThreads.add(key);
+          
+          // Try to get thread preview
+          let threadPreview = null;
+          try {
+            const replies = await this.client.conversations.replies({
+              channel: channelId,
+              ts: actualThreadTs,
+              limit: 1
+            });
+            if (replies.messages && replies.messages.length > 0) {
+              const firstMsg = replies.messages[0];
+              threadPreview = {
+                text: firstMsg.text?.split('\n')[0] || '',
+                user: firstMsg.user,
+                userName: '',
+                ts: firstMsg.ts
+              };
+            }
+          } catch (error) {
+            // If we can't get thread preview, use the message text
+            threadPreview = {
+              text: message.text?.split('\n')[0] || '',
+              user: message.user,
+              userName: '',
+              ts: message.ts
+            };
+          }
+
+          // Get user's reactions on this message
+          const yourReactions = message.reactions?.filter(r => 
+            r.users?.includes(userId)
+          ) || [];
+          const reactionNames = yourReactions.map(r => 
+            r.name.replace(/::skin-tone-\d+$/, '')
+          );
+
+          conversations.push({
+            channelId,
+            channelName,
+            threadTs: actualThreadTs,
+            type: 'thread',
+            threadPreview,
+            reactions: reactionNames
+          });
+        } else if (!actualThreadTs && !seenChannels.has(channelId)) {
+          seenChannels.add(channelId);
+          
+          // Get user's reactions on this message
+          const yourReactions = message.reactions?.filter(r => 
+            r.users?.includes(userId)
+          ) || [];
+          const reactionNames = yourReactions.map(r => 
+            r.name.replace(/::skin-tone-\d+$/, '')
+          );
+
+          conversations.push({
+            channelId,
+            channelName,
+            threadTs: null,
+            type: 'channel',
+            reactions: reactionNames
+          });
+        }
+      }
+
+      return conversations;
+    } catch (error) {
+      if (error.data?.error === 'missing_scope') {
+        console.error(chalk.yellow('\n⚠️  reactions:read スコープが必要です'));
+        console.error(chalk.gray('リアクションを表示するには、Slack Appに reactions:read スコープを追加してください\n'));
+      } else if (error.data?.error === 'not_authed') {
+        console.error(chalk.red('\n❌ 認証エラー: トークンが無効です\n'));
+      } else {
+        console.error('Failed to get reactions:', error.message);
+      }
+      return [];
+    }
+  }
 }
 
 module.exports = SlackMessageAPI;
