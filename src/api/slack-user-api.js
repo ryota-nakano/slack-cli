@@ -60,7 +60,15 @@ class SlackUserAPI {
   async listUsergroups() {
     // Check cache first
     if (this.cache.isUsergroupsCacheValid()) {
+      if (process.env.DEBUG_PERF) {
+        const groups = this.cache.getUsergroups();
+        console.error(`[DEBUG] ユーザーグループキャッシュヒット (${groups.length}件)`);
+      }
       return this.cache.getUsergroups();
+    }
+
+    if (process.env.DEBUG_PERF) {
+      console.error(`[DEBUG] ユーザーグループをAPI取得`);
     }
 
     try {
@@ -126,6 +134,10 @@ class SlackUserAPI {
     const users = [];
     const uncachedIds = [];
 
+    if (process.env.DEBUG_PERF) {
+      console.error(`[DEBUG] getUsersByIds開始: ${userIds.length}件`);
+    }
+
     // Check cache first
     for (const userId of userIds) {
       const cachedUser = this.cache.findUserById(userId);
@@ -136,24 +148,58 @@ class SlackUserAPI {
       }
     }
 
-    // Fetch uncached users
-    for (const userId of uncachedIds) {
-      try {
-        const result = await this.client.users.info({ user: userId });
-        if (result.user && !result.user.deleted) {
-          const user = {
-            id: result.user.id,
-            name: result.user.name,
-            real_name: result.user.real_name,
-            display_name: result.user.profile?.display_name || result.user.real_name,
-            is_bot: result.user.is_bot || false
-          };
-          users.push(user);
-          this.cache.addUser(user);
-        }
-      } catch (error) {
-        console.error(`Failed to fetch user ${userId}:`, error.message);
+    if (process.env.DEBUG_PERF) {
+      console.error(`[DEBUG] キャッシュミス: ${uncachedIds.length}件`);
+    }
+
+    // If we have many uncached users, fetch all users instead of one by one
+    if (uncachedIds.length > 50) {
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] 大量のユーザーが未キャッシュ→全ユーザーを一括取得`);
       }
+      
+      const allUsersStartTime = Date.now();
+      await this.listAllUsers(true); // Force refresh to get all users
+      
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] 全ユーザー取得完了: ${Date.now() - allUsersStartTime}ms`);
+      }
+      
+      // Now get from cache
+      for (const userId of uncachedIds) {
+        const cachedUser = this.cache.findUserById(userId);
+        if (cachedUser) {
+          users.push(cachedUser);
+        }
+      }
+    } else {
+      // Fetch uncached users one by one (only if small number)
+      if (process.env.DEBUG_PERF && uncachedIds.length > 0) {
+        console.error(`[DEBUG] 個別ユーザー取得: ${uncachedIds.length}件`);
+      }
+      
+      for (const userId of uncachedIds) {
+        try {
+          const result = await this.client.users.info({ user: userId });
+          if (result.user && !result.user.deleted) {
+            const user = {
+              id: result.user.id,
+              name: result.user.name,
+              real_name: result.user.real_name,
+              display_name: result.user.profile?.display_name || result.user.real_name,
+              is_bot: result.user.is_bot || false
+            };
+            users.push(user);
+            this.cache.addUser(user);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch user ${userId}:`, error.message);
+        }
+      }
+    }
+
+    if (process.env.DEBUG_PERF) {
+      console.error(`[DEBUG] getUsersByIds完了: ${users.length}件返却`);
     }
 
     return users;
@@ -164,22 +210,33 @@ class SlackUserAPI {
    */
   async listAllUsers(forceRefresh = false) {
     if (!forceRefresh && this.cache.isUsersCacheValid()) {
+      if (process.env.DEBUG_PERF) {
+        const cached = this.cache.getUsers();
+        console.error(`[DEBUG] 全ユーザーキャッシュヒット (${cached.length}件)`);
+      }
       return this.cache.getUsers();
+    }
+
+    if (process.env.DEBUG_PERF) {
+      console.error(`[DEBUG] 全ユーザーをAPI取得開始`);
     }
 
     try {
       let users = [];
       let cursor = undefined;
+      let apiCalls = 0;
 
       do {
         const result = await this.client.users.list({
           limit: 1000,
           cursor: cursor
         });
+        apiCalls++;
 
         if (result.members) {
-          const activeUsers = result.members
-            .filter(member => !member.deleted && !member.is_bot)
+          // Include bots as well (they might post messages)
+          const allUsers = result.members
+            .filter(member => !member.deleted)
             .map(member => ({
               id: member.id,
               name: member.name,
@@ -188,11 +245,15 @@ class SlackUserAPI {
               is_bot: member.is_bot || false
             }));
 
-          users = users.concat(activeUsers);
+          users = users.concat(allUsers);
         }
 
         cursor = result.response_metadata?.next_cursor;
       } while (cursor);
+
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] 全ユーザー取得完了: ${apiCalls}回のAPI呼び出し, ${users.length}人`);
+      }
 
       this.cache.updateUsers(users);
       return users;
@@ -208,11 +269,20 @@ class SlackUserAPI {
   async listChannelUsers(channelId, forceRefresh = false) {
     // Check if we have cached members for this channel
     if (!forceRefresh && this.cache.isChannelMembersCacheValid(channelId)) {
+      if (process.env.DEBUG_PERF) {
+        const users = this.cache.getChannelMembers(channelId);
+        console.error(`[DEBUG] チャンネルユーザーキャッシュヒット: ${channelId} (${users.length}件)`);
+      }
       return this.cache.getChannelMembers(channelId);
+    }
+
+    if (process.env.DEBUG_PERF) {
+      console.error(`[DEBUG] チャンネルユーザーをAPI取得: ${channelId}`);
     }
 
     try {
       // Get member IDs from channel
+      const memberStartTime = Date.now();
       let memberIds = [];
       let cursor = undefined;
 
@@ -230,8 +300,17 @@ class SlackUserAPI {
         cursor = result.response_metadata?.next_cursor;
       } while (cursor);
 
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] メンバーID取得完了: ${Date.now() - memberStartTime}ms (${memberIds.length}件)`);
+      }
+
       // Get user info for each member
+      const userInfoStartTime = Date.now();
       const users = await this.getUsersByIds(memberIds);
+      
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] ユーザー情報取得完了: ${Date.now() - userInfoStartTime}ms (${users.length}件)`);
+      }
 
       // Cache the channel members (include all users, not just non-bots)
       this.cache.updateChannelMembers(channelId, users);

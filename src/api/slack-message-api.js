@@ -90,24 +90,54 @@ class SlackMessageAPI {
    */
   async getThreadReplies(channelId, threadTs) {
     try {
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] スレッド取得開始: ${channelId}`);
+      }
+      
+      const startTime = Date.now();
       const result = await this.client.conversations.replies({
         channel: channelId,
         ts: threadTs,
         limit: 1000
       });
+      const apiTime = Date.now() - startTime;
 
       if (!result.messages || result.messages.length === 0) {
         return [];
       }
 
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] API呼び出し完了: ${apiTime}ms (${result.messages.length}件)`);
+      }
+
       // Load channel users and usergroups for efficient lookup
+      const usersStartTime = Date.now();
       const users = await this.userAPI.listChannelUsers(channelId);
+      const usersTime = Date.now() - usersStartTime;
+      
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] ユーザー取得完了: ${usersTime}ms (${users.length}件)`);
+      }
+      
+      const groupsStartTime = Date.now();
       const usergroups = await this.userAPI.listUsergroups();
+      const groupsTime = Date.now() - groupsStartTime;
+      
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] グループ取得完了: ${groupsTime}ms (${usergroups.length}件)`);
+      }
 
       // Map messages and resolve user names from cache
+      const mapStartTime = Date.now();
       const messages = await Promise.all(result.messages.map(msg => 
         this.mapMessage(msg, users, usergroups)
       ));
+      const mapTime = Date.now() - mapStartTime;
+      
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] メッセージマッピング完了: ${mapTime}ms`);
+        console.error(`[DEBUG] 合計時間: ${Date.now() - startTime}ms`);
+      }
 
       return messages;
     } catch (error) {
@@ -157,6 +187,11 @@ class SlackMessageAPI {
    */
   async getChannelHistoryRange(channelId, oldest, latest, limit = null) {
     try {
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] チャンネル履歴取得開始: ${channelId}`);
+      }
+      
+      const startTime = Date.now();
       const options = {
         channel: channelId,
         oldest: oldest.toString(),
@@ -165,19 +200,44 @@ class SlackMessageAPI {
       };
 
       const result = await this.client.conversations.history(options);
+      const apiTime = Date.now() - startTime;
 
       if (!result.messages || result.messages.length === 0) {
         return [];
       }
 
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] API呼び出し完了: ${apiTime}ms (${result.messages.length}件)`);
+      }
+
       // Load channel users and usergroups for efficient lookup
+      const usersStartTime = Date.now();
       const users = await this.userAPI.listChannelUsers(channelId);
+      const usersTime = Date.now() - usersStartTime;
+      
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] ユーザー取得完了: ${usersTime}ms (${users.length}件)`);
+      }
+      
+      const groupsStartTime = Date.now();
       const usergroups = await this.userAPI.listUsergroups();
+      const groupsTime = Date.now() - groupsStartTime;
+      
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] グループ取得完了: ${groupsTime}ms (${usergroups.length}件)`);
+      }
 
       // Map messages and resolve user names from cache
+      const mapStartTime = Date.now();
       const messages = await Promise.all(result.messages.map(msg => 
         this.mapMessage(msg, users, usergroups)
       ));
+      const mapTime = Date.now() - mapStartTime;
+      
+      if (process.env.DEBUG_PERF) {
+        console.error(`[DEBUG] メッセージマッピング完了: ${mapTime}ms`);
+        console.error(`[DEBUG] 合計時間: ${Date.now() - startTime}ms`);
+      }
 
       return messages.reverse();
     } catch (error) {
