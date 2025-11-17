@@ -10,6 +10,7 @@ const { loadConfig, hasValidConfig, runSetup, showConfig } = require('./utils/co
 const { listChannels } = require('./commands/channels');
 const { threadChat, channelChat } = require('./commands/thread');
 const { showHelp } = require('./utils/help');
+const MessageCache = require('./utils/message-cache');
 
 // Load configuration
 loadConfig();
@@ -34,6 +35,14 @@ async function main() {
   // Config command (no token required)
   if (command === 'config') {
     showConfig();
+    return;
+  }
+  
+  // Clear cache command (no token required)
+  if (command === 'clear-cache' || command === 'clearcache') {
+    const cache = new MessageCache();
+    const deletedCount = cache.clearAll();
+    console.log(chalk.green(`✅ キャッシュをクリアしました (${deletedCount}件)`));
     return;
   }
   

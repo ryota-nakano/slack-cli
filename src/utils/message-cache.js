@@ -114,20 +114,25 @@ class MessageCache {
   clearAll() {
     try {
       const files = fs.readdirSync(CACHE_DIR);
+      let deletedCount = 0;
       
       for (const file of files) {
         if (file.endsWith('.json')) {
           fs.unlinkSync(path.join(CACHE_DIR, file));
+          deletedCount++;
         }
       }
       
       if (process.env.DEBUG_CACHE) {
-        console.error(`[DEBUG] すべてのキャッシュを削除しました (${files.length}件)`);
+        console.error(`[DEBUG] すべてのキャッシュを削除しました (${deletedCount}件)`);
       }
+      
+      return deletedCount;
     } catch (error) {
       if (process.env.DEBUG_CACHE) {
         console.error(`[DEBUG] キャッシュ一括削除エラー: ${error.message}`);
       }
+      return 0;
     }
   }
 

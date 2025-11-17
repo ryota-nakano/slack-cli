@@ -14,6 +14,7 @@ function showHelp() {
   console.log(chalk.green('  slack') + chalk.gray('                                  # チャット開始'));
   console.log(chalk.green('  slack setup') + chalk.gray('                            # 初期設定'));
   console.log(chalk.green('  slack config') + chalk.gray('                           # 設定確認'));
+  console.log(chalk.green('  slack clear-cache') + chalk.gray('                      # キャッシュクリア'));
   console.log(chalk.green('  slack channels') + chalk.gray('                         # チャンネル一覧'));
   console.log(chalk.green('  slack thread <channel_id> <thread_ts>') + chalk.gray(' # スレッドチャット'));
   console.log();
