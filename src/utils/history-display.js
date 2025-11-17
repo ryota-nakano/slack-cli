@@ -84,7 +84,7 @@ async function displayThreadItem(item, client, historyManager) {
       : item.threadPreview.text;
     
     console.log(
-      chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
+      chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
       chalk.gray(time) + ' ' +
       chalk.green(item.channelName) + chalk.gray('[スレッド]')
     );
@@ -120,7 +120,7 @@ async function displayThreadItem(item, client, historyManager) {
         });
         
         console.log(
-          chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
+          chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
           chalk.gray(time) + ' ' +
           chalk.green(item.channelName) + chalk.gray('[スレッド]')
         );
@@ -131,7 +131,7 @@ async function displayThreadItem(item, client, historyManager) {
     } catch (error) {
       // Fallback if we can't get thread details
       console.log(
-        chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
+        chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
         chalk.gray(time) + ' ' +
         chalk.green(item.channelName) + chalk.gray('[スレッド]')
       );
@@ -139,7 +139,7 @@ async function displayThreadItem(item, client, historyManager) {
   } else {
     // No preview and no client - just show basic info
     console.log(
-      chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
+      chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
       chalk.gray(time) + ' ' +
       chalk.green(item.channelName) + chalk.gray('[スレッド]')
     );
@@ -156,7 +156,7 @@ function displayChannelItem(item) {
   });
   
   console.log(
-    chalk.yellow(`[${item.originalIndex + 1}]`) + ' ' +
+    chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
     chalk.gray(time) + ' ' +
     chalk.green(item.channelName)
   );
