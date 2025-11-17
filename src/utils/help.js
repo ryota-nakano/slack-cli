@@ -37,6 +37,8 @@ function showHelp() {
   console.log(chalk.green('  /<番号>') + chalk.gray('       - スレッドに移動 (例: /3)'));
   console.log(chalk.green('  /back') + chalk.gray('         - スレッドから戻る'));
   console.log(chalk.green('  /r') + chalk.gray('            - 今日の会話履歴'));
+  console.log(chalk.green('  /refresh') + chalk.gray('      - 今日の投稿を履歴に追加'));
+  console.log(chalk.green('  /clear') + chalk.gray('        - 履歴キャッシュをクリア'));
   console.log(chalk.green('  /l <日数>') + chalk.gray('     - 過去の履歴読込 (例: /l 3)'));
   console.log(chalk.green('  /rm <番号>') + chalk.gray('    - メッセージ削除'));
   console.log(chalk.green('  /help') + chalk.gray('         - ヘルプ'));

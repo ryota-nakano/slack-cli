@@ -390,6 +390,13 @@ class ChatSession {
           continue;
         }
 
+        // Handle /clear command - Clear history cache
+        if (trimmedText === '/clear') {
+          this.historyManager.clearHistory();
+          console.log(chalk.green('\n✅ 履歴キャッシュをクリアしました\n'));
+          continue;
+        }
+
         // Handle /recent command - Show today's conversation history
         if (trimmedText === '/recent' || trimmedText === '/r') {
           await this.commandHandler.showRecentHistory();
