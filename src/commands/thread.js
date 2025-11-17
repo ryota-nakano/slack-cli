@@ -72,9 +72,8 @@ class ChatSession {
     if (this.isThread() && this.messages.length > 0) {
       const firstMsg = this.messages[0];
       const text = firstMsg.text || '';
-      const firstLine = text.split('\n')[0].substring(0, 50);
       threadPreview = {
-        text: firstLine,
+        text: text,  // Store full text, not just first line
         user: firstMsg.user,
         userName: firstMsg.userName || '',
         ts: firstMsg.ts
