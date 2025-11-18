@@ -85,6 +85,14 @@ class ReadlineInput {
           return;
         }
 
+        // Ctrl+R: Execute /recent command
+        if (key.ctrl && key.name === 'r') {
+          this.clearSuggestions();
+          cleanup();
+          resolve('/recent');
+          return;
+        }
+
         // Ctrl+J: Ignore (prevent newline insertion)
         if (key.ctrl && key.name === 'j') {
           return;
