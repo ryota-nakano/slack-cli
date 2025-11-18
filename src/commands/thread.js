@@ -219,6 +219,32 @@ class ChatSession {
   }
 
   /**
+   * Stop polling for updates
+   */
+  stopPolling() {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+      if (process.env.DEBUG_POLL) {
+        console.error('[DEBUG] ポーリング停止');
+      }
+    }
+  }
+
+  /**
+   * Start polling for updates
+   */
+  startPolling() {
+    // Only start if not already running
+    if (!this.updateInterval) {
+      this.updateInterval = setInterval(() => this.checkUpdates(), 10000);
+      if (process.env.DEBUG_POLL) {
+        console.error('[DEBUG] ポーリング開始');
+      }
+    }
+  }
+
+  /**
    * Display all messages
    */
   displayMessages() {
@@ -341,16 +367,13 @@ class ChatSession {
         // Switch to editor mode
         if (text === '__EDITOR__') {
           // Stop polling while in editor mode
-          if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-            this.updateInterval = null;
-          }
+          this.stopPolling();
           
           const editorInput = new EditorInput();
           const editorText = await editorInput.prompt();
           
           // Resume polling after exiting editor
-          this.updateInterval = setInterval(() => this.checkUpdates(), 10000);
+          this.startPolling();
           
           // Immediately check for updates after exiting editor
           await this.checkUpdates();
@@ -448,6 +471,8 @@ class ChatSession {
             console.log(chalk.cyan('🔄 メッセージを再取得中...\n'));
             await this.fetchMessages(null, null, true); // skipCache = true
             this.displayMessages();
+            // Restart polling
+            this.startPolling();
             continue;
           }
           // If not in recent history mode, just continue (don't do anything)
@@ -598,8 +623,11 @@ class ChatSession {
             console.log(chalk.cyan('🔄 メッセージを再取得中...\n'));
             await this.fetchMessages(null, null, true); // skipCache = true
             this.displayMessages();
+            // Restart polling
+            this.startPolling();
           } else {
-            // Show recent history
+            // Show recent history and stop polling
+            this.stopPolling();
             await this.commandHandler.showRecentHistory();
           }
           continue;
@@ -742,9 +770,7 @@ class ChatSession {
    * Cleanup and exit
    */
   cleanup(exit = true) {
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-    }
+    this.stopPolling();
     if (exit) {
       console.log(chalk.cyan('\n👋 終了しました。'));
       process.exit(0);
