@@ -399,9 +399,11 @@ class ReadlineInput {
       // Thread context
       return [
         { command: '/back', description: 'チャンネルに戻る', alias: '/b' },
+        { command: '/more', description: 'さらに30件の過去メッセージを表示', alias: '/m' },
         { command: '/recent', description: '今日の会話履歴から選択', alias: '/r' },
         { command: '/refresh', description: '今日の投稿を検索して履歴に追加', alias: '/sync' },
         { command: '/reload', description: 'メッセージを再取得', alias: '/rl' },
+        { command: '/clear', description: '履歴キャッシュをクリア' },
         { command: '/w', description: 'ブラウザで開く (Ctrl+W)', alias: '/web' },
         { command: '/link', description: 'リンクを表示', alias: '/link [番号]' },
         { command: '/rm', description: 'メッセージを削除（例: /rm 1 3 5）' },
@@ -419,6 +421,7 @@ class ReadlineInput {
         { command: '/recent', description: '今日の会話履歴から選択', alias: '/r' },
         { command: '/refresh', description: '今日の投稿を検索して履歴に追加', alias: '/sync' },
         { command: '/reload', description: 'メッセージを再取得', alias: '/rl' },
+        { command: '/clear', description: '履歴キャッシュをクリア' },
         { command: '/w', description: 'ブラウザで開く (Ctrl+W)', alias: '/web' },
         { command: '/link', description: 'リンクを表示', alias: '/link [番号]' },
         { command: '/rm', description: 'メッセージを削除（例: /rm 1 3 5）' },

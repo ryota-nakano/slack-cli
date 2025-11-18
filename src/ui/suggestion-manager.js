@@ -126,16 +126,20 @@ class SuggestionManager {
       // Channel selection screen
       return [
         { command: '/<番号>', description: '履歴から選択（例: /1）' },
-        { command: '/delete', description: '履歴から削除（例: /delete 1 3 5）', alias: '/del' }
+        { command: '/delete', description: '履歴から削除（例: /delete 1 3 5）', alias: '/del' },
+        { command: '/clear', description: '履歴キャッシュをクリア' }
       ];
     } else if (contextType === 'thread') {
       // Thread context
       return [
         { command: '/back', description: 'チャンネルに戻る', alias: '/b' },
+        { command: '/more', description: 'さらに30件の過去メッセージを表示', alias: '/m' },
         { command: '/recent', description: '今日の会話履歴から選択', alias: '/r' },
         { command: '/refresh', description: '今日の投稿を検索して履歴に追加', alias: '/sync' },
+        { command: '/reload', description: 'メッセージを再取得', alias: '/rl' },
         { command: '/clear', description: '履歴キャッシュをクリア' },
-        { command: '/w', description: 'ブラウザで開く' },
+        { command: '/w', description: 'ブラウザで開く', alias: '/web' },
+        { command: '/link', description: 'リンクを表示', alias: '/link [番号]' },
         { command: '/rm', description: 'メッセージを削除（例: /rm 1 3 5）' },
         { command: '/exit', description: 'チャット終了', alias: '/quit, /q' },
         { command: '/help', description: 'ヘルプを表示' }
@@ -150,8 +154,10 @@ class SuggestionManager {
         { command: '/history', description: '過去の履歴を表示', alias: '/h [件数]' },
         { command: '/recent', description: '今日の会話履歴から選択', alias: '/r' },
         { command: '/refresh', description: '今日の投稿を検索して履歴に追加', alias: '/sync' },
+        { command: '/reload', description: 'メッセージを再取得', alias: '/rl' },
         { command: '/clear', description: '履歴キャッシュをクリア' },
-        { command: '/w', description: 'ブラウザで開く' },
+        { command: '/w', description: 'ブラウザで開く', alias: '/web' },
+        { command: '/link', description: 'リンクを表示', alias: '/link [番号]' },
         { command: '/rm', description: 'メッセージを削除（例: /rm 1 3 5）' },
         { command: '/exit', description: 'チャット終了', alias: '/quit, /q' },
         { command: '/help', description: 'ヘルプを表示' }
