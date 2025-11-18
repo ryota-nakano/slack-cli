@@ -436,6 +436,9 @@ class ChatSession {
             this.showingRecentHistory = false;
             this.recentHistory = null;
             console.log(chalk.green('\n✅ 履歴選択モードを解除しました\n'));
+            console.log(chalk.cyan('🔄 メッセージを再取得中...\n'));
+            await this.fetchMessages(null, null, true); // skipCache = true
+            this.displayMessages();
             continue;
           }
           // If not in recent history mode, just continue (don't do anything)
