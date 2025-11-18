@@ -483,6 +483,14 @@ class ChatSession {
           continue;
         }
 
+        // Handle /reload command - Reload thread messages (skip cache)
+        if (halfWidthText === '/reload' || halfWidthText === '/rl') {
+          console.log(chalk.cyan('\n🔄 メッセージを再取得中...\n'));
+          await this.fetchMessages(null, null, true); // skipCache = true
+          this.displayMessages();
+          continue;
+        }
+
         // Handle /recent command - Show today's conversation history
         if (halfWidthText === '/recent' || halfWidthText === '/r') {
           await this.commandHandler.showRecentHistory();
@@ -533,6 +541,7 @@ class ChatSession {
     
     console.log(chalk.yellow('  /recent, /r') + chalk.gray('      - 今日の会話履歴から選択'));
     console.log(chalk.yellow('  /refresh') + chalk.gray('        - 今日の投稿を検索して履歴に追加'));
+    console.log(chalk.yellow('  /reload, /rl') + chalk.gray('    - メッセージを再取得（最新の状態に更新）'));
     console.log(chalk.yellow('  /clear') + chalk.gray('          - 履歴キャッシュをクリア'));
     console.log(chalk.yellow('  /w, /web') + chalk.gray('        - ブラウザで開く'));
     console.log(chalk.yellow('  /link [番号]') + chalk.gray('    - メッセージリンクを表示（例: /link 5）'));
@@ -642,8 +651,8 @@ async function channelChat() {
     // Get today's history
     const history = historyManager.getTodayHistory();
     
-    // Get recent :eyes: reactions (limit to 20)
-    const reactions = await client.getReactions(20, 'eyes');
+    // Get recent :eyes: reactions (limit to 100 to show more)
+    const reactions = await client.getReactions(100, 'eyes');
     
     // Merge reactions with history
     const mergedHistory = [...history];

@@ -19,8 +19,8 @@ class ThreadDisplay {
     console.log(chalk.gray('='.repeat(80)));
     console.log('');
 
-    // Show last 30 messages
-    const displayReplies = replies.slice(-30);
+    // Show all messages
+    const displayReplies = replies;
 
     displayReplies.forEach((reply, i) => {
       // Convert ts (Unix timestamp as string) to Date
@@ -33,7 +33,7 @@ class ThreadDisplay {
         second: '2-digit'
       });
 
-      const index = replies.length - displayReplies.length + i + 1;
+      const index = i + 1;
       
       // Show thread indicator
       const threadIndicator = reply.reply_count > 0
