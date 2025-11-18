@@ -552,6 +552,16 @@ class ChatSession {
           return;
         }
 
+        // If in recent history mode and input is not a command, don't send as message
+        if (this.showingRecentHistory) {
+          console.log(chalk.yellow('\n⚠️  履歴選択モード中です。番号を入力するか、コマンドを実行してください\n'));
+          console.log(chalk.gray('💡 ヒント: 数字 または /数字 で移動（例: 1 または /1）'));
+          console.log(chalk.gray('💡 通常モードに戻るには別のコマンドを実行してください\n'));
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
+          continue;
+        }
+
         await this.sendAndDisplay(trimmedText);
 
       } catch (error) {
