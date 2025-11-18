@@ -437,6 +437,14 @@ class ChatSession {
           continue;
         }
 
+        // Handle /copy or /link command - Copy message link to clipboard
+        if (trimmedText.startsWith('/copy') || trimmedText.startsWith('/link')) {
+          const parts = trimmedText.split(/\s+/);
+          const msgNumber = parts[1]; // Optional message number
+          await this.commandHandler.copyMessageLink(msgNumber);
+          continue;
+        }
+
         // Handle /recent command - Show today's conversation history
         if (trimmedText === '/recent' || trimmedText === '/r') {
           await this.commandHandler.showRecentHistory();
@@ -488,7 +496,9 @@ class ChatSession {
     console.log(chalk.yellow('  /recent, /r') + chalk.gray('      - 今日の会話履歴から選択'));
     console.log(chalk.yellow('  /refresh') + chalk.gray('        - 今日の投稿を検索して履歴に追加'));
     console.log(chalk.yellow('  /clear') + chalk.gray('          - 履歴キャッシュをクリア'));
-    console.log(chalk.yellow('  /w') + chalk.gray('              - ブラウザで開く'));
+    console.log(chalk.yellow('  /w, /web') + chalk.gray('        - ブラウザで開く'));
+    console.log(chalk.yellow('  /copy [番号]') + chalk.gray('    - メッセージリンクをコピー（例: /copy 5）'));
+    console.log(chalk.yellow('  /link [番号]') + chalk.gray('    - メッセージリンクをコピー（/copyと同じ）'));
     console.log(chalk.yellow('  /rm <番号...>') + chalk.gray('    - メッセージを削除（例: /rm 5 または /rm 1 3 5）'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
@@ -496,6 +506,7 @@ class ChatSession {
     console.log(chalk.yellow('  @user[Tab]') + chalk.gray('      - メンション補完（例: @tak[Tab]、@channel等）'));
     console.log(chalk.yellow('  Ctrl+R') + chalk.gray('          - 今日の会話履歴から選択'));
     console.log(chalk.yellow('  Ctrl+W') + chalk.gray('          - ブラウザで開く'));
+    console.log(chalk.yellow('  Ctrl+L') + chalk.gray('          - メッセージリンクをコピー'));
     console.log(chalk.yellow('  Ctrl+E') + chalk.gray('          - エディタ(vim/nano)を起動'));
     console.log(chalk.yellow('  Ctrl+C') + chalk.gray('          - 終了'));
     console.log();

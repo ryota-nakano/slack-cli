@@ -333,6 +333,86 @@ class CommandHandler {
       console.error(chalk.red(`\n❌ ブラウザで開けませんでした: ${error.message}\n`));
     }
   }
+
+  /**
+   * Handle /copy or /link command - Copy message link to clipboard
+   * @param {string} msgNumber - Optional message number (e.g., "5")
+   */
+  async copyMessageLink(msgNumber) {
+    try {
+      const { execSync } = require('child_process');
+      
+      let url;
+      let messageTs;
+      
+      // If message number is provided, get that specific message's link
+      if (msgNumber) {
+        const num = parseInt(msgNumber, 10);
+        if (isNaN(num) || num < 1 || num > this.session.messages.length) {
+          console.log(chalk.yellow(`\n⚠️  履歴番号 ${msgNumber} は存在しません\n`));
+          return;
+        }
+        
+        const message = this.session.messages[num - 1];
+        messageTs = message.ts;
+        
+        // Message link format: https://app.slack.com/client/{team_id}/{channel_id}/thread/{channel_id}-{message_ts}
+        const messageTsFormatted = messageTs.replace('.', '');
+        
+        if (this.session.isThread()) {
+          // If in thread, link to the specific message in thread
+          url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/thread/${this.session.channelId}-${this.session.threadTs.replace('.', '')}?thread_ts=${this.session.threadTs}&cid=${this.session.channelId}`;
+        } else {
+          // If in channel, check if message has thread
+          if (message.thread_ts && message.thread_ts === message.ts) {
+            // This is a thread parent message
+            url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/thread/${this.session.channelId}-${messageTsFormatted}`;
+          } else {
+            // Regular channel message
+            url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/thread/${this.session.channelId}-${messageTsFormatted}`;
+          }
+        }
+      } else {
+        // No number provided - copy current context link
+        if (this.session.isThread()) {
+          const threadTsFormatted = this.session.threadTs.replace('.', '');
+          url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/thread/${this.session.channelId}-${threadTsFormatted}`;
+        } else {
+          url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}`;
+        }
+      }
+
+      // Copy to clipboard using xclip or xsel (Linux), pbcopy (Mac), or clip (Windows)
+      let copyCommand;
+      if (process.platform === 'darwin') {
+        copyCommand = `echo "${url}" | pbcopy`;
+      } else if (process.platform === 'win32') {
+        copyCommand = `echo ${url} | clip`;
+      } else {
+        // Linux - try xclip first, then xsel
+        try {
+          execSync('which xclip', { stdio: 'ignore' });
+          copyCommand = `echo "${url}" | xclip -selection clipboard`;
+        } catch {
+          try {
+            execSync('which xsel', { stdio: 'ignore' });
+            copyCommand = `echo "${url}" | xsel --clipboard`;
+          } catch {
+            console.log(chalk.yellow('\n⚠️  クリップボードツールが見つかりません (xclip または xsel をインストールしてください)\n'));
+            console.log(chalk.cyan(`📋 リンク: ${url}\n`));
+            return;
+          }
+        }
+      }
+      
+      execSync(copyCommand);
+      console.log(chalk.green(`\n✅ リンクをクリップボードにコピーしました\n`));
+      console.log(chalk.gray(`   ${url}\n`));
+      
+    } catch (error) {
+      console.error(chalk.red(`\n❌ リンクのコピーに失敗しました: ${error.message}\n`));
+    }
+  }
 }
 
 module.exports = CommandHandler;
