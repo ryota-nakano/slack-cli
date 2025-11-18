@@ -53,6 +53,17 @@ class ChatSession {
   }
 
   /**
+   * Get context display name for prompt
+   */
+  getPromptName() {
+    // If showing recent history, use "チャンネル選択" instead of channel name
+    if (this.showingRecentHistory) {
+      return 'チャンネル選択';
+    }
+    return this.getContextName();
+  }
+
+  /**
    * Get context display name
    */
   getContextName() {
@@ -316,7 +327,7 @@ class ChatSession {
       try {
         const contextType = this.isThread() ? 'thread' : 'channel';
         const readlineInput = new ReadlineInput([], this.client, contextType, this.channelId);
-        const text = await readlineInput.prompt(this.getContextName());
+        const text = await readlineInput.prompt(this.getPromptName());
 
         // Switch to editor mode
         if (text === '__EDITOR__') {
