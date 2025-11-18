@@ -520,7 +520,8 @@ class SlackMessageAPI {
             threadTs: actualThreadTs,
             type: 'thread',
             threadPreview,
-            reactions: reactionNames
+            reactions: reactionNames,
+            messageTs: message.ts  // ✅ リアクション削除に必要
           });
         } else if (!actualThreadTs && !seenChannels.has(channelId)) {
           seenChannels.add(channelId);
@@ -543,7 +544,8 @@ class SlackMessageAPI {
             channelName,
             threadTs: null,
             type: 'channel',
-            reactions: reactionNames
+            reactions: reactionNames,
+            messageTs: message.ts  // ✅ リアクション削除に必要
           });
         }
       }
@@ -559,6 +561,30 @@ class SlackMessageAPI {
         console.error('Failed to get reactions:', error.message);
       }
       return [];
+    }
+  }
+
+  /**
+   * Remove reaction from a message
+   */
+  async removeReaction(channelId, timestamp, emojiName) {
+    try {
+      await this.client.reactions.remove({
+        channel: channelId,
+        timestamp: timestamp,
+        name: emojiName
+      });
+      return true;
+    } catch (error) {
+      if (error.data?.error === 'missing_scope') {
+        throw new Error('reactions:write スコープが必要です');
+      } else if (error.data?.error === 'not_authed') {
+        throw new Error('認証エラー: トークンが無効です');
+      } else if (error.data?.error === 'no_reaction') {
+        throw new Error('リアクションが見つかりません');
+      } else {
+        throw error;
+      }
     }
   }
 }

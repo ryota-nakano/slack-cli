@@ -615,15 +615,30 @@ async function channelChat() {
           // This prevents index shifting issues
           const sortedNumbers = [...new Set(numbers)].sort((a, b) => b - a);
           const deletedItems = [];
+          const removedReactions = [];
           const invalidNumbers = [];
+          const errors = [];
           
           for (const number of sortedNumbers) {
             if (number > 0 && number <= mergedHistory.length) {
               const item = mergedHistory[number - 1];
-              const deleted = historyManager.deleteByIndex(number - 1);
               
-              if (deleted) {
-                deletedItems.push(`${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''}`);
+              // Check if this is a reaction item
+              if (item.isReactionItem && item.reactions && item.reactions.includes('eyes')) {
+                // Remove :eyes: reaction
+                try {
+                  await client.removeReaction(item.channelId, item.messageTs, 'eyes');
+                  removedReactions.push(`${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''}`);
+                } catch (error) {
+                  errors.push(`${item.channelName}: ${error.message}`);
+                }
+              } else {
+                // Delete from history
+                const deleted = historyManager.deleteByIndex(number - 1);
+                
+                if (deleted) {
+                  deletedItems.push(`${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''}`);
+                }
               }
             } else {
               invalidNumbers.push(number);
@@ -635,6 +650,20 @@ async function channelChat() {
             console.log(chalk.green(`\n✅ ${deletedItems.length}件の履歴を削除しました:`));
             deletedItems.forEach(name => {
               console.log(chalk.gray(`  - ${name}`));
+            });
+          }
+          
+          if (removedReactions.length > 0) {
+            console.log(chalk.green(`\n✅ ${removedReactions.length}件のリアクションを削除しました:`));
+            removedReactions.forEach(name => {
+              console.log(chalk.gray(`  - ${name}`));
+            });
+          }
+          
+          if (errors.length > 0) {
+            console.log(chalk.red(`\n❌ エラーが発生しました:`));
+            errors.forEach(err => {
+              console.log(chalk.gray(`  - ${err}`));
             });
           }
           

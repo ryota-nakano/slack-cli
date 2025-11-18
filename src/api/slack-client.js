@@ -104,6 +104,10 @@ class SlackClient {
     const userId = await this.getCurrentUser();
     return this.messageAPI.getReactions(userId, limit, emojiName);
   }
+
+  async removeReaction(channelId, timestamp, emojiName) {
+    return this.messageAPI.removeReaction(channelId, timestamp, emojiName);
+  }
 }
 
 module.exports = SlackClient;
