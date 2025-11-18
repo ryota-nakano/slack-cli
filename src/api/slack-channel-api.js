@@ -145,6 +145,42 @@ class SlackChannelAPI {
       return [];
     }
   }
+
+  /**
+   * List all DMs (Direct Messages) with caching
+   * Includes both 1:1 DMs (im) and multi-person DMs (mpim)
+   */
+  async listDMs(forceRefresh = false) {
+    if (!forceRefresh && this.cache.isDMCacheValid()) {
+      return this.cache.getDMs();
+    }
+
+    try {
+      let dms = [];
+      let cursor = undefined;
+
+      do {
+        const result = await this.client.conversations.list({
+          types: 'im,mpim',
+          exclude_archived: true,
+          limit: 1000,
+          cursor: cursor
+        });
+
+        if (result.channels) {
+          dms = dms.concat(result.channels);
+        }
+
+        cursor = result.response_metadata?.next_cursor;
+      } while (cursor);
+
+      this.cache.updateDMs(dms);
+      return dms;
+    } catch (error) {
+      console.error('Failed to fetch DMs:', error.message);
+      return this.cache.getDMs();
+    }
+  }
 }
 
 module.exports = SlackChannelAPI;

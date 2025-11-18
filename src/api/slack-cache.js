@@ -11,6 +11,7 @@ class SlackCache {
   constructor() {
     this.cacheDir = path.join(os.homedir(), '.slack-cli');
     this.channelCacheFile = path.join(this.cacheDir, 'channels-cache.json');
+    this.dmCacheFile = path.join(this.cacheDir, 'dms-cache.json');
     this.usersCacheFile = path.join(this.cacheDir, 'users-cache.json');
     this.channelMembersCacheFile = path.join(this.cacheDir, 'channel-members-cache.json');
     this.usergroupsCacheFile = path.join(this.cacheDir, 'usergroups-cache.json');
@@ -21,11 +22,13 @@ class SlackCache {
     }
     
     this.channelCache = { channels: [], timestamp: 0 };
+    this.dmCache = { dms: [], timestamp: 0 };
     this.usersCache = { users: [], timestamp: 0 };
     this.channelMembersCache = {}; // { channelId: { users: [], timestamp: 0 } }
     this.usergroupsCache = { usergroups: [], timestamp: 0 };
     
     this.loadChannelCacheFromFile();
+    this.loadDMCacheFromFile();
     this.loadUsersCacheFromFile();
     this.loadChannelMembersCacheFromFile();
     this.loadUsergroupsCacheFromFile();
@@ -316,6 +319,69 @@ class SlackCache {
    */
   isUsergroupsCacheValid() {
     return this.usergroupsCache.usergroups.length > 0 && this.usergroupsCache.timestamp > 0;
+  }
+
+  /**
+   * Load DM cache from file
+   */
+  loadDMCacheFromFile() {
+    try {
+      if (fs.existsSync(this.dmCacheFile)) {
+        const data = fs.readFileSync(this.dmCacheFile, 'utf8');
+        this.dmCache = JSON.parse(data);
+        
+        // Check if cache is older than 1 hour
+        const cacheAge = Date.now() - this.dmCache.timestamp;
+        const oneHour = 60 * 60 * 1000;
+        
+        if (cacheAge > oneHour) {
+          this.dmCache = { dms: [], timestamp: 0 };
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load DM cache:', error.message);
+      this.dmCache = { dms: [], timestamp: 0 };
+    }
+  }
+
+  /**
+   * Save DM cache to file
+   */
+  saveDMCacheToFile() {
+    try {
+      fs.writeFileSync(
+        this.dmCacheFile,
+        JSON.stringify(this.dmCache, null, 2),
+        'utf8'
+      );
+    } catch (error) {
+      console.error('Failed to save DM cache:', error.message);
+    }
+  }
+
+  /**
+   * Get cached DMs
+   */
+  getDMs() {
+    return this.dmCache.dms;
+  }
+
+  /**
+   * Update DM cache
+   */
+  updateDMs(dms) {
+    this.dmCache = {
+      dms,
+      timestamp: Date.now()
+    };
+    this.saveDMCacheToFile();
+  }
+
+  /**
+   * Check if DM cache is valid
+   */
+  isDMCacheValid() {
+    return this.dmCache.dms.length > 0 && this.dmCache.timestamp > 0;
   }
 }
 

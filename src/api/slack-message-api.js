@@ -354,7 +354,33 @@ class SlackMessageAPI {
 
       for (const match of result.messages.matches) {
         const channelId = match.channel.id;
-        const channelName = match.channel.name;
+        let channelName = match.channel.name;
+        const channelType = match.channel.is_im ? 'dm' : 
+                          match.channel.is_mpim ? 'dm' : 
+                          match.channel.is_group ? 'channel' : 'channel';
+        
+        // For DMs, get the user name instead of channel name
+        if ((match.channel.is_im || match.channel.is_mpim) && !channelName) {
+          // Try to get channel info to find the user
+          try {
+            const channelInfo = await this.client.conversations.info({ channel: channelId });
+            if (channelInfo.channel) {
+              if (channelInfo.channel.user) {
+                // 1:1 DM - get the other user's name
+                const userInfo = await this.userAPI.getUserInfo(channelInfo.channel.user);
+                channelName = `DM: ${userInfo.profile?.display_name || userInfo.real_name || userInfo.name}`;
+              } else if (channelInfo.channel.name) {
+                // Group DM
+                channelName = `DM: ${channelInfo.channel.name}`;
+              } else {
+                channelName = `DM: ${channelId}`;
+              }
+            }
+          } catch (error) {
+            channelName = `DM: ${channelId}`;
+          }
+        }
+        
         const threadTs = match.ts === match.thread_ts ? null : match.thread_ts;
         const key = threadTs ? `${channelId}:${threadTs}` : channelId;
 
@@ -373,7 +399,7 @@ class SlackMessageAPI {
             channelId,
             channelName,
             threadTs: null,
-            type: 'channel',
+            type: channelType,
             text: match.text
           });
         }
@@ -433,11 +459,28 @@ class SlackMessageAPI {
       const userObjectCache = {}; // Full user objects for mention formatting
       
       await Promise.all([
-        // Fetch channel names
+        // Fetch channel names (and handle DMs)
         ...Array.from(channelIds).map(async (channelId) => {
           try {
             const channelInfo = await this.client.conversations.info({ channel: channelId });
-            channelNameCache[channelId] = channelInfo.channel.name;
+            const channel = channelInfo.channel;
+            
+            // Check if this is a DM
+            if (channel.is_im || channel.is_mpim) {
+              if (channel.user) {
+                // 1:1 DM - get the other user's name
+                const dmUserInfo = await this.userAPI.getUserInfo(channel.user);
+                channelNameCache[channelId] = `DM: ${dmUserInfo.profile?.display_name || dmUserInfo.real_name || dmUserInfo.name}`;
+              } else if (channel.name) {
+                // Group DM
+                channelNameCache[channelId] = `DM: ${channel.name}`;
+              } else {
+                channelNameCache[channelId] = `DM: ${channelId}`;
+              }
+            } else {
+              // Regular channel
+              channelNameCache[channelId] = channel.name || channelId;
+            }
           } catch (error) {
             channelNameCache[channelId] = channelId;
           }

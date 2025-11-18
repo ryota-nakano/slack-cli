@@ -69,6 +69,10 @@ class SlackClient {
     return this.channelAPI.getChannelMembers(channelId);
   }
 
+  async listDMs(forceRefresh = false) {
+    return this.channelAPI.listDMs(forceRefresh);
+  }
+
   // ============ Message API Methods ============
 
   async getThreadReplies(channelId, threadTs) {

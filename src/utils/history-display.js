@@ -52,9 +52,10 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
     return;
   }
 
-  // Separate into CLI threads, CLI channels, and eyes reactions
+  // Separate into CLI threads, CLI channels, CLI DMs, and eyes reactions
   const cliThreads = [];
   const cliChannels = [];
+  const cliDMs = [];
   const eyesItems = [];
   
   // Create a set of CLI thread/channel identifiers for quick lookup
@@ -79,6 +80,8 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
       
       if (item.type === 'thread') {
         cliThreads.push(item);
+      } else if (item.type === 'dm') {
+        cliDMs.push(item);
       } else {
         cliChannels.push(item);
       }
@@ -90,6 +93,7 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
   // Filter eyes reactions to only show items NOT in CLI history
   const eyesThreads = [];
   const eyesChannels = [];
+  const eyesDMs = [];
   
   for (const item of eyesItems) {
     const identifier = item.threadTs 
@@ -100,6 +104,8 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
     if (!cliIdentifiers.has(identifier)) {
       if (item.type === 'thread') {
         eyesThreads.push(item);
+      } else if (item.channelName && item.channelName.startsWith('DM: ')) {
+        eyesDMs.push(item);
       } else {
         eyesChannels.push(item);
       }
@@ -127,10 +133,22 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
     }
   }
   
-  // Display eyes reactions (threads and channels together, excluding CLI history)
-  const allEyesReactions = [...eyesThreads, ...eyesChannels];
-  if (allEyesReactions.length > 0) {
+  // Display CLI DMs
+  if (cliDMs.length > 0) {
     if (cliThreads.length > 0 || cliChannels.length > 0) {
+      console.log(''); // Add blank line between sections
+    }
+    console.log(chalk.bold.magenta('💌 DM:\n'));
+    
+    for (const item of cliDMs) {
+      displayChannelItem(item);
+    }
+  }
+  
+  // Display eyes reactions (threads, channels, and DMs together, excluding CLI history)
+  const allEyesReactions = [...eyesThreads, ...eyesChannels, ...eyesDMs];
+  if (allEyesReactions.length > 0) {
+    if (cliThreads.length > 0 || cliChannels.length > 0 || cliDMs.length > 0) {
       console.log(''); // Add blank line between sections
     }
     console.log(chalk.bold.yellow('👀 リアクション:\n'));
