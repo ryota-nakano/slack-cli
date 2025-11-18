@@ -346,13 +346,11 @@ class CommandHandler {
   }
 
   /**
-   * Handle /copy or /link command - Copy message link to clipboard
+   * Handle /link command - Display message link
    * @param {string} msgNumber - Optional message number (e.g., "5")
    */
-  async copyMessageLink(msgNumber) {
+  async showMessageLink(msgNumber) {
     try {
-      const { execSync } = require('child_process');
-      
       let url;
       let messageTs;
       
@@ -385,7 +383,7 @@ class CommandHandler {
           }
         }
       } else {
-        // No number provided - copy current context link
+        // No number provided - show current context link
         if (this.session.isThread()) {
           const threadTsFormatted = this.session.threadTs.replace('.', '');
           url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/thread/${this.session.channelId}-${threadTsFormatted}`;
@@ -394,35 +392,11 @@ class CommandHandler {
         }
       }
 
-      // Copy to clipboard using xclip or xsel (Linux), pbcopy (Mac), or clip (Windows)
-      let copyCommand;
-      if (process.platform === 'darwin') {
-        copyCommand = `echo "${url}" | pbcopy`;
-      } else if (process.platform === 'win32') {
-        copyCommand = `echo ${url} | clip`;
-      } else {
-        // Linux - try xclip first, then xsel
-        try {
-          execSync('which xclip', { stdio: 'ignore' });
-          copyCommand = `echo "${url}" | xclip -selection clipboard`;
-        } catch {
-          try {
-            execSync('which xsel', { stdio: 'ignore' });
-            copyCommand = `echo "${url}" | xsel --clipboard`;
-          } catch {
-            console.log(chalk.yellow('\n⚠️  クリップボードツールが見つかりません (xclip または xsel をインストールしてください)\n'));
-            console.log(chalk.cyan(`📋 リンク: ${url}\n`));
-            return;
-          }
-        }
-      }
-      
-      execSync(copyCommand);
-      console.log(chalk.green(`\n✅ リンクをクリップボードにコピーしました\n`));
-      console.log(chalk.gray(`   ${url}\n`));
+      // Display link for easy copying
+      console.log(chalk.cyan(`\n📋 リンク: ${url}\n`));
       
     } catch (error) {
-      console.error(chalk.red(`\n❌ リンクのコピーに失敗しました: ${error.message}\n`));
+      console.error(chalk.red(`\n❌ リンクの取得に失敗しました: ${error.message}\n`));
     }
   }
 }

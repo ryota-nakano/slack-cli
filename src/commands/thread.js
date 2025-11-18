@@ -449,11 +449,11 @@ class ChatSession {
           continue;
         }
 
-        // Handle /copy or /link command - Copy message link to clipboard
-        if (halfWidthText.startsWith('/copy') || halfWidthText.startsWith('/link')) {
+        // Handle /link command - Display message link
+        if (halfWidthText.startsWith('/link')) {
           const parts = halfWidthText.split(/\s+/);
           const msgNumber = parts[1]; // Optional message number
-          await this.commandHandler.copyMessageLink(msgNumber);
+          await this.commandHandler.showMessageLink(msgNumber);
           continue;
         }
 
@@ -509,8 +509,7 @@ class ChatSession {
     console.log(chalk.yellow('  /refresh') + chalk.gray('        - 今日の投稿を検索して履歴に追加'));
     console.log(chalk.yellow('  /clear') + chalk.gray('          - 履歴キャッシュをクリア'));
     console.log(chalk.yellow('  /w, /web') + chalk.gray('        - ブラウザで開く'));
-    console.log(chalk.yellow('  /copy [番号]') + chalk.gray('    - メッセージリンクをコピー（例: /copy 5）'));
-    console.log(chalk.yellow('  /link [番号]') + chalk.gray('    - メッセージリンクをコピー（/copyと同じ）'));
+    console.log(chalk.yellow('  /link [番号]') + chalk.gray('    - メッセージリンクを表示（例: /link 5）'));
     console.log(chalk.yellow('  /rm <番号...>') + chalk.gray('    - メッセージを削除（例: /rm 5 または /rm 1 3 5）'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
