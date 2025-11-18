@@ -490,33 +490,19 @@ class ChatSession {
   async sendAndDisplay(text) {
     const result = await this.client.sendMessage(this.channelId, text, this.threadTs);
 
-    // Add own message immediately
-    this.messages.push({
-      ts: result.ts,
-      user: this.currentUser.displayName,
-      text: text,
-      timestamp: new Date()
-    });
-
     // Invalidate cache when sending a message
     if (this.isThread()) {
       this.messageCache.invalidate(this.channelId, this.threadTs);
     }
+
+    // Fetch latest messages immediately to get properly formatted message
+    await this.fetchMessages(null, null, true);
 
     // Refresh display
     this.displayMessages();
 
     // Update history immediately when sending a message
     this.updateHistoryTimestamp();
-
-    // Fetch latest in background
-    this.fetchMessages()
-      .then(() => {
-        if (this.messages.length > this.lastDisplayedCount) {
-          this.displayNewMessages();
-        }
-      })
-      .catch(() => {});
   }
 
   /**
