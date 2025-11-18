@@ -99,6 +99,9 @@ class ChatSession {
     });
 
     // Start update polling
+    if (process.env.DEBUG_POLL) {
+      console.error('[DEBUG] ポーリング開始: 10秒間隔でcheckUpdates()を実行');
+    }
     this.updateInterval = setInterval(() => this.checkUpdates(), 10000);
 
     // Handle Ctrl+C
@@ -139,10 +142,19 @@ class ChatSession {
       targetDate.setHours(0, 0, 0, 0);
       const oldest = targetDate.getTime() / 1000;
       
-      // Calculate newest timestamp (end of that day)
-      const newestDate = new Date(targetDate);
-      newestDate.setHours(23, 59, 59, 999);
-      const newest = newestDate.getTime() / 1000;
+      // Calculate newest timestamp
+      // When polling (skipCache=true) and viewing today (days=0), use current time
+      // Otherwise, use end of that day
+      let newest;
+      if (skipCache && days === 0) {
+        // For real-time polling of today's messages, use current time
+        newest = Date.now() / 1000;
+      } else {
+        // For historical view or initial load, use end of day
+        const newestDate = new Date(targetDate);
+        newestDate.setHours(23, 59, 59, 999);
+        newest = newestDate.getTime() / 1000;
+      }
       
       this.currentDate = targetDate;
       this.messages = await this.client.getChannelHistoryRange(this.channelId, oldest, newest, limit);
@@ -154,16 +166,30 @@ class ChatSession {
    */
   async checkUpdates() {
     try {
+      if (process.env.DEBUG_POLL) {
+        console.error(`[DEBUG] checkUpdates() 実行開始 - messages.length=${this.messages.length}`);
+      }
+      
       const oldCount = this.messages.length;
       // Skip cache to get fresh data during polling
       await this.fetchMessages(null, null, true);
 
+      if (process.env.DEBUG_POLL) {
+        console.error(`[DEBUG] checkUpdates() - 新しいmessages.length=${this.messages.length}, oldCount=${oldCount}`);
+      }
+
       if (this.messages.length > oldCount) {
+        if (process.env.DEBUG_POLL) {
+          console.error(`[DEBUG] 新しいメッセージを検出: ${this.messages.length - oldCount}件`);
+        }
         this.displayNewMessages();
         // Update history timestamp when new messages arrive
         this.updateHistoryTimestamp();
       }
     } catch (error) {
+      if (process.env.DEBUG_POLL) {
+        console.error(`[DEBUG] checkUpdates() エラー:`, error.message);
+      }
       // Silent fail
     }
   }

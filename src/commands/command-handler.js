@@ -393,7 +393,7 @@ class CommandHandler {
       }
 
       // Display link for easy copying
-      console.log(chalk.cyan(`\n📋 リンク: ${url}\n`));
+      console.log(chalk.cyan(`\n📋 リンク:\n${url}\n`));
       
     } catch (error) {
       console.error(chalk.red(`\n❌ リンクの取得に失敗しました: ${error.message}\n`));
