@@ -13,6 +13,15 @@ const MessageCache = require('../utils/message-cache');
 const { displayGroupedHistory } = require('../utils/history-display');
 const CommandHandler = require('./command-handler');
 
+/**
+ * Convert full-width numbers to half-width numbers
+ */
+function toHalfWidth(str) {
+  return str.replace(/[０-９]/g, (s) => {
+    return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+  });
+}
+
 class ChatSession {
   constructor(channelId, channelName, threadTs = null) {
     const token = process.env.SLACK_USER_TOKEN || process.env.SLACK_BOT_TOKEN;
@@ -307,9 +316,12 @@ class ChatSession {
           continue;
         }
 
+        // Convert full-width numbers to half-width
+        const halfWidthText = toHalfWidth(trimmedText);
+
         // Handle numbers in /recent mode (without / prefix)
-        if (this.showingRecentHistory && trimmedText.match(/^\d+$/)) {
-          const number = parseInt(trimmedText);
+        if (this.showingRecentHistory && halfWidthText.match(/^\d+$/)) {
+          const number = parseInt(halfWidthText);
           const history = this.recentHistory || this.historyManager.getTodayHistory();
           
           if (number > 0 && number <= history.length) {
@@ -329,8 +341,8 @@ class ChatSession {
         }
 
         // Handle /番号 command
-        if (trimmedText.match(/^\/\d+$/)) {
-          const number = parseInt(trimmedText.substring(1).trim());
+        if (halfWidthText.match(/^\/\d+$/)) {
+          const number = parseInt(halfWidthText.substring(1).trim());
           
           // Check if /recent was just shown - use history navigation
           if (this.showingRecentHistory) {
@@ -364,34 +376,34 @@ class ChatSession {
         }
         
         // Reset showingRecentHistory flag on other commands that are not numbers
-        if (!trimmedText.match(/^\d+$/)) {
+        if (!halfWidthText.match(/^\d+$/)) {
           this.showingRecentHistory = false;
           this.recentHistory = null;
         }
 
         // Handle /back command (thread only) - Return to channel
-        if (this.isThread() && (trimmedText === '/back' || trimmedText === '/b')) {
+        if (this.isThread() && (halfWidthText === '/back' || halfWidthText === '/b')) {
           await this.commandHandler.backToChannel();
           return;
         }
 
         // Handle /rm command
-        if (trimmedText.startsWith('/rm ')) {
-          const msgNumber = trimmedText.substring(4).trim();
+        if (halfWidthText.startsWith('/rm ')) {
+          const msgNumber = halfWidthText.substring(4).trim();
           await this.commandHandler.handleDeleteMessage(msgNumber);
           continue;
         }
 
         // Handle /history command (channel only)
-        if (!this.isThread() && (trimmedText.startsWith('/history') || trimmedText.startsWith('/h'))) {
-          const parts = trimmedText.split(' ');
+        if (!this.isThread() && (halfWidthText.startsWith('/history') || halfWidthText.startsWith('/h'))) {
+          const parts = halfWidthText.split(' ');
           const limit = parseInt(parts[1]) || 20;
           await this.commandHandler.handleHistory(limit);
           continue;
         }
 
         // Handle /prev command (channel only) - Go to previous day
-        if (!this.isThread() && (trimmedText === '/prev' || trimmedText === '/p')) {
+        if (!this.isThread() && (halfWidthText === '/prev' || halfWidthText === '/p')) {
           this.daysBack++;
           await this.fetchMessages();
           this.displayMessages();
@@ -399,7 +411,7 @@ class ChatSession {
         }
 
         // Handle /next command (channel only) - Go to next day
-        if (!this.isThread() && (trimmedText === '/next' || trimmedText === '/n')) {
+        if (!this.isThread() && (halfWidthText === '/next' || halfWidthText === '/n')) {
           if (this.daysBack > 0) {
             this.daysBack--;
             await this.fetchMessages();
@@ -411,7 +423,7 @@ class ChatSession {
         }
 
         // Handle /today command (channel only) - Go back to today
-        if (!this.isThread() && trimmedText === '/today') {
+        if (!this.isThread() && halfWidthText === '/today') {
           this.daysBack = 0;
           await this.fetchMessages();
           this.displayMessages();
@@ -419,46 +431,46 @@ class ChatSession {
         }
 
         // Handle /refresh command - Search and add today's posts to history
-        if (trimmedText === '/refresh' || trimmedText === '/sync') {
+        if (halfWidthText === '/refresh' || halfWidthText === '/sync') {
           await this.commandHandler.refreshTodaysPosts();
           continue;
         }
 
         // Handle /clear command - Clear history cache
-        if (trimmedText === '/clear') {
+        if (halfWidthText === '/clear') {
           this.historyManager.clearHistory();
           console.log(chalk.green('\n✅ 履歴キャッシュをクリアしました\n'));
           continue;
         }
 
         // Handle /w or /web command - Open in browser
-        if (trimmedText === '/w' || trimmedText === '/web') {
+        if (halfWidthText === '/w' || halfWidthText === '/web') {
           await this.commandHandler.openInBrowser();
           continue;
         }
 
         // Handle /copy or /link command - Copy message link to clipboard
-        if (trimmedText.startsWith('/copy') || trimmedText.startsWith('/link')) {
-          const parts = trimmedText.split(/\s+/);
+        if (halfWidthText.startsWith('/copy') || halfWidthText.startsWith('/link')) {
+          const parts = halfWidthText.split(/\s+/);
           const msgNumber = parts[1]; // Optional message number
           await this.commandHandler.copyMessageLink(msgNumber);
           continue;
         }
 
         // Handle /recent command - Show today's conversation history
-        if (trimmedText === '/recent' || trimmedText === '/r') {
+        if (halfWidthText === '/recent' || halfWidthText === '/r') {
           await this.commandHandler.showRecentHistory();
           continue;
         }
 
         // Handle /help command
-        if (trimmedText === '/help') {
+        if (halfWidthText === '/help') {
           this.showChatHelp();
           continue;
         }
 
         // Handle /exit command
-        if (trimmedText === '/exit' || trimmedText === '/quit' || trimmedText === '/q') {
+        if (halfWidthText === '/exit' || halfWidthText === '/quit' || halfWidthText === '/q') {
           this.cleanup();
           return;
         }
@@ -653,10 +665,11 @@ async function channelChat() {
     // Handle number-only input for history selection (without /)
     if (typeof result === 'string') {
       const trimmed = result.trim();
-      const number = parseInt(trimmed);
+      const halfWidthTrimmed = toHalfWidth(trimmed);
+      const number = parseInt(halfWidthTrimmed);
       
       // If input is a pure number (not starting with /), treat as history selection
-      if (!isNaN(number) && trimmed === number.toString() && number > 0) {
+      if (!isNaN(number) && halfWidthTrimmed === number.toString() && number > 0) {
         if (number <= mergedHistory.length) {
           const item = mergedHistory[number - 1];
           console.log(chalk.cyan(`\n📂 ${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''} を開いています...\n`));
@@ -674,17 +687,18 @@ async function channelChat() {
     // Handle /number command for history selection (with /)
     if (typeof result === 'string' && result.startsWith('/')) {
       const command = result.substring(1).trim();
+      const halfWidthCommand = toHalfWidth(command);
       
       // Handle /clear command
-      if (command === 'clear') {
+      if (halfWidthCommand === 'clear') {
         historyManager.clearHistory();
         console.log(chalk.green('\n✅ 履歴キャッシュをクリアしました\n'));
         return await channelChat();
       }
       
       // Handle /delete or /del command
-      if (command.startsWith('delete ') || command.startsWith('del ')) {
-        const parts = command.split(' ').slice(1); // Remove command name
+      if (halfWidthCommand.startsWith('delete ') || halfWidthCommand.startsWith('del ')) {
+        const parts = halfWidthCommand.split(' ').slice(1); // Remove command name
         const numbers = parts.map(p => parseInt(p)).filter(n => !isNaN(n));
         
         if (numbers.length === 0) {
@@ -757,7 +771,7 @@ async function channelChat() {
       }
       
       // Handle /number for opening
-      const number = parseInt(command);
+      const number = parseInt(halfWidthCommand);
       
       if (!isNaN(number) && number > 0 && number <= mergedHistory.length) {
         const item = mergedHistory[number - 1];

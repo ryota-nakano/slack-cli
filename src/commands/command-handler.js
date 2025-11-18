@@ -6,6 +6,15 @@
 const chalk = require('chalk');
 const { displayGroupedHistory } = require('../utils/history-display');
 
+/**
+ * Convert full-width numbers to half-width numbers
+ */
+function toHalfWidth(str) {
+  return str.replace(/[０-９]/g, (s) => {
+    return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+  });
+}
+
 class CommandHandler {
   constructor(chatSession) {
     this.session = chatSession;
@@ -19,7 +28,8 @@ class CommandHandler {
    * Supports multiple message deletion: /rm 1 3 5
    */
   async handleDeleteMessage(msgNumbers) {
-    const parts = msgNumbers.split(' ').filter(p => p.trim());
+    const halfWidthMsgNumbers = toHalfWidth(msgNumbers);
+    const parts = halfWidthMsgNumbers.split(' ').filter(p => p.trim());
     const numbers = parts.map(p => parseInt(p, 10)).filter(n => !isNaN(n));
     
     if (numbers.length === 0) {
@@ -191,7 +201,8 @@ class CommandHandler {
    * Handle entering a thread from channel
    */
   async enterThread(msgNumber) {
-    const num = parseInt(msgNumber, 10);
+    const halfWidthMsgNumber = toHalfWidth(msgNumber);
+    const num = parseInt(halfWidthMsgNumber, 10);
     
     if (isNaN(num) || num < 1 || num > this.session.messages.length) {
       console.log(chalk.red(`\n❌ 無効なメッセージ番号: ${msgNumber}`));
@@ -347,7 +358,8 @@ class CommandHandler {
       
       // If message number is provided, get that specific message's link
       if (msgNumber) {
-        const num = parseInt(msgNumber, 10);
+        const halfWidthMsgNumber = toHalfWidth(msgNumber);
+        const num = parseInt(halfWidthMsgNumber, 10);
         if (isNaN(num) || num < 1 || num > this.session.messages.length) {
           console.log(chalk.yellow(`\n⚠️  履歴番号 ${msgNumber} は存在しません\n`));
           return;
