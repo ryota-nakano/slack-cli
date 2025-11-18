@@ -37,6 +37,9 @@ class CommandHandler {
       return;
     }
     
+    // For threads, use allMessages for indexing
+    const messageArray = this.session.isThread() ? this.session.allMessages : this.session.messages;
+    
     // Sort numbers in descending order to delete from bottom to top
     // This prevents index shifting issues
     const sortedNumbers = [...new Set(numbers)].sort((a, b) => b - a);
@@ -45,12 +48,12 @@ class CommandHandler {
     const failedDeletes = [];
     
     for (const num of sortedNumbers) {
-      if (num < 1 || num > this.session.messages.length) {
+      if (num < 1 || num > messageArray.length) {
         invalidNumbers.push(num);
         continue;
       }
       
-      const message = this.session.messages[num - 1];
+      const message = messageArray[num - 1];
       
       try {
         await this.client.deleteMessage(this.session.channelId, message.ts);
@@ -67,7 +70,7 @@ class CommandHandler {
     
     if (invalidNumbers.length > 0) {
       console.log(chalk.yellow(`\n⚠️  存在しない番号: ${invalidNumbers.join(', ')}`));
-      console.log(chalk.yellow(`💡 有効な番号: 1-${this.session.messages.length}`));
+      console.log(chalk.yellow(`💡 有効な番号: 1-${messageArray.length}`));
     }
     
     if (failedDeletes.length > 0) {
@@ -77,7 +80,11 @@ class CommandHandler {
     
     // Refresh messages if any were deleted
     if (deletedMessages.length > 0) {
-      await this.session.fetchMessages();
+      // Invalidate cache for threads
+      if (this.session.isThread()) {
+        this.messageCache.invalidate(this.session.channelId, this.session.threadTs);
+      }
+      await this.session.fetchMessages(null, null, true);
       this.session.displayMessages();
     }
   }
@@ -254,10 +261,10 @@ class CommandHandler {
     }
 
     // Save thread to history before going back
-    // Get first message from session if available
+    // Get first message from allMessages if available
     let threadPreview = null;
-    if (this.session.messages && this.session.messages.length > 0) {
-      const firstMsg = this.session.messages[0];
+    if (this.session.allMessages && this.session.allMessages.length > 0) {
+      const firstMsg = this.session.allMessages[0];
       threadPreview = {
         text: firstMsg.text || '',
         user: firstMsg.user,
@@ -358,12 +365,16 @@ class CommandHandler {
       if (msgNumber) {
         const halfWidthMsgNumber = toHalfWidth(msgNumber);
         const num = parseInt(halfWidthMsgNumber, 10);
-        if (isNaN(num) || num < 1 || num > this.session.messages.length) {
+        
+        // For threads, use allMessages for indexing
+        const messageArray = this.session.isThread() ? this.session.allMessages : this.session.messages;
+        
+        if (isNaN(num) || num < 1 || num > messageArray.length) {
           console.log(chalk.yellow(`\n⚠️  履歴番号 ${msgNumber} は存在しません\n`));
           return;
         }
         
-        const message = this.session.messages[num - 1];
+        const message = messageArray[num - 1];
         messageTs = message.ts;
         
         // Message link format: https://app.slack.com/client/{team_id}/{channel_id}/thread/{channel_id}-{message_ts}

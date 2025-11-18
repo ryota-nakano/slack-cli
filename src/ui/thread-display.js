@@ -12,8 +12,10 @@ class ThreadDisplay {
 
   /**
    * Display all messages in thread
+   * @param {Array} replies - Messages to display
+   * @param {number} startIndex - Starting index for numbering (for partial display)
    */
-  displayMessages(replies) {
+  displayMessages(replies, startIndex = 0) {
     console.clear();
     console.log(chalk.bold.cyan(`\n#${this.channelName} のスレッド`));
     console.log(chalk.gray('='.repeat(80)));
@@ -33,7 +35,8 @@ class ThreadDisplay {
         second: '2-digit'
       });
 
-      const index = i + 1;
+      // Use actual index in the full thread
+      const index = startIndex + i + 1;
       
       // Show thread indicator
       const threadIndicator = reply.reply_count > 0

@@ -31,6 +31,8 @@ class ChatSession {
     this.threadTs = threadTs; // null = channel chat, value = thread chat
     this.currentUser = null;
     this.messages = [];
+    this.allMessages = []; // Store all messages for threads
+    this.displayCount = 30; // Number of messages to display
     this.lastDisplayedCount = 0;
     this.updateInterval = null;
     this.display = null;
@@ -78,8 +80,8 @@ class ChatSession {
 
     // Prepare thread preview for caching
     let threadPreview = null;
-    if (this.isThread() && this.messages.length > 0) {
-      const firstMsg = this.messages[0];
+    if (this.isThread() && this.allMessages.length > 0) {
+      const firstMsg = this.allMessages[0];
       const text = firstMsg.text || '';
       threadPreview = {
         text: text,  // Store full text, not just first line
@@ -121,16 +123,21 @@ class ChatSession {
       if (!skipCache) {
         const cached = this.messageCache.get(this.channelId, this.threadTs);
         if (cached) {
-          this.messages = cached;
+          this.allMessages = cached;
+          // Display only the latest displayCount messages
+          this.messages = this.allMessages.slice(-this.displayCount);
           return;
         }
       }
       
       // For threads, get all replies (no date filtering)
-      this.messages = await this.client.getThreadReplies(this.channelId, this.threadTs);
+      this.allMessages = await this.client.getThreadReplies(this.channelId, this.threadTs);
+      
+      // Display only the latest displayCount messages
+      this.messages = this.allMessages.slice(-this.displayCount);
       
       // Save to cache
-      this.messageCache.set(this.channelId, this.messages, this.threadTs);
+      this.messageCache.set(this.channelId, this.allMessages, this.threadTs);
     } else {
       // For channels, don't cache (messages change frequently by date)
       // Use daysBack parameter or instance variable
@@ -217,9 +224,20 @@ class ChatSession {
       if (this.daysBack > 0) {
         console.log(chalk.gray(`   (${this.daysBack}日前)`));
       }
+      
+      this.display.displayMessages(this.messages);
+    } else {
+      // For threads, show if there are more messages available
+      if (this.allMessages.length > this.messages.length) {
+        const hiddenCount = this.allMessages.length - this.messages.length;
+        console.log(chalk.yellow(`\n💡 過去のメッセージが ${hiddenCount} 件あります。/more で表示できます。\n`));
+      }
+      
+      // Calculate start index for numbering (how many messages are hidden)
+      const startIndex = this.allMessages.length - this.messages.length;
+      this.display.displayMessages(this.messages, startIndex);
     }
     
-    this.display.displayMessages(this.messages);
     this.lastDisplayedCount = this.messages.length;
     
     // Mark as read (for today's messages only)
@@ -491,6 +509,20 @@ class ChatSession {
           continue;
         }
 
+        // Handle /more command (thread only) - Load more messages from history
+        if (this.isThread() && (halfWidthText === '/more' || halfWidthText === '/m')) {
+          if (this.allMessages.length > this.messages.length) {
+            // Increase display count by 30
+            this.displayCount += 30;
+            // Update messages to show more
+            this.messages = this.allMessages.slice(-this.displayCount);
+            this.displayMessages();
+          } else {
+            console.log(chalk.yellow('\n💡 これ以上過去のメッセージはありません\n'));
+          }
+          continue;
+        }
+
         // Handle /recent command - Show today's conversation history
         if (halfWidthText === '/recent' || halfWidthText === '/r') {
           await this.commandHandler.showRecentHistory();
@@ -537,6 +569,7 @@ class ChatSession {
       console.log(chalk.gray('    💡 デフォルトでは今日のメッセージのみ表示されます'));
     } else {
       console.log(chalk.yellow('  /back, /b') + chalk.gray('       - チャンネルに戻る'));
+      console.log(chalk.yellow('  /more, /m') + chalk.gray('       - さらに30件の過去メッセージを表示'));
     }
     
     console.log(chalk.yellow('  /recent, /r') + chalk.gray('      - 今日の会話履歴から選択'));
@@ -564,8 +597,8 @@ class ChatSession {
   updateHistoryTimestamp() {
     // Prepare thread preview if in thread context
     let threadPreview = null;
-    if (this.isThread() && this.messages.length > 0) {
-      const firstMsg = this.messages[0];
+    if (this.isThread() && this.allMessages.length > 0) {
+      const firstMsg = this.allMessages[0];
       const text = firstMsg.text || '';
       const firstLine = text.split('\n')[0].substring(0, 50);
       threadPreview = {
@@ -595,10 +628,17 @@ class ChatSession {
     // Invalidate cache when sending a message
     if (this.isThread()) {
       this.messageCache.invalidate(this.channelId, this.threadTs);
+      // Maintain current display count when refreshing
+      const currentDisplayCount = this.displayCount;
+      await this.fetchMessages(null, null, true);
+      this.displayCount = currentDisplayCount;
+      // Make sure the new message is visible
+      if (this.allMessages.length > this.messages.length) {
+        this.messages = this.allMessages.slice(-this.displayCount);
+      }
+    } else {
+      await this.fetchMessages(null, null, true);
     }
-
-    // Fetch latest messages immediately to get properly formatted message
-    await this.fetchMessages(null, null, true);
 
     // Refresh display
     this.displayMessages();
