@@ -267,8 +267,17 @@ class ChatSession {
 
         // Switch to editor mode
         if (text === '__EDITOR__') {
+          // Stop polling while in editor mode
+          if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
+          }
+          
           const editorInput = new EditorInput();
           const editorText = await editorInput.prompt();
+          
+          // Resume polling after exiting editor
+          this.updateInterval = setInterval(() => this.checkUpdates(), 10000);
           
           if (editorText === '__CANCELLED__') {
             this.displayMessages();
