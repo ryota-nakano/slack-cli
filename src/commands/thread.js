@@ -431,8 +431,8 @@ class ChatSession {
           continue;
         }
 
-        // Handle /w command - Open in browser
-        if (trimmedText === '/w') {
+        // Handle /w or /web command - Open in browser
+        if (trimmedText === '/w' || trimmedText === '/web') {
           await this.commandHandler.openInBrowser();
           continue;
         }

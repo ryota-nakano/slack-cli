@@ -419,6 +419,7 @@ class ReadlineInput {
         { command: '/back', description: 'チャンネルに戻る', alias: '/b' },
         { command: '/recent', description: '今日の会話履歴から選択', alias: '/r' },
         { command: '/refresh', description: '今日の投稿を検索して履歴に追加', alias: '/sync' },
+        { command: '/w', description: 'ブラウザで開く (Ctrl+W)', alias: '/web' },
         { command: '/rm', description: 'メッセージを削除（例: /rm 1 3 5）' },
         { command: '/exit', description: 'チャット終了', alias: '/quit, /q' },
         { command: '/help', description: 'ヘルプを表示' }
@@ -433,6 +434,7 @@ class ReadlineInput {
         { command: '/history', description: '過去の履歴を表示', alias: '/h [件数]' },
         { command: '/recent', description: '今日の会話履歴から選択', alias: '/r' },
         { command: '/refresh', description: '今日の投稿を検索して履歴に追加', alias: '/sync' },
+        { command: '/w', description: 'ブラウザで開く (Ctrl+W)', alias: '/web' },
         { command: '/rm', description: 'メッセージを削除（例: /rm 1 3 5）' },
         { command: '/exit', description: 'チャット終了', alias: '/quit, /q' },
         { command: '/help', description: 'ヘルプを表示' }
