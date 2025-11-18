@@ -625,30 +625,13 @@ async function channelChat() {
             if (number > 0 && number <= mergedHistory.length) {
               const item = mergedHistory[number - 1];
               
-              // ✅ デバッグ: アイテムの情報を表示
-              if (process.env.DEBUG_DELETE) {
-                console.error(`[DEBUG] アイテム ${number}:`, {
-                  channelName: item.channelName,
-                  isReactionItem: item.isReactionItem,
-                  reactions: item.reactions,
-                  messageTs: item.messageTs,
-                  type: item.type
-                });
-              }
-              
               // Check if this is a reaction item
               if (item.isReactionItem && item.reactions && item.reactions.includes('eyes')) {
                 // Remove :eyes: reaction
                 try {
-                  if (process.env.DEBUG_DELETE) {
-                    console.error(`[DEBUG] リアクション削除を試行: channelId=${item.channelId}, messageTs=${item.messageTs}`);
-                  }
                   await client.removeReaction(item.channelId, item.messageTs, 'eyes');
                   removedReactions.push(`${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''}`);
                 } catch (error) {
-                  if (process.env.DEBUG_DELETE) {
-                    console.error(`[DEBUG] リアクション削除エラー:`, error);
-                  }
                   errors.push(`${item.channelName}: ${error.message}`);
                 }
               } else {
