@@ -78,13 +78,20 @@ slack setup
    - `users:read` - ユーザー情報を読む
    - `groups:history` - プライベートチャンネルの履歴を読む
    - `groups:read` - プライベートチャンネル一覧を読む
+   - `im:history` - DM（ダイレクトメッセージ）の履歴を読む
+   - `im:read` - DM一覧を読む
+   - `mpim:history` - グループDMの履歴を読む
+   - `mpim:read` - グループDM一覧を読む
    - `search:read` - メッセージ検索（/refreshコマンド用）
    
    **オプションスコープ：**
    - `usergroups:read` - ユーザーグループ（@developers等）の名前を表示
    - `channels:write` - 既読マーク機能（チャンネル用）
    - `groups:write` - 既読マーク機能（プライベートチャンネル用）
+   - `im:write` - 既読マーク機能（DM用）
+   - `mpim:write` - 既読マーク機能（グループDM用）
    - `reactions:read` - リアクションしたメッセージの一覧取得（/rコマンドで表示）
+   - `reactions:write` - リアクションの削除（/delete コマンドでリアクション削除）
    
 5. ワークスペースにインストールしてトークンを取得
 
@@ -92,8 +99,11 @@ slack setup
 
 **Note:** 
 - `usergroups:read` スコープがない場合、グループメンションは `@<GROUP_ID>` 形式で表示されます
-- `channels:write`/`groups:write` スコープがない場合、既読マーク機能は動作しませんが、他の機能は正常に使えます
+- `channels:write`/`groups:write`/`im:write`/`mpim:write` スコープがない場合、既読マーク機能は動作しませんが、他の機能は正常に使えます
 - `reactions:read` スコープがない場合、リアクションしたメッセージは履歴に表示されません
+- `reactions:write` スコープがない場合、リアクションの削除はできません
+- `im:history`/`im:read` スコープがない場合、DMは表示できません
+- `mpim:history`/`mpim:read` スコープがない場合、グループDMは表示できません
 
 ### 設定ファイルの場所
 

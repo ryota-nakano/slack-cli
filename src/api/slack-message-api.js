@@ -62,8 +62,16 @@ class SlackMessageAPI {
   async formatMentionsInText(text, usersCache, usergroupsCache = null) {
     if (!text) return '';
     
+    // Decode HTML entities first
+    let formattedText = text
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+    
     // Replace user mentions <@USER_ID> with @display_name (yellow)
-    let formattedText = text.replace(/<@([A-Z0-9]+)>/g, (match, userId) => {
+    formattedText = formattedText.replace(/<@([A-Z0-9]+)>/g, (match, userId) => {
       const user = usersCache.find(u => u.id === userId);
       if (user) {
         return chalk.yellow(`@${UserHelper.getDisplayName(user)}`);
@@ -160,7 +168,30 @@ class SlackMessageAPI {
 
       return messages;
     } catch (error) {
-      console.error('Failed to fetch thread replies:', error.message);
+      // Handle specific error cases
+      if (error.data?.error === 'missing_scope') {
+        // Check if this is a DM channel
+        try {
+          const channelInfo = await this.client.conversations.info({ channel: channelId });
+          if (channelInfo.channel?.is_im || channelInfo.channel?.is_mpim) {
+            console.error(chalk.yellow('\n⚠️  im:history スコープが必要です'));
+            console.error(chalk.gray('DM（ダイレクトメッセージ）を表示するには、Slack Appに im:history スコープを追加してください\n'));
+          } else if (channelInfo.channel?.is_private) {
+            console.error(chalk.yellow('\n⚠️  groups:history スコープが必要です'));
+            console.error(chalk.gray('プライベートチャンネルを表示するには、Slack Appに groups:history スコープを追加してください\n'));
+          } else {
+            console.error(chalk.yellow('\n⚠️  channels:history スコープが必要です'));
+            console.error(chalk.gray('チャンネルを表示するには、Slack Appに channels:history スコープを追加してください\n'));
+          }
+        } catch {
+          console.error(chalk.yellow('\n⚠️  スコープが不足しています'));
+          console.error(chalk.gray('DMの場合は im:history、プライベートチャンネルの場合は groups:history、通常のチャンネルの場合は channels:history スコープが必要です\n'));
+        }
+      } else if (error.data?.error === 'not_authed') {
+        console.error(chalk.red('\n❌ 認証エラー: トークンが無効です\n'));
+      } else {
+        console.error('Failed to fetch thread replies:', error.message);
+      }
       return [];
     }
   }
@@ -196,7 +227,30 @@ class SlackMessageAPI {
 
       return messages.reverse();
     } catch (error) {
-      console.error('Failed to fetch channel history:', error.message);
+      // Handle specific error cases
+      if (error.data?.error === 'missing_scope') {
+        // Check if this is a DM channel
+        try {
+          const channelInfo = await this.client.conversations.info({ channel: channelId });
+          if (channelInfo.channel?.is_im || channelInfo.channel?.is_mpim) {
+            console.error(chalk.yellow('\n⚠️  im:history スコープが必要です'));
+            console.error(chalk.gray('DM（ダイレクトメッセージ）を表示するには、Slack Appに im:history スコープを追加してください\n'));
+          } else if (channelInfo.channel?.is_private) {
+            console.error(chalk.yellow('\n⚠️  groups:history スコープが必要です'));
+            console.error(chalk.gray('プライベートチャンネルを表示するには、Slack Appに groups:history スコープを追加してください\n'));
+          } else {
+            console.error(chalk.yellow('\n⚠️  channels:history スコープが必要です'));
+            console.error(chalk.gray('チャンネルを表示するには、Slack Appに channels:history スコープを追加してください\n'));
+          }
+        } catch {
+          console.error(chalk.yellow('\n⚠️  スコープが不足しています'));
+          console.error(chalk.gray('DMの場合は im:history、プライベートチャンネルの場合は groups:history、通常のチャンネルの場合は channels:history スコープが必要です\n'));
+        }
+      } else if (error.data?.error === 'not_authed') {
+        console.error(chalk.red('\n❌ 認証エラー: トークンが無効です\n'));
+      } else {
+        console.error('Failed to fetch channel history:', error.message);
+      }
       return [];
     }
   }
@@ -260,7 +314,30 @@ class SlackMessageAPI {
 
       return messages.reverse();
     } catch (error) {
-      console.error('Failed to fetch channel history range:', error.message);
+      // Handle specific error cases
+      if (error.data?.error === 'missing_scope') {
+        // Check if this is a DM channel
+        try {
+          const channelInfo = await this.client.conversations.info({ channel: channelId });
+          if (channelInfo.channel?.is_im || channelInfo.channel?.is_mpim) {
+            console.error(chalk.yellow('\n⚠️  im:history スコープが必要です'));
+            console.error(chalk.gray('DM（ダイレクトメッセージ）を表示するには、Slack Appに im:history スコープを追加してください\n'));
+          } else if (channelInfo.channel?.is_private) {
+            console.error(chalk.yellow('\n⚠️  groups:history スコープが必要です'));
+            console.error(chalk.gray('プライベートチャンネルを表示するには、Slack Appに groups:history スコープを追加してください\n'));
+          } else {
+            console.error(chalk.yellow('\n⚠️  channels:history スコープが必要です'));
+            console.error(chalk.gray('チャンネルを表示するには、Slack Appに channels:history スコープを追加してください\n'));
+          }
+        } catch {
+          console.error(chalk.yellow('\n⚠️  スコープが不足しています'));
+          console.error(chalk.gray('DMの場合は im:history、プライベートチャンネルの場合は groups:history、通常のチャンネルの場合は channels:history スコープが必要です\n'));
+        }
+      } else if (error.data?.error === 'not_authed') {
+        console.error(chalk.red('\n❌ 認証エラー: トークンが無効です\n'));
+      } else {
+        console.error('Failed to fetch channel history range:', error.message);
+      }
       return [];
     }
   }
