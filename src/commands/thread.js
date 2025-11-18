@@ -570,7 +570,9 @@ async function channelChat() {
           type: item.type,
           timestamp: new Date().toISOString(),
           threadPreview: item.threadPreview || null,
-          reactions: item.reactions
+          reactions: item.reactions,
+          messageTs: item.messageTs,  // ✅ リアクション削除に必要
+          isReactionItem: true  // ✅ リアクションアイテムであることを識別
         });
       }
     }
