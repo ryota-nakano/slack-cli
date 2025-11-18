@@ -651,8 +651,8 @@ async function channelChat() {
     // Get today's history
     const history = historyManager.getTodayHistory();
     
-    // Get recent :eyes: reactions (limit to 100 to show more)
-    const reactions = await client.getReactions(100, 'eyes');
+    // Get recent :eyes: reactions (limit to 20)
+    const reactions = await client.getReactions(20, 'eyes');
     
     // Merge reactions with history
     const mergedHistory = [...history];

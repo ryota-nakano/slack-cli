@@ -156,8 +156,8 @@ class CommandHandler {
   async showRecentHistory() {
     const history = this.historyManager.getTodayHistory();
     
-    // Get recent :eyes: reactions only (limit to 100 to show more)
-    const reactions = await this.client.getReactions(100, 'eyes');
+    // Get recent :eyes: reactions only (limit to 20)
+    const reactions = await this.client.getReactions(20, 'eyes');
     
     // Merge reactions with history
     const mergedHistory = [...history];
