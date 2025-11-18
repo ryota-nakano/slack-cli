@@ -279,6 +279,9 @@ class ChatSession {
           // Resume polling after exiting editor
           this.updateInterval = setInterval(() => this.checkUpdates(), 10000);
           
+          // Immediately check for updates after exiting editor
+          await this.checkUpdates();
+          
           if (editorText === '__CANCELLED__') {
             this.displayMessages();
             continue;
