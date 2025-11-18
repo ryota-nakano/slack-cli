@@ -84,7 +84,7 @@ class ChatSession {
 
     // Get initial messages
     await this.fetchMessages();
-    this.lastDisplayedCount = this.messages.length;
+    this.lastDisplayedCount = this.isThread() ? this.allMessages.length : this.messages.length;
 
     // Display messages
     this.displayMessages();
@@ -188,17 +188,22 @@ class ChatSession {
         console.error(`[DEBUG] checkUpdates() 実行開始 - messages.length=${this.messages.length}`);
       }
       
-      const oldCount = this.messages.length;
+      // For threads, compare allMessages; for channels, compare messages
+      const oldCount = this.isThread() ? this.allMessages.length : this.messages.length;
+      
       // Skip cache to get fresh data during polling
       await this.fetchMessages(null, null, true);
 
       if (process.env.DEBUG_POLL) {
-        console.error(`[DEBUG] checkUpdates() - 新しいmessages.length=${this.messages.length}, oldCount=${oldCount}`);
+        const newCount = this.isThread() ? this.allMessages.length : this.messages.length;
+        console.error(`[DEBUG] checkUpdates() - newCount=${newCount}, oldCount=${oldCount}`);
       }
 
-      if (this.messages.length > oldCount) {
+      const newCount = this.isThread() ? this.allMessages.length : this.messages.length;
+      
+      if (newCount > oldCount) {
         if (process.env.DEBUG_POLL) {
-          console.error(`[DEBUG] 新しいメッセージを検出: ${this.messages.length - oldCount}件`);
+          console.error(`[DEBUG] 新しいメッセージを検出: ${newCount - oldCount}件`);
         }
         this.displayNewMessages();
         // Update history timestamp when new messages arrive
@@ -249,7 +254,7 @@ class ChatSession {
       this.display.displayMessages(this.messages, startIndex);
     }
     
-    this.lastDisplayedCount = this.messages.length;
+    this.lastDisplayedCount = this.isThread() ? this.allMessages.length : this.messages.length;
     
     // Mark as read (for today's messages only)
     if (this.messages.length > 0 && this.daysBack === 0) {
@@ -261,7 +266,10 @@ class ChatSession {
    * Display only new messages (by redrawing entire screen)
    */
   displayNewMessages() {
-    if (this.messages.length > this.lastDisplayedCount) {
+    // For threads, compare allMessages; for channels, compare messages
+    const currentCount = this.isThread() ? this.allMessages.length : this.messages.length;
+    
+    if (currentCount > this.lastDisplayedCount) {
       // Redraw entire screen with all messages including new ones
       this.displayMessages();
     }
