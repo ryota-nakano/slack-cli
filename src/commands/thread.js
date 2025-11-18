@@ -579,9 +579,20 @@ class ChatSession {
           continue;
         }
 
-        // Handle /recent command - Show today's conversation history
+        // Handle /recent command - Show today's conversation history (toggle behavior)
         if (halfWidthText === '/recent' || halfWidthText === '/r') {
-          await this.commandHandler.showRecentHistory();
+          // If already in recent history mode, cancel it (toggle behavior)
+          if (this.showingRecentHistory) {
+            this.showingRecentHistory = false;
+            this.recentHistory = null;
+            console.log(chalk.green('\n✅ 履歴選択モードを解除しました\n'));
+            console.log(chalk.cyan('🔄 メッセージを再取得中...\n'));
+            await this.fetchMessages(null, null, true); // skipCache = true
+            this.displayMessages();
+          } else {
+            // Show recent history
+            await this.commandHandler.showRecentHistory();
+          }
           continue;
         }
 
