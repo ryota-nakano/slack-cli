@@ -246,9 +246,8 @@ class SlackCache {
       return false;
     }
     
-    
     const cacheAge = Date.now() - cache.timestamp;
-    return cacheAge < oneHour;
+    return cacheAge < CACHE.TTL;
   }
 
   /**
