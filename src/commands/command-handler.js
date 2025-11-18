@@ -199,9 +199,11 @@ class CommandHandler {
 
     const message = this.session.messages[num - 1];
     
+    // If no thread exists, use this message's timestamp as the thread parent
+    const threadTs = message.thread_ts || message.ts;
+    
     if (!message.thread_ts) {
-      console.log(chalk.yellow('\n💡 このメッセージにはスレッドがありません'));
-      return;
+      console.log(chalk.cyan('\n💡 このメッセージにスレッドはありませんが、スレッドを開始します\n'));
     }
 
     // Save current conversation to history
@@ -219,7 +221,7 @@ class CommandHandler {
     const threadSession = new ChatSession.ChatSession(
       this.session.channelId, 
       this.session.channelName, 
-      message.thread_ts
+      threadTs
     );
     
     // Stop current session
