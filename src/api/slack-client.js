@@ -112,6 +112,27 @@ class SlackClient {
   async removeReaction(channelId, timestamp, emojiName) {
     return this.messageAPI.removeReaction(channelId, timestamp, emojiName);
   }
+
+  async getTeamInfo() {
+    try {
+      const response = await fetch('https://slack.com/api/team.info', {
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      if (!data.ok) {
+        throw new Error(data.error);
+      }
+
+      return data.team;
+    } catch (error) {
+      console.error('Failed to get team info:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = SlackClient;

@@ -180,7 +180,7 @@ class CommandHandler {
     }
 
     await displayGroupedHistory(mergedHistory, this.client, this.historyManager);
-    console.log(chalk.gray('\n💡 ヒント: /数字 で移動（例: /1）\n'));
+    console.log(chalk.gray('\n💡 ヒント: 数字 または /数字 で移動（例: 1 または /1）\n'));
     
     // Store merged history for navigation
     this.session.recentHistory = mergedHistory;
@@ -302,6 +302,37 @@ class CommandHandler {
     
     // Start new session
     await newSession.start();
+  }
+
+  /**
+   * Handle /w command - Open current conversation in browser
+   */
+  async openInBrowser() {
+    try {
+      const { execSync } = require('child_process');
+      const teamInfo = await this.client.getTeamInfo();
+      const teamDomain = teamInfo.domain;
+      
+      let url;
+      if (this.session.isThread()) {
+        // Thread URL format: https://{workspace}.slack.com/archives/{channel_id}/p{thread_ts_without_dot}
+        const threadTsFormatted = this.session.threadTs.replace('.', '');
+        url = `https://${teamDomain}.slack.com/archives/${this.session.channelId}/p${threadTsFormatted}`;
+      } else {
+        // Channel URL format: https://{workspace}.slack.com/archives/{channel_id}
+        url = `https://${teamDomain}.slack.com/archives/${this.session.channelId}`;
+      }
+
+      console.log(chalk.cyan(`\n🌐 ブラウザで開いています: ${url}\n`));
+      
+      // Open URL in default browser (Linux: xdg-open, Mac: open, Windows: start)
+      const openCommand = process.platform === 'darwin' ? 'open' :
+                          process.platform === 'win32' ? 'start' : 'xdg-open';
+      
+      execSync(`${openCommand} "${url}"`, { stdio: 'ignore' });
+    } catch (error) {
+      console.error(chalk.red(`\n❌ ブラウザで開けませんでした: ${error.message}\n`));
+    }
   }
 }
 

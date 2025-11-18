@@ -34,9 +34,12 @@ function showHelp() {
   console.log(chalk.green('  @入力 → Tab') + chalk.gray('  - メンション補完'));
   console.log(chalk.green('  #入力 → Tab') + chalk.gray('  - チャンネル選択'));
   console.log(chalk.green('  Ctrl+E') + chalk.gray('        - エディタモード'));
+  console.log(chalk.green('  Ctrl+R') + chalk.gray('        - 今日の会話履歴'));
+  console.log(chalk.green('  Ctrl+W') + chalk.gray('        - ブラウザで開く'));
   console.log(chalk.green('  /<番号>') + chalk.gray('       - スレッドに移動 (例: /3)'));
   console.log(chalk.green('  /back') + chalk.gray('         - スレッドから戻る'));
   console.log(chalk.green('  /r') + chalk.gray('            - 今日の会話履歴'));
+  console.log(chalk.green('  /w') + chalk.gray('            - ブラウザで開く'));
   console.log(chalk.green('  /refresh') + chalk.gray('      - 今日の投稿を履歴に追加'));
   console.log(chalk.green('  /clear') + chalk.gray('        - 履歴キャッシュをクリア'));
   console.log(chalk.green('  /l <日数>') + chalk.gray('     - 過去の履歴読込 (例: /l 3)'));

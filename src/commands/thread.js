@@ -304,6 +304,27 @@ class ChatSession {
           continue;
         }
 
+        // Handle numbers in /recent mode (without / prefix)
+        if (this.showingRecentHistory && trimmedText.match(/^\d+$/)) {
+          const number = parseInt(trimmedText);
+          const history = this.recentHistory || this.historyManager.getTodayHistory();
+          
+          if (number > 0 && number <= history.length) {
+            const item = history[number - 1];
+            console.log(chalk.cyan(`\n📂 ${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''} に移動中...\n`));
+            this.cleanup(false);
+            
+            const session = new ChatSession(item.channelId, item.channelName, item.threadTs);
+            await session.start();
+            return;
+          } else {
+            console.log(chalk.yellow(`\n⚠️  履歴番号 ${number} は存在しません (1-${history.length})`));
+            this.showingRecentHistory = false;
+            this.recentHistory = null;
+            continue;
+          }
+        }
+
         // Handle /番号 command
         if (trimmedText.match(/^\/\d+$/)) {
           const number = parseInt(trimmedText.substring(1).trim());
@@ -339,9 +360,11 @@ class ChatSession {
           continue;
         }
         
-        // Reset showingRecentHistory flag on other commands
-        this.showingRecentHistory = false;
-        this.recentHistory = null;
+        // Reset showingRecentHistory flag on other commands that are not numbers
+        if (!trimmedText.match(/^\d+$/)) {
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
+        }
 
         // Handle /back command (thread only) - Return to channel
         if (this.isThread() && (trimmedText === '/back' || trimmedText === '/b')) {
@@ -405,6 +428,12 @@ class ChatSession {
           continue;
         }
 
+        // Handle /w command - Open in browser
+        if (trimmedText === '/w') {
+          await this.commandHandler.openInBrowser();
+          continue;
+        }
+
         // Handle /recent command - Show today's conversation history
         if (trimmedText === '/recent' || trimmedText === '/r') {
           await this.commandHandler.showRecentHistory();
@@ -455,11 +484,15 @@ class ChatSession {
     
     console.log(chalk.yellow('  /recent, /r') + chalk.gray('      - 今日の会話履歴から選択'));
     console.log(chalk.yellow('  /refresh') + chalk.gray('        - 今日の投稿を検索して履歴に追加'));
+    console.log(chalk.yellow('  /clear') + chalk.gray('          - 履歴キャッシュをクリア'));
+    console.log(chalk.yellow('  /w') + chalk.gray('              - ブラウザで開く'));
     console.log(chalk.yellow('  /rm <番号...>') + chalk.gray('    - メッセージを削除（例: /rm 5 または /rm 1 3 5）'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
     console.log(chalk.yellow('  #channel[Tab]') + chalk.gray('   - チャンネル検索・切り替え（例: #gen[Tab] → [Enter]）'));
     console.log(chalk.yellow('  @user[Tab]') + chalk.gray('      - メンション補完（例: @tak[Tab]、@channel等）'));
+    console.log(chalk.yellow('  Ctrl+R') + chalk.gray('          - 今日の会話履歴から選択'));
+    console.log(chalk.yellow('  Ctrl+W') + chalk.gray('          - ブラウザで開く'));
     console.log(chalk.yellow('  Ctrl+E') + chalk.gray('          - エディタ(vim/nano)を起動'));
     console.log(chalk.yellow('  Ctrl+C') + chalk.gray('          - 終了'));
     console.log();

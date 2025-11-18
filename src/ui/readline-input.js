@@ -93,6 +93,14 @@ class ReadlineInput {
           return;
         }
 
+        // Ctrl+W: Execute /w command (open in browser)
+        if (key.ctrl && key.name === 'w') {
+          this.clearSuggestions();
+          cleanup();
+          resolve('/w');
+          return;
+        }
+
         // Ctrl+J: Ignore (prevent newline insertion)
         if (key.ctrl && key.name === 'j') {
           return;
