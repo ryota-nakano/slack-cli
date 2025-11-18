@@ -631,15 +631,36 @@ async function channelChat() {
     // Initial prompt with channel selection (auto-trigger channel mode)
     const readlineInput = new ReadlineInput([], client, 'selection');
     
-    console.log(chalk.yellow('💡 ヒント: チャンネル名を入力してTabキーで検索（#は不要）'));
-    const result = await readlineInput.prompt('チャンネル選択', true); // true = auto-trigger channel mode
+    console.log(chalk.yellow('💡 ヒント: 数字で履歴選択、#でチャンネル検索（例: 1 または #general）'));
+    const result = await readlineInput.prompt('チャンネル選択');
     
     if (result === '__EMPTY__') {
       console.log(chalk.yellow('⚠️  入力がキャンセルされました'));
       return;
     }
     
-    // Handle /number command for history selection
+    // Handle number-only input for history selection (without /)
+    if (typeof result === 'string') {
+      const trimmed = result.trim();
+      const number = parseInt(trimmed);
+      
+      // If input is a pure number (not starting with /), treat as history selection
+      if (!isNaN(number) && trimmed === number.toString() && number > 0) {
+        if (number <= mergedHistory.length) {
+          const item = mergedHistory[number - 1];
+          console.log(chalk.cyan(`\n📂 ${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''} を開いています...\n`));
+          
+          const session = new ChatSession(item.channelId, item.channelName, item.threadTs);
+          await session.start();
+          return;
+        } else {
+          console.log(chalk.yellow(`\n⚠️  履歴番号 ${number} は存在しません`));
+          return;
+        }
+      }
+    }
+    
+    // Handle /number command for history selection (with /)
     if (typeof result === 'string' && result.startsWith('/')) {
       const command = result.substring(1).trim();
       

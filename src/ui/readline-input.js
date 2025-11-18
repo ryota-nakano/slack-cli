@@ -21,7 +21,6 @@ class ReadlineInput {
     this.rl = null;
     this.previousLineCount = 1;
     this.screenCursorLine = 0; // Track which line the cursor is actually on screen (0-based)
-    this.autoChannelMode = false; // Auto channel selection mode (no # required)
     this.lastChannelQuery = null; // Track last channel query to avoid duplicate searches
     this.lastMentionQuery = null; // Track last mention query to avoid duplicate searches
     this.isLoadingChannels = false; // Prevent concurrent channel loads
@@ -32,10 +31,8 @@ class ReadlineInput {
   /**
    * Show prompt and wait for input
    * @param {string} contextName - Context name (already formatted with [スレッド] if needed)
-   * @param {boolean} autoChannelMode - If true, automatically show channel suggestions on start
    */
-  async prompt(contextName, autoChannelMode = false) {
-    this.autoChannelMode = autoChannelMode;
+  async prompt(contextName) {
     
     return new Promise((resolve) => {
       const label = `💬 #${contextName}`;
@@ -49,9 +46,6 @@ class ReadlineInput {
 
       // Show initial prompt using redrawInput
       this.redrawInput(); // This will draw "> " with empty input
-
-      // In auto channel mode, show hint but don't auto-trigger
-      // Let user start typing to trigger suggestions
 
       readline.emitKeypressEvents(process.stdin, this.rl);
       if (process.stdin.isTTY) {
@@ -370,19 +364,7 @@ class ReadlineInput {
    * Find channel context at cursor position
    */
   findChannelContext() {
-    // In auto channel mode, treat entire input as channel search
-    if (this.autoChannelMode && this.input.indexOf('#') === -1) {
-      const searchTerm = this.input;
-
-      return {
-        type: 'channel',
-        startIndex: 0,
-        searchTerm: searchTerm,
-        needsLoad: true // Signal that we need to load suggestions
-      };
-    }
-
-    // Normal mode: require # prefix
+    // Always require # prefix for channel search
     const beforeCursor = this.input.substring(0, this.cursorPos);
     const lastHashIndex = beforeCursor.lastIndexOf('#');
 
@@ -409,7 +391,7 @@ class ReadlineInput {
     if (this.contextType === 'selection') {
       // Channel selection screen
       return [
-        { command: '/<番号>', description: '履歴から選択（例: /1）' },
+        { command: '/<番号>', description: '履歴から選択（例: /1 または 1）' },
         { command: '/delete', description: '履歴から削除（例: /delete 1 3 5）', alias: '/del' },
         { command: '/clear', description: '履歴キャッシュをクリア' }
       ];
@@ -737,8 +719,8 @@ class ReadlineInput {
 
       const selectedChannel = this.suggestions[this.selectedIndex];
       
-      // In auto channel mode OR if input starts with # (channel switch intent)
-      const isChannelSwitchIntent = this.autoChannelMode || 
+      // In channel selection context OR if input starts with # (channel switch intent)
+      const isChannelSwitchIntent = this.contextType === 'selection' || 
                                    (channelResult.startIndex === 0 && this.input.startsWith('#'));
       
       if (isChannelSwitchIntent) {
