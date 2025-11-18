@@ -310,17 +310,16 @@ class CommandHandler {
   async openInBrowser() {
     try {
       const { execSync } = require('child_process');
-      const teamInfo = await this.client.getTeamInfo();
-      const teamDomain = teamInfo.domain;
       
+      // Use app.slack.com URL which works without team domain
       let url;
       if (this.session.isThread()) {
-        // Thread URL format: https://{workspace}.slack.com/archives/{channel_id}/p{thread_ts_without_dot}
+        // Thread URL format: https://app.slack.com/client/{team_id}/{channel_id}/thread/{channel_id}-{thread_ts}
         const threadTsFormatted = this.session.threadTs.replace('.', '');
-        url = `https://${teamDomain}.slack.com/archives/${this.session.channelId}/p${threadTsFormatted}`;
+        url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/thread/${this.session.channelId}-${threadTsFormatted}`;
       } else {
-        // Channel URL format: https://{workspace}.slack.com/archives/{channel_id}
-        url = `https://${teamDomain}.slack.com/archives/${this.session.channelId}`;
+        // Channel URL format: https://app.slack.com/client/{team_id}/{channel_id}
+        url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}`;
       }
 
       console.log(chalk.cyan(`\n🌐 ブラウザで開いています: ${url}\n`));

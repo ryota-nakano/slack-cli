@@ -16,6 +16,7 @@ class SlackClient {
     this.channelAPI = new SlackChannelAPI(token, this.cache);
     this.messageAPI = new SlackMessageAPI(token, this.userAPI);
     this.currentUserId = null;
+    this.teamId = null;
   }
 
   // ============ User API Methods ============
@@ -26,7 +27,9 @@ class SlackClient {
 
   async getCurrentUser() {
     if (!this.currentUserId) {
-      this.currentUserId = await this.userAPI.getCurrentUser();
+      const authInfo = await this.userAPI.getCurrentUser();
+      this.currentUserId = authInfo.userId;
+      this.teamId = authInfo.teamId;
     }
     return this.currentUserId;
   }

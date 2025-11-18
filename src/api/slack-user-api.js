@@ -48,7 +48,10 @@ class SlackUserAPI {
   async getCurrentUser() {
     try {
       const result = await this.client.auth.test();
-      return result.user_id;
+      return {
+        userId: result.user_id,
+        teamId: result.team_id
+      };
     } catch (error) {
       throw new Error(`Failed to get current user: ${error.message}`);
     }
