@@ -430,20 +430,32 @@ class ChatSession {
           continue;
         }
         
-        // Reset showingRecentHistory flag on other commands that are not numbers
-        if (!halfWidthText.match(/^\d+$/)) {
-          this.showingRecentHistory = false;
-          this.recentHistory = null;
+        // Handle /cancel command - Exit recent history mode
+        if (halfWidthText === '/cancel' || halfWidthText === '/c') {
+          if (this.showingRecentHistory) {
+            this.showingRecentHistory = false;
+            this.recentHistory = null;
+            console.log(chalk.green('\n✅ 履歴選択モードを解除しました\n'));
+            continue;
+          }
+          // If not in recent history mode, just continue (don't do anything)
+          continue;
         }
 
         // Handle /back command (thread only) - Return to channel
         if (this.isThread() && (halfWidthText === '/back' || halfWidthText === '/b')) {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           await this.commandHandler.backToChannel();
           return;
         }
 
         // Handle /rm command
         if (halfWidthText.startsWith('/rm ')) {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           const msgNumber = halfWidthText.substring(4).trim();
           await this.commandHandler.handleDeleteMessage(msgNumber);
           continue;
@@ -451,6 +463,9 @@ class ChatSession {
 
         // Handle /history command (channel only)
         if (!this.isThread() && (halfWidthText.startsWith('/history') || halfWidthText.startsWith('/h'))) {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           const parts = halfWidthText.split(' ');
           const limit = parseInt(parts[1]) || 20;
           await this.commandHandler.handleHistory(limit);
@@ -459,6 +474,9 @@ class ChatSession {
 
         // Handle /prev command (channel only) - Go to previous day
         if (!this.isThread() && (halfWidthText === '/prev' || halfWidthText === '/p')) {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           this.daysBack++;
           await this.fetchMessages();
           this.displayMessages();
@@ -467,6 +485,9 @@ class ChatSession {
 
         // Handle /next command (channel only) - Go to next day
         if (!this.isThread() && (halfWidthText === '/next' || halfWidthText === '/n')) {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           if (this.daysBack > 0) {
             this.daysBack--;
             await this.fetchMessages();
@@ -479,6 +500,9 @@ class ChatSession {
 
         // Handle /today command (channel only) - Go back to today
         if (!this.isThread() && halfWidthText === '/today') {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           this.daysBack = 0;
           await this.fetchMessages();
           this.displayMessages();
@@ -487,12 +511,18 @@ class ChatSession {
 
         // Handle /refresh command - Search and add today's posts to history
         if (halfWidthText === '/refresh' || halfWidthText === '/sync') {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           await this.commandHandler.refreshTodaysPosts();
           continue;
         }
 
         // Handle /clear command - Clear history cache
         if (halfWidthText === '/clear') {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           this.historyManager.clearHistory();
           console.log(chalk.green('\n✅ 履歴キャッシュをクリアしました\n'));
           continue;
@@ -500,12 +530,18 @@ class ChatSession {
 
         // Handle /w or /web command - Open in browser
         if (halfWidthText === '/w' || halfWidthText === '/web') {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           await this.commandHandler.openInBrowser();
           continue;
         }
 
         // Handle /link command - Display message link
         if (halfWidthText.startsWith('/link')) {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           const parts = halfWidthText.split(/\s+/);
           const msgNumber = parts[1]; // Optional message number
           await this.commandHandler.showMessageLink(msgNumber);
@@ -514,6 +550,9 @@ class ChatSession {
 
         // Handle /reload command - Reload thread messages (skip cache)
         if (halfWidthText === '/reload' || halfWidthText === '/rl') {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           console.log(chalk.cyan('\n🔄 メッセージを再取得中...\n'));
           await this.fetchMessages(null, null, true); // skipCache = true
           this.displayMessages();
@@ -522,6 +561,9 @@ class ChatSession {
 
         // Handle /more command (thread only) - Load more messages from history
         if (this.isThread() && (halfWidthText === '/more' || halfWidthText === '/m')) {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           if (this.allMessages.length > this.messages.length) {
             // Increase display count by 30
             this.displayCount += 30;
@@ -542,6 +584,9 @@ class ChatSession {
 
         // Handle /help command
         if (halfWidthText === '/help') {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
           this.showChatHelp();
           continue;
         }
@@ -556,6 +601,7 @@ class ChatSession {
         if (this.showingRecentHistory) {
           console.log(chalk.yellow('\n⚠️  履歴選択モード中です。番号を入力するか、コマンドを実行してください\n'));
           console.log(chalk.gray('💡 ヒント: 数字 または /数字 で移動（例: 1 または /1）'));
+          console.log(chalk.gray('💡 /cancel または /c で履歴選択モードを解除できます\n'));
           console.log(chalk.gray('💡 通常モードに戻るには別のコマンドを実行してください\n'));
           this.showingRecentHistory = false;
           this.recentHistory = null;
@@ -594,6 +640,7 @@ class ChatSession {
     }
     
     console.log(chalk.yellow('  /recent, /r') + chalk.gray('      - 今日の会話履歴から選択'));
+    console.log(chalk.yellow('  /cancel, /c') + chalk.gray('     - 履歴選択モードを解除'));
     console.log(chalk.yellow('  /refresh') + chalk.gray('        - 今日の投稿を検索して履歴に追加'));
     console.log(chalk.yellow('  /reload, /rl') + chalk.gray('    - メッセージを再取得（最新の状態に更新）'));
     console.log(chalk.yellow('  /clear') + chalk.gray('          - 履歴キャッシュをクリア'));
