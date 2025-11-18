@@ -4,6 +4,7 @@
  */
 
 const chalk = require('chalk');
+const { DISPLAY } = require('./constants');
 
 /**
  * Format text with mentions converted to display names and highlighted in yellow
@@ -174,10 +175,12 @@ async function displayThreadItem(item, client, historyManager) {
   
   // Use cached thread preview if available
   if (item.threadPreview) {
-    // Truncate text to 50 characters and remove newlines
+    // Truncate text to configured length and remove newlines
     const fullText = item.threadPreview.text || '(no text)';
     const singleLine = fullText.replace(/\n/g, ' ');
-    const truncatedText = singleLine.length > 50 ? singleLine.substring(0, 50) + '...' : singleLine;
+    const truncatedText = singleLine.length > DISPLAY.TEXT_PREVIEW_LENGTH 
+      ? singleLine.substring(0, DISPLAY.TEXT_PREVIEW_LENGTH) + '...' 
+      : singleLine;
     
     // Get user name - prefer cached userName, then fetch from API
     let userName = item.threadPreview.userName || '';
@@ -210,10 +213,12 @@ async function displayThreadItem(item, client, historyManager) {
       if (replies && replies.length > 0) {
         const firstMsg = replies[0];
         
-        // Get full text, truncate to 50 characters and remove newlines
+        // Get full text, truncate to configured length and remove newlines
         const fullText = firstMsg.text || '(no text)';
         const singleLine = fullText.replace(/\n/g, ' ');
-        const truncatedText = singleLine.length > 50 ? singleLine.substring(0, 50) + '...' : singleLine;
+        const truncatedText = singleLine.length > DISPLAY.TEXT_PREVIEW_LENGTH 
+          ? singleLine.substring(0, DISPLAY.TEXT_PREVIEW_LENGTH) + '...' 
+          : singleLine;
         
         // Get user name
         let userName = '';

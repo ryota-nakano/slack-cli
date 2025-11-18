@@ -5,13 +5,14 @@
 
 const chalk = require('chalk');
 const { displayGroupedHistory } = require('../utils/history-display');
+const { API, FULLWIDTH_NUMBER_OFFSET } = require('../utils/constants');
 
 /**
  * Convert full-width numbers to half-width numbers
  */
 function toHalfWidth(str) {
   return str.replace(/[０-９]/g, (s) => {
-    return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+    return String.fromCharCode(s.charCodeAt(0) - FULLWIDTH_NUMBER_OFFSET);
   });
 }
 
@@ -163,8 +164,8 @@ class CommandHandler {
   async showRecentHistory() {
     const history = this.historyManager.getTodayHistory();
     
-    // Get recent :eyes: reactions only (limit to 20)
-    const reactions = await this.client.getReactions(20, 'eyes');
+    // Get recent :eyes: reactions only
+    const reactions = await this.client.getReactions(API.REACTION_FETCH_LIMIT, 'eyes');
     
     // Merge reactions with history
     const mergedHistory = [...history];

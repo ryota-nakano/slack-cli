@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { CACHE } = require('../utils/constants');
 
 class SlackCache {
   constructor() {
@@ -43,11 +44,10 @@ class SlackCache {
         const data = fs.readFileSync(this.channelCacheFile, 'utf8');
         this.channelCache = JSON.parse(data);
         
-        // Check if cache is older than 1 hour
+        // Check if cache is older than configured TTL
         const cacheAge = Date.now() - this.channelCache.timestamp;
-        const oneHour = 60 * 60 * 1000;
         
-        if (cacheAge > oneHour) {
+        if (cacheAge > CACHE.TTL) {
           this.channelCache = { channels: [], timestamp: 0 };
         }
       }
@@ -83,9 +83,9 @@ class SlackCache {
         
         // Check if cache is older than 1 hour
         const cacheAge = Date.now() - this.usersCache.timestamp;
-        const oneHour = 60 * 60 * 1000;
         
-        if (cacheAge > oneHour) {
+        
+        if (cacheAge > CACHE.TTL) {
           this.usersCache = { users: [], timestamp: 0 };
         }
       }
@@ -120,10 +120,10 @@ class SlackCache {
         this.channelMembersCache = JSON.parse(data);
         
         // Check and clean old caches
-        const oneHour = 60 * 60 * 1000;
+        
         for (const channelId in this.channelMembersCache) {
           const cacheAge = Date.now() - this.channelMembersCache[channelId].timestamp;
-          if (cacheAge > oneHour) {
+          if (cacheAge > CACHE.TTL) {
             delete this.channelMembersCache[channelId];
           }
         }
@@ -246,7 +246,7 @@ class SlackCache {
       return false;
     }
     
-    const oneHour = 60 * 60 * 1000;
+    
     const cacheAge = Date.now() - cache.timestamp;
     return cacheAge < oneHour;
   }
@@ -269,9 +269,9 @@ class SlackCache {
         
         // Check if cache is older than 1 hour
         const cacheAge = Date.now() - this.usergroupsCache.timestamp;
-        const oneHour = 60 * 60 * 1000;
         
-        if (cacheAge > oneHour) {
+        
+        if (cacheAge > CACHE.TTL) {
           this.usergroupsCache = { usergroups: [], timestamp: 0 };
         }
       }
@@ -332,9 +332,9 @@ class SlackCache {
         
         // Check if cache is older than 1 hour
         const cacheAge = Date.now() - this.dmCache.timestamp;
-        const oneHour = 60 * 60 * 1000;
         
-        if (cacheAge > oneHour) {
+        
+        if (cacheAge > CACHE.TTL) {
           this.dmCache = { dms: [], timestamp: 0 };
         }
       }

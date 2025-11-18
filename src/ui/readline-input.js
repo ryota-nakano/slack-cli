@@ -7,6 +7,7 @@ const readline = require('readline');
 const chalk = require('chalk');
 const stringWidth = require('string-width');
 const UserHelper = require('../utils/user-helper');
+const { API } = require('../utils/constants');
 
 class ReadlineInput {
   constructor(channelMembers = [], slackClient = null, contextType = 'channel', channelId = null) {
@@ -274,7 +275,7 @@ class ReadlineInput {
     }
 
     try {
-      const channels = await this.slackClient.searchChannels(searchTerm, 10);
+      const channels = await this.slackClient.searchChannels(searchTerm, API.MENTION_SEARCH_LIMIT);
       this.suggestions = channels;
       this.suggestionType = 'channel';
       this.selectedIndex = this.suggestions.length > 0 ? 0 : -1;
@@ -318,7 +319,7 @@ class ReadlineInput {
     }
 
     try {
-      const mentions = await this.slackClient.searchMentions(searchTerm, 10, this.channelId);
+      const mentions = await this.slackClient.searchMentions(searchTerm, API.MENTION_SEARCH_LIMIT, this.channelId);
       this.suggestions = mentions;
       this.suggestionType = 'mention';
       this.selectedIndex = this.suggestions.length > 0 ? 0 : -1;

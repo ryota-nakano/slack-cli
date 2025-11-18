@@ -12,13 +12,14 @@ const HistoryManager = require('../utils/history-manager');
 const MessageCache = require('../utils/message-cache');
 const { displayGroupedHistory } = require('../utils/history-display');
 const CommandHandler = require('./command-handler');
+const { DISPLAY, API, FULLWIDTH_NUMBER_OFFSET } = require('../utils/constants');
 
 /**
  * Convert full-width numbers to half-width numbers
  */
 function toHalfWidth(str) {
   return str.replace(/[０-９]/g, (s) => {
-    return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+    return String.fromCharCode(s.charCodeAt(0) - FULLWIDTH_NUMBER_OFFSET);
   });
 }
 
@@ -32,7 +33,7 @@ class ChatSession {
     this.currentUser = null;
     this.messages = [];
     this.allMessages = []; // Store all messages for threads
-    this.displayCount = 30; // Number of messages to display
+    this.displayCount = DISPLAY.INITIAL_MESSAGE_COUNT; // Number of messages to display
     this.lastDisplayedCount = 0;
     this.updateInterval = null;
     this.display = null;
@@ -478,7 +479,7 @@ class ChatSession {
           this.showingRecentHistory = false;
           this.recentHistory = null;
           const parts = halfWidthText.split(' ');
-          const limit = parseInt(parts[1]) || 20;
+          const limit = parseInt(parts[1]) || API.SEARCH_RESULT_LIMIT;
           await this.commandHandler.handleHistory(limit);
           continue;
         }
@@ -576,8 +577,8 @@ class ChatSession {
           this.showingRecentHistory = false;
           this.recentHistory = null;
           if (this.allMessages.length > this.messages.length) {
-            // Increase display count by 30
-            this.displayCount += 30;
+            // Increase display count
+            this.displayCount += DISPLAY.MESSAGE_INCREMENT;
             // Update messages to show more
             this.messages = this.allMessages.slice(-this.displayCount);
             this.displayMessages();
@@ -690,7 +691,7 @@ class ChatSession {
     if (this.isThread() && this.allMessages.length > 0) {
       const firstMsg = this.allMessages[0];
       const text = firstMsg.text || '';
-      const firstLine = text.split('\n')[0].substring(0, 50);
+      const firstLine = text.split('\n')[0].substring(0, DISPLAY.TEXT_PREVIEW_LENGTH);
       threadPreview = {
         text: firstLine,
         user: firstMsg.user,
@@ -781,8 +782,8 @@ async function channelChat() {
     // Get today's history
     const history = historyManager.getTodayHistory();
     
-    // Get recent :eyes: reactions (limit to 20)
-    const reactions = await client.getReactions(20, 'eyes');
+    // Get recent :eyes: reactions
+    const reactions = await client.getReactions(API.REACTION_FETCH_LIMIT, 'eyes');
     
     // Merge reactions with history
     const mergedHistory = [...history];

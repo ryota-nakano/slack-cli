@@ -4,6 +4,7 @@
  */
 
 const { WebClient } = require('@slack/web-api');
+const { API } = require('../utils/constants');
 
 class SlackChannelAPI {
   constructor(token, cache) {
@@ -59,7 +60,7 @@ class SlackChannelAPI {
   /**
    * Search channels by query
    */
-  async searchChannels(query = '', limit = 20) {
+  async searchChannels(query = '', limit = API.SEARCH_RESULT_LIMIT) {
     const channels = await this.listChannels();
 
     if (!query) {

@@ -7,6 +7,7 @@ const SlackCache = require('./slack-cache');
 const SlackUserAPI = require('./slack-user-api');
 const SlackChannelAPI = require('./slack-channel-api');
 const SlackMessageAPI = require('./slack-message-api');
+const { API } = require('../utils/constants');
 
 class SlackClient {
   constructor(token) {
@@ -46,7 +47,7 @@ class SlackClient {
     return this.userAPI.listChannelUsers(channelId, forceRefresh);
   }
 
-  async searchMentions(query = '', limit = 20, channelId = null) {
+  async searchMentions(query = '', limit = API.SEARCH_RESULT_LIMIT, channelId = null) {
     return this.userAPI.searchMentions(query, limit, channelId);
   }
 
@@ -60,7 +61,7 @@ class SlackClient {
     return this.channelAPI.listChannels(forceRefresh);
   }
 
-  async searchChannels(query = '', limit = 20) {
+  async searchChannels(query = '', limit = API.SEARCH_RESULT_LIMIT) {
     return this.channelAPI.searchChannels(query, limit);
   }
 

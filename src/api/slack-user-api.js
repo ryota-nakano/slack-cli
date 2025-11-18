@@ -4,6 +4,7 @@
  */
 
 const { WebClient } = require('@slack/web-api');
+const { API, SCORING } = require('../utils/constants');
 
 class SlackUserAPI {
   constructor(token, cache) {
@@ -156,7 +157,7 @@ class SlackUserAPI {
     }
 
     // If we have many uncached users, fetch all users instead of one by one
-    if (uncachedIds.length > 50) {
+    if (uncachedIds.length > API.USER_BATCH_LIMIT) {
       if (process.env.DEBUG_PERF) {
         console.error(`[DEBUG] 大量のユーザーが未キャッシュ→全ユーザーを一括取得`);
       }
@@ -328,7 +329,7 @@ class SlackUserAPI {
   /**
    * Search mentions in a specific channel (users, groups, and special mentions)
    */
-  async searchMentions(query = '', limit = 20, channelId = null) {
+  async searchMentions(query = '', limit = API.SEARCH_RESULT_LIMIT, channelId = null) {
     // Special mentions that always appear
     const specialMentions = [
       { id: 'channel', name: '@channel', display_name: '全員に通知', type: 'special' },
@@ -383,7 +384,7 @@ class SlackUserAPI {
 
         if (nameMatch || realNameMatch || displayNameMatch) {
           let score = 0;
-          if (user.name.toLowerCase().startsWith(lowerQuery)) score += 10;
+          if (user.name.toLowerCase().startsWith(lowerQuery)) score += SCORING.NAME_PREFIX_BONUS;
           if (nameMatch) score += 5;
           if (realNameMatch) score += 3;
           if (displayNameMatch) score += 2;

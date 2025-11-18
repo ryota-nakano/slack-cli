@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { HISTORY } = require('./constants');
 
 class HistoryManager {
   constructor() {
@@ -86,8 +87,8 @@ class HistoryManager {
       this.history.unshift(entry);
     }
 
-    // Keep only last 20 entries
-    this.history = this.history.slice(0, 20);
+    // Keep only configured number of entries
+    this.history = this.history.slice(0, HISTORY.LIMIT);
 
     this.saveHistory();
   }

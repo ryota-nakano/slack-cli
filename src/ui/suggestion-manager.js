@@ -3,6 +3,8 @@
  * Manages autocomplete suggestions for mentions, channels, and commands
  */
 
+const { API } = require('../utils/constants');
+
 class SuggestionManager {
   constructor(slackClient, contextType = 'channel', channelId = null) {
     this.slackClient = slackClient;
@@ -32,7 +34,7 @@ class SuggestionManager {
     this.lastChannelQuery = searchTerm;
 
     try {
-      const channels = await this.slackClient.searchChannels(searchTerm, 10);
+      const channels = await this.slackClient.searchChannels(searchTerm, API.MENTION_SEARCH_LIMIT);
       const mappedSuggestions = channels.map(ch => ({
         value: ch.name,
         display: `#${ch.name}`,
@@ -63,7 +65,7 @@ class SuggestionManager {
     this.lastMentionQuery = searchTerm;
 
     try {
-      const mentions = await this.slackClient.searchMentions(searchTerm, 10, this.channelId);
+      const mentions = await this.slackClient.searchMentions(searchTerm, API.MENTION_SEARCH_LIMIT, this.channelId);
       const mappedSuggestions = mentions.map(m => ({
         value: m.name || m.id,
         display: m.type === 'special' 

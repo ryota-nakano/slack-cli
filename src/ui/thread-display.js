@@ -4,6 +4,7 @@
  */
 
 const chalk = require('chalk');
+const { DISPLAY } = require('../utils/constants');
 
 class ThreadDisplay {
   constructor(channelName) {
@@ -18,7 +19,7 @@ class ThreadDisplay {
   displayMessages(replies, startIndex = 0) {
     console.clear();
     console.log(chalk.bold.cyan(`\n#${this.channelName} のスレッド`));
-    console.log(chalk.gray('='.repeat(80)));
+    console.log(chalk.gray('='.repeat(DISPLAY.SEPARATOR_WIDTH)));
     console.log('');
 
     // Show all messages
@@ -64,7 +65,7 @@ class ThreadDisplay {
     });
 
     console.log('');
-    console.log(chalk.gray('='.repeat(80)));
+    console.log(chalk.gray('='.repeat(DISPLAY.SEPARATOR_WIDTH)));
     console.log(chalk.bold(`💬 合計 ${replies.length} 件の返信`));
     console.log(chalk.gray('💡 Enter: 送信 | @[Tab]: メンション | #[Tab]: チャンネル切替 | Ctrl+E: エディタ | /help: ヘルプ'));
     console.log('');

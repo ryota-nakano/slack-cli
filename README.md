@@ -117,6 +117,28 @@ slack setup
 slack config
 ```
 
+### 環境変数でカスタマイズ（オプション）
+
+`.env`ファイルまたは`~/.config/slack-cli/config`で以下の設定が可能です：
+
+```bash
+# 表示設定
+INITIAL_MESSAGE_COUNT=30        # 初期表示メッセージ数（デフォルト: 30）
+MESSAGE_INCREMENT=30            # メッセージ追加表示数（デフォルト: 30）
+TEXT_PREVIEW_LENGTH=50          # テキストプレビュー最大長（デフォルト: 50）
+HISTORY_LIMIT=20                # 履歴保持数（デフォルト: 20）
+
+# API/キャッシュ設定
+CACHE_TTL=3600000               # キャッシュ有効期限（ミリ秒、デフォルト: 3600000 = 1時間）
+SEARCH_RESULT_LIMIT=20          # 検索結果表示数（デフォルト: 20）
+MENTION_SEARCH_LIMIT=10         # メンション検索結果表示数（デフォルト: 10）
+REACTION_FETCH_LIMIT=20         # リアクション取得数（デフォルト: 20）
+USER_BATCH_LIMIT=50             # ユーザー一括取得の最大数（デフォルト: 50）
+
+# エディタ設定
+EDITOR=vim                      # 使用するエディタ（デフォルト: vim）
+```
+
 ## 🚀 使い方
 
 ### 基本的な使い方

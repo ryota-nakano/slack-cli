@@ -8,6 +8,7 @@ const path = require('path');
 const os = require('os');
 const readline = require('readline');
 const chalk = require('chalk');
+const { DISPLAY } = require('./constants');
 
 // Config directory: ~/.config/slack-cli/
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'slack-cli');
@@ -166,11 +167,15 @@ function showConfig() {
   
   console.log('設定内容:');
   if (config.SLACK_USER_TOKEN) {
-    const masked = config.SLACK_USER_TOKEN.substring(0, 10) + '...' + config.SLACK_USER_TOKEN.substring(config.SLACK_USER_TOKEN.length - 4);
+    const masked = config.SLACK_USER_TOKEN.substring(0, DISPLAY.TOKEN_PREFIX_LENGTH) + 
+                   '...' + 
+                   config.SLACK_USER_TOKEN.substring(config.SLACK_USER_TOKEN.length - DISPLAY.TOKEN_SUFFIX_LENGTH);
     console.log(chalk.green(`  SLACK_USER_TOKEN: ${masked}`));
   }
   if (config.SLACK_BOT_TOKEN) {
-    const masked = config.SLACK_BOT_TOKEN.substring(0, 10) + '...' + config.SLACK_BOT_TOKEN.substring(config.SLACK_BOT_TOKEN.length - 4);
+    const masked = config.SLACK_BOT_TOKEN.substring(0, DISPLAY.TOKEN_PREFIX_LENGTH) + 
+                   '...' + 
+                   config.SLACK_BOT_TOKEN.substring(config.SLACK_BOT_TOKEN.length - DISPLAY.TOKEN_SUFFIX_LENGTH);
     console.log(chalk.green(`  SLACK_BOT_TOKEN: ${masked}`));
   }
   if (config.EDITOR) {
