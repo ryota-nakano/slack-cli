@@ -498,6 +498,90 @@ class ChatSession {
           continue;
         }
 
+        // Handle /delete or /del command - Delete history items in /recent mode
+        if (halfWidthText.startsWith('/delete ') || halfWidthText.startsWith('/del ')) {
+          // Only work in recent history mode
+          if (this.showingRecentHistory) {
+            const parts = halfWidthText.split(' ').slice(1); // Remove command name
+            const numbers = parts.map(p => parseInt(p)).filter(n => !isNaN(n));
+            
+            if (numbers.length === 0) {
+              console.log(chalk.yellow('\n⚠️  削除する番号を指定してください（例: /delete 1 3 5）'));
+              continue;
+            }
+            
+            const history = this.recentHistory || this.historyManager.getTodayHistory();
+            
+            // Sort numbers in descending order to delete from bottom to top
+            const sortedNumbers = [...new Set(numbers)].sort((a, b) => b - a);
+            const deletedItems = [];
+            const removedReactions = [];
+            const invalidNumbers = [];
+            const errors = [];
+            
+            for (const number of sortedNumbers) {
+              if (number > 0 && number <= history.length) {
+                const item = history[number - 1];
+                
+                // Check if this is a reaction item
+                if (item.isReactionItem && item.reactions && item.reactions.includes('eyes')) {
+                  // Remove :eyes: reaction
+                  try {
+                    await this.client.removeReaction(item.channelId, item.messageTs, 'eyes');
+                    removedReactions.push(`${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''}`);
+                  } catch (error) {
+                    errors.push(`${item.channelName}: ${error.message}`);
+                  }
+                } else {
+                  // Delete from history
+                  const deleted = this.historyManager.deleteByItem(item.channelId, item.threadTs);
+                  
+                  if (deleted) {
+                    deletedItems.push(`${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''}`);
+                  }
+                }
+              } else {
+                invalidNumbers.push(number);
+              }
+            }
+            
+            // Show results
+            if (deletedItems.length > 0) {
+              console.log(chalk.green(`\n✅ ${deletedItems.length}件の履歴を削除しました:`));
+              deletedItems.forEach(name => {
+                console.log(chalk.gray(`  - ${name}`));
+              });
+            }
+            
+            if (removedReactions.length > 0) {
+              console.log(chalk.green(`\n✅ ${removedReactions.length}件のリアクションを削除しました:`));
+              removedReactions.forEach(name => {
+                console.log(chalk.gray(`  - ${name}`));
+              });
+            }
+            
+            if (errors.length > 0) {
+              console.log(chalk.red(`\n❌ エラーが発生しました:`));
+              errors.forEach(err => {
+                console.log(chalk.gray(`  - ${err}`));
+              });
+            }
+            
+            if (invalidNumbers.length > 0) {
+              console.log(chalk.yellow(`\n⚠️  存在しない番号: ${invalidNumbers.join(', ')}`));
+            }
+            
+            // Re-show recent history after deletion
+            console.log('');
+            await this.commandHandler.showRecentHistory();
+            continue;
+          } else {
+            console.log(chalk.yellow('\n⚠️  /delete コマンドは /recent モード中のみ使用できます'));
+            console.log(chalk.gray('💡 ヒント: /recent または Ctrl+R で履歴選択モードに入ってください\n'));
+            continue;
+          }
+        }
+
         // Handle /history command (channel only)
         if (!this.isThread() && (halfWidthText.startsWith('/history') || halfWidthText.startsWith('/h'))) {
           // Reset recent history mode
@@ -691,6 +775,7 @@ class ChatSession {
     }
     
     console.log(chalk.yellow('  /recent, /r') + chalk.gray('      - 今日の会話履歴から選択'));
+    console.log(chalk.yellow('  /delete <番号...>') + chalk.gray(' - /recentモード中に履歴削除（例: /delete 1 3 5）'));
     console.log(chalk.yellow('  /cancel, /c') + chalk.gray('     - 履歴選択モードを解除'));
     console.log(chalk.yellow('  /refresh') + chalk.gray('        - 今日の投稿を検索して履歴に追加'));
     console.log(chalk.yellow('  /reload, /rl') + chalk.gray('    - メッセージを再取得（最新の状態に更新）'));
