@@ -362,11 +362,19 @@ class ChatSession {
       try {
         const contextType = this.isThread() ? 'thread' : 'channel';
         const readlineInput = new ReadlineInput([], this.client, contextType, this.channelId);
+        
+        // Stop polling while waiting for user input
+        this.stopPolling();
+        
         const text = await readlineInput.prompt(this.getPromptName());
+        
+        // Resume polling and check for updates after input
+        this.startPolling();
+        await this.checkUpdates();
 
         // Switch to editor mode
         if (text === '__EDITOR__') {
-          // Stop polling while in editor mode
+          // Stop polling again while in editor mode
           this.stopPolling();
           
           const editorInput = new EditorInput();
