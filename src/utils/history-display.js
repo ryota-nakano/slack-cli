@@ -168,7 +168,15 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
  * Display a single thread item
  */
 async function displayThreadItem(item, client, historyManager) {
-  const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
+  // Use thread message timestamp if available, otherwise fall back to history timestamp
+  const threadTimestamp = item.threadPreview?.ts 
+    ? parseFloat(item.threadPreview.ts) * 1000 
+    : new Date(item.timestamp).getTime();
+  
+  const threadDate = new Date(threadTimestamp);
+  const time = threadDate.toLocaleString('ja-JP', { 
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit', 
     minute: '2-digit' 
   });
@@ -283,7 +291,9 @@ async function displayThreadItem(item, client, historyManager) {
  * Display a single channel item
  */
 function displayChannelItem(item) {
-  const time = new Date(item.timestamp).toLocaleTimeString('ja-JP', { 
+  const time = new Date(item.timestamp).toLocaleString('ja-JP', { 
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit', 
     minute: '2-digit' 
   });
