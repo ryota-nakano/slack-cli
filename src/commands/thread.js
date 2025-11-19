@@ -918,7 +918,7 @@ async function channelChat() {
                 }
               } else {
                 // Delete from history
-                const deleted = historyManager.deleteByIndex(number - 1);
+                const deleted = historyManager.deleteByItem(item.channelId, item.threadTs);
                 
                 if (deleted) {
                   deletedItems.push(`${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''}`);

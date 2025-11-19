@@ -136,6 +136,27 @@ class HistoryManager {
   }
 
   /**
+   * Delete a conversation from history by channelId and threadTs
+   * @param {string} channelId - Channel ID
+   * @param {string} threadTs - Thread timestamp (null for channel)
+   * @returns {boolean} - true if deleted, false if not found
+   */
+  deleteByItem(channelId, threadTs) {
+    const mainIndex = this.history.findIndex(item => 
+      item.channelId === channelId && 
+      item.threadTs === threadTs
+    );
+    
+    if (mainIndex !== -1) {
+      this.history.splice(mainIndex, 1);
+      this.saveHistory();
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
    * Clear all history
    */
   clearHistory() {
