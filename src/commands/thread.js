@@ -407,6 +407,10 @@ class ChatSession {
           }
 
           await this.sendAndDisplay(editorText);
+          
+          // Resume polling immediately after sending
+          this.startPolling();
+          
           continue;
         }
 
@@ -767,6 +771,9 @@ class ChatSession {
         }
 
         await this.sendAndDisplay(trimmedText);
+        
+        // Resume polling immediately after sending
+        this.startPolling();
 
       } catch (error) {
         if (error.isTtyError || error.message?.includes('User force closed')) {
