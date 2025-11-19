@@ -206,11 +206,10 @@ async function displayThreadItem(item, client, historyManager) {
       ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
       : '';
     
-    // Display on one line: Number, time, channel, reactions, user name, text preview
+    // Display on one line: Number, time, user name, text preview (no channel name for threads)
     console.log(
       chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
-      chalk.gray(time) + ' ' +
-      chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator + ' ' +
+      chalk.gray(time) + reactionIndicator + ' ' +
       chalk.green(userName) + ' ' +
       truncatedText
     );
@@ -257,11 +256,10 @@ async function displayThreadItem(item, client, historyManager) {
           ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
           : '';
         
-        // Display on one line: Number, time, channel, reactions, user name, text preview
+        // Display on one line: Number, time, user name, text preview (no channel name for threads)
         console.log(
           chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
-          chalk.gray(time) + ' ' +
-          chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator + ' ' +
+          chalk.gray(time) + reactionIndicator + ' ' +
           chalk.green(userName) + ' ' +
           truncatedText
         );
@@ -273,16 +271,14 @@ async function displayThreadItem(item, client, historyManager) {
         : '';
       console.log(
         chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
-        chalk.gray(time) + ' ' +
-        chalk.green(item.channelName) + chalk.gray('[スレッド]') + reactionIndicator
+        chalk.gray(time) + reactionIndicator
       );
     }
   } else {
     // No preview and no client - just show basic info
     console.log(
       chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
-      chalk.gray(time) + ' ' +
-      chalk.green(item.channelName) + chalk.gray('[スレッド]')
+      chalk.gray(time)
     );
   }
 }
