@@ -901,65 +901,35 @@ async function channelChat() {
     // Get today's history (fast, local)
     const history = historyManager.getTodayHistory();
     
-    // Initialize merged history with local history
-    let mergedHistory = [...history];
-    
     // Show history immediately (don't wait for reactions)
+    // Store the displayed history for selection
+    let displayedHistory = history;
     if (history.length > 0) {
       await displayGroupedHistory(history, client, historyManager);
       console.log(chalk.gray('\n💡 ヒント: /数字 で履歴から開く（例: /1）\n'));
     }
     
     // Start fetching reactions in background (don't await)
-    const reactionsPromise = client.getReactions(API.REACTION_FETCH_LIMIT, 'eyes')
+    // But don't use the result for selection - keep using displayedHistory
+    client.getReactions(API.REACTION_FETCH_LIMIT, 'eyes')
       .then(reactions => {
-        // Merge reactions with history
-        const updatedHistory = [...history];
-        
-        for (const item of reactions) {
-          // Check if this item is already in history
-          const exists = updatedHistory.some(h => 
-            h.channelId === item.channelId && h.threadTs === item.threadTs
-          );
-          
-          if (!exists) {
-            // Add reaction item with current timestamp
-            updatedHistory.unshift({
-              channelId: item.channelId,
-              channelName: item.channelName,
-              threadTs: item.threadTs,
-              type: item.type,
-              timestamp: new Date().toISOString(),
-              threadPreview: item.threadPreview || null,
-              reactions: item.reactions,
-              messageTs: item.messageTs,
-              isReactionItem: true
-            });
-          }
+        // Just cache for future use, don't affect current selection
+        if (process.env.DEBUG) {
+          console.error(chalk.gray(`[DEBUG] リアクション取得完了: ${reactions.length}件`));
         }
-        
-        // Update merged history for later use
-        mergedHistory = updatedHistory;
-        
-        return updatedHistory;
       })
       .catch(error => {
-        // If reaction fetch fails, just use local history
+        // Silent fail
         if (process.env.DEBUG) {
           console.error(chalk.gray(`[DEBUG] リアクション取得エラー: ${error.message}`));
         }
-        return history;
       });
     
-    // Initial prompt with channel selection (don't wait for reactions)
+    // Initial prompt with channel selection
     const readlineInput = new ReadlineInput([], client, 'selection');
     
     console.log(chalk.yellow('💡 ヒント: 数字で履歴選択、#でチャンネル検索（例: 1 または #general）'));
     const result = await readlineInput.prompt('チャンネル選択');
-    
-    // Wait for reactions to complete before processing user input
-    // This ensures mergedHistory is up-to-date
-    mergedHistory = await reactionsPromise;
     
     if (result === '__EMPTY__') {
       console.log(chalk.yellow('⚠️  入力がキャンセルされました'));
@@ -974,8 +944,8 @@ async function channelChat() {
       
       // If input is a pure number (not starting with /), treat as history selection
       if (!isNaN(number) && halfWidthTrimmed === number.toString() && number > 0) {
-        if (number <= mergedHistory.length) {
-          const item = mergedHistory[number - 1];
+        if (number <= displayedHistory.length) {
+          const item = displayedHistory[number - 1];
           console.log(chalk.cyan(`\n📂 ${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''} を開いています...\n`));
           
           const session = new ChatSession(item.channelId, item.channelName, item.threadTs);
@@ -1017,8 +987,8 @@ async function channelChat() {
           const errors = [];
           
           for (const number of sortedNumbers) {
-            if (number > 0 && number <= mergedHistory.length) {
-              const item = mergedHistory[number - 1];
+            if (number > 0 && number <= displayedHistory.length) {
+              const item = displayedHistory[number - 1];
               
               // Check if this is a reaction item
               if (item.isReactionItem && item.reactions && item.reactions.includes('eyes')) {
@@ -1077,8 +1047,8 @@ async function channelChat() {
       // Handle /number for opening
       const number = parseInt(halfWidthCommand);
       
-      if (!isNaN(number) && number > 0 && number <= mergedHistory.length) {
-        const item = mergedHistory[number - 1];
+      if (!isNaN(number) && number > 0 && number <= displayedHistory.length) {
+        const item = displayedHistory[number - 1];
         console.log(chalk.cyan(`\n📂 ${item.channelName}${item.type === 'thread' ? '[スレッド]' : ''} を開いています...\n`));
         
         const session = new ChatSession(item.channelId, item.channelName, item.threadTs);
