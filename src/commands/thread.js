@@ -890,48 +890,68 @@ async function channelChat() {
   try {
     console.log(chalk.cyan('📋 チャンネルを選択してください\n'));
     
-    // Get today's history
+    // Get today's history (fast, local)
     const history = historyManager.getTodayHistory();
     
-    // Get recent :eyes: reactions
-    const reactions = await client.getReactions(API.REACTION_FETCH_LIMIT, 'eyes');
+    // Initialize merged history with local history
+    let mergedHistory = [...history];
     
-    // Merge reactions with history
-    const mergedHistory = [...history];
-    
-    for (const item of reactions) {
-      // Check if this item is already in history
-      const exists = mergedHistory.some(h => 
-        h.channelId === item.channelId && h.threadTs === item.threadTs
-      );
-      
-      if (!exists) {
-        // Add reaction item with current timestamp
-        mergedHistory.unshift({
-          channelId: item.channelId,
-          channelName: item.channelName,
-          threadTs: item.threadTs,
-          type: item.type,
-          timestamp: new Date().toISOString(),
-          threadPreview: item.threadPreview || null,
-          reactions: item.reactions,
-          messageTs: item.messageTs,  // ✅ リアクション削除に必要
-          isReactionItem: true  // ✅ リアクションアイテムであることを識別
-        });
-      }
-    }
-    
-    // Show merged history if available
-    if (mergedHistory.length > 0) {
-      await displayGroupedHistory(mergedHistory, client, historyManager);
+    // Show history immediately (don't wait for reactions)
+    if (history.length > 0) {
+      await displayGroupedHistory(history, client, historyManager);
       console.log(chalk.gray('\n💡 ヒント: /数字 で履歴から開く（例: /1）\n'));
     }
     
-    // Initial prompt with channel selection (auto-trigger channel mode)
+    // Start fetching reactions in background (don't await)
+    const reactionsPromise = client.getReactions(API.REACTION_FETCH_LIMIT, 'eyes')
+      .then(reactions => {
+        // Merge reactions with history
+        const updatedHistory = [...history];
+        
+        for (const item of reactions) {
+          // Check if this item is already in history
+          const exists = updatedHistory.some(h => 
+            h.channelId === item.channelId && h.threadTs === item.threadTs
+          );
+          
+          if (!exists) {
+            // Add reaction item with current timestamp
+            updatedHistory.unshift({
+              channelId: item.channelId,
+              channelName: item.channelName,
+              threadTs: item.threadTs,
+              type: item.type,
+              timestamp: new Date().toISOString(),
+              threadPreview: item.threadPreview || null,
+              reactions: item.reactions,
+              messageTs: item.messageTs,
+              isReactionItem: true
+            });
+          }
+        }
+        
+        // Update merged history for later use
+        mergedHistory = updatedHistory;
+        
+        return updatedHistory;
+      })
+      .catch(error => {
+        // If reaction fetch fails, just use local history
+        if (process.env.DEBUG) {
+          console.error(chalk.gray(`[DEBUG] リアクション取得エラー: ${error.message}`));
+        }
+        return history;
+      });
+    
+    // Initial prompt with channel selection (don't wait for reactions)
     const readlineInput = new ReadlineInput([], client, 'selection');
     
     console.log(chalk.yellow('💡 ヒント: 数字で履歴選択、#でチャンネル検索（例: 1 または #general）'));
     const result = await readlineInput.prompt('チャンネル選択');
+    
+    // Wait for reactions to complete before processing user input
+    // This ensures mergedHistory is up-to-date
+    mergedHistory = await reactionsPromise;
     
     if (result === '__EMPTY__') {
       console.log(chalk.yellow('⚠️  入力がキャンセルされました'));
