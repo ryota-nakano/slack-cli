@@ -24,7 +24,7 @@ const DISPLAY = {
   MESSAGE_INCREMENT: getEnvInt('MESSAGE_INCREMENT', 30),
   
   // Maximum length for text previews
-  TEXT_PREVIEW_LENGTH: getEnvInt('TEXT_PREVIEW_LENGTH', 50),
+  TEXT_PREVIEW_LENGTH: getEnvInt('TEXT_PREVIEW_LENGTH', 100),
   
   // Width for UI elements
   SEPARATOR_WIDTH: 80,
