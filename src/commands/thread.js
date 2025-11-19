@@ -361,14 +361,29 @@ class ChatSession {
     while (true) {
       try {
         const contextType = this.isThread() ? 'thread' : 'channel';
-        const readlineInput = new ReadlineInput([], this.client, contextType, this.channelId);
         
-        // Stop polling while waiting for user input
-        this.stopPolling();
+        // Create readline input with callback for input state changes
+        const readlineInput = new ReadlineInput(
+          [], 
+          this.client, 
+          contextType, 
+          this.channelId,
+          (isEmpty) => {
+            // When input is empty, resume polling; otherwise stop polling
+            if (isEmpty) {
+              this.startPolling();
+            } else {
+              this.stopPolling();
+            }
+          }
+        );
+        
+        // Start with polling enabled (input is initially empty)
+        this.startPolling();
         
         const text = await readlineInput.prompt(this.getPromptName());
         
-        // Resume polling and check for updates after input
+        // After input is complete, ensure polling is running
         this.startPolling();
         await this.checkUpdates();
 

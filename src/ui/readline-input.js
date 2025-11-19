@@ -10,7 +10,7 @@ const UserHelper = require('../utils/user-helper');
 const { API } = require('../utils/constants');
 
 class ReadlineInput {
-  constructor(channelMembers = [], slackClient = null, contextType = 'channel', channelId = null) {
+  constructor(channelMembers = [], slackClient = null, contextType = 'channel', channelId = null, onInputChange = null) {
     this.members = channelMembers; // Deprecated - not used anymore
     this.slackClient = slackClient; // SlackClient instance for dynamic search
     this.channelId = channelId; // Current channel ID for channel-specific user search
@@ -27,6 +27,7 @@ class ReadlineInput {
     this.isLoadingChannels = false; // Prevent concurrent channel loads
     this.isLoadingMentions = false; // Prevent concurrent mention loads
     this.contextType = contextType; // 'channel', 'thread', or 'selection'
+    this.onInputChange = onInputChange; // Callback for input state changes
   }
 
   /**
@@ -52,6 +53,14 @@ class ReadlineInput {
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(true);
       }
+      
+      // Helper to notify input state changes
+      const notifyInputChange = () => {
+        if (this.onInputChange) {
+          const isEmpty = this.input.trim().length === 0;
+          this.onInputChange(isEmpty);
+        }
+      };
 
       const cleanup = () => {
         if (process.stdin.isTTY) {
@@ -226,6 +235,7 @@ class ReadlineInput {
           if (this.cursorPos > 0) {
             this.input = this.input.substring(0, this.cursorPos - 1) + this.input.substring(this.cursorPos);
             this.cursorPos--;
+            notifyInputChange(); // Notify after backspace
           }
         } else if (key.name === 'left') {
           if (this.cursorPos > 0) this.cursorPos--;
@@ -234,6 +244,7 @@ class ReadlineInput {
         } else if (str && !key.ctrl && !key.meta && key.name !== 'return') {
           this.input = this.input.substring(0, this.cursorPos) + str + this.input.substring(this.cursorPos);
           this.cursorPos++;
+          notifyInputChange(); // Notify after character input
         } else {
           return;
         }
