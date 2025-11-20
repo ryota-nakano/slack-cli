@@ -414,7 +414,7 @@ class ChatSession {
           continue;
         }
 
-        // Skip empty input
+        // Skip empty input (should not happen anymore, but keep for safety)
         if (text === '__EMPTY__') {
           continue;
         }

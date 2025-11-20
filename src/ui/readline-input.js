@@ -128,14 +128,13 @@ class ReadlineInput {
             return;
           }
 
-          this.clearSuggestions();
-          cleanup();
-          
+          // If input is empty, just ignore Enter and continue waiting for input
           if (this.input.trim() === '') {
-            resolve('__EMPTY__');
             return;
           }
-          
+
+          this.clearSuggestions();
+          cleanup();
           resolve(this.input);
           return;
         }
