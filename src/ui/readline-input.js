@@ -40,10 +40,19 @@ class ReadlineInput {
       const label = `💬 #${contextName}`;
       console.log(chalk.cyan(label));
       
+      // Create a writable stream that does nothing (null output)
+      // This prevents readline from automatically outputting anything
+      const { Writable } = require('stream');
+      const nullOutput = new Writable({
+        write(chunk, encoding, callback) {
+          callback();
+        }
+      });
+      
       this.rl = readline.createInterface({
         input: process.stdin,
-        output: process.stdout,
-        terminal: true
+        output: nullOutput, // Use null output to prevent automatic readline output
+        terminal: false // Disable terminal-specific behavior
       });
 
       // Show initial prompt using redrawInput
@@ -642,16 +651,6 @@ class ReadlineInput {
     const currentLineIdx = linesBeforeCursor.length - 1;
     const currentLineText = linesBeforeCursor[currentLineIdx];
     
-    if (process.env.DEBUG_READLINE) {
-      console.error(`[DEBUG] redrawInput called:`);
-      console.error(`  input: ${JSON.stringify(this.input)}`);
-      console.error(`  cursorPos: ${this.cursorPos}`);
-      console.error(`  screenCursorLine (before): ${this.screenCursorLine}`);
-      console.error(`  currentLineIdx: ${currentLineIdx}`);
-      console.error(`  lines.length: ${lines.length}`);
-      console.error(`  previousLineCount: ${this.previousLineCount}`);
-    }
-    
     // Step 1: Move to the first line using the tracked screen cursor position
     if (this.screenCursorLine > 0) {
       process.stdout.write(`\x1b[${this.screenCursorLine}A`);
@@ -700,10 +699,6 @@ class ReadlineInput {
     // Step 6: Update tracked positions
     this.previousLineCount = lines.length;
     this.screenCursorLine = currentLineIdx;
-    
-    if (process.env.DEBUG_READLINE) {
-      console.error(`    screenCursorLine (after): ${this.screenCursorLine}`);
-    }
   }
 
   /**
