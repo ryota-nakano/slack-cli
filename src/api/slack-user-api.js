@@ -49,9 +49,21 @@ class SlackUserAPI {
   async getCurrentUser() {
     try {
       const result = await this.client.auth.test();
+      
+      // Extract team domain from URL if available
+      // URL format: https://{domain}.slack.com/
+      let teamDomain = null;
+      if (result.url) {
+        const match = result.url.match(/https:\/\/([^.]+)\.slack\.com/);
+        if (match) {
+          teamDomain = match[1];
+        }
+      }
+      
       return {
         userId: result.user_id,
-        teamId: result.team_id
+        teamId: result.team_id,
+        teamDomain: teamDomain
       };
     } catch (error) {
       throw new Error(`Failed to get current user: ${error.message}`);

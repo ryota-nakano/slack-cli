@@ -32,16 +32,7 @@ class SlackClient {
       const authInfo = await this.userAPI.getCurrentUser();
       this.currentUserId = authInfo.userId;
       this.teamId = authInfo.teamId;
-      
-      // Also fetch team domain for generating proper links
-      if (!this.teamDomain) {
-        try {
-          const teamInfo = await this.getTeamInfo();
-          this.teamDomain = teamInfo.domain;
-        } catch (error) {
-          // Silent fail - teamDomain will remain null
-        }
-      }
+      this.teamDomain = authInfo.teamDomain;
     }
     return this.currentUserId;
   }
