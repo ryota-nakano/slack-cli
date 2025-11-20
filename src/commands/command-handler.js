@@ -394,8 +394,15 @@ class CommandHandler {
         const messageTsFormatted = 'p' + messageTs.replace('.', '');
         
         // Generate proper Slack archive link
-        // Format: https://{workspace}.slack.com/archives/{channel_id}/p{timestamp}
-        url = `https://${this.client.teamDomain}.slack.com/archives/${this.session.channelId}/${messageTsFormatted}`;
+        if (this.session.isThread()) {
+          // Thread message: add thread_ts and cid parameters
+          // Format: https://{workspace}.slack.com/archives/{channel_id}/p{timestamp}?thread_ts={thread_ts}&cid={channel_id}
+          url = `https://${this.client.teamDomain}.slack.com/archives/${this.session.channelId}/${messageTsFormatted}?thread_ts=${this.session.threadTs}&cid=${this.session.channelId}`;
+        } else {
+          // Channel message
+          // Format: https://{workspace}.slack.com/archives/{channel_id}/p{timestamp}
+          url = `https://${this.client.teamDomain}.slack.com/archives/${this.session.channelId}/${messageTsFormatted}`;
+        }
       } else {
         // No number provided - show current context link
         if (this.session.isThread()) {
