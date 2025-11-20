@@ -378,21 +378,17 @@ class CommandHandler {
         const message = messageArray[num - 1];
         messageTs = message.ts;
         
-        // Message link format: https://app.slack.com/client/{team_id}/{channel_id}/thread/{channel_id}-{message_ts}
-        const messageTsFormatted = messageTs.replace('.', '');
+        // Format timestamp for URL: remove the dot and prepend 'p' (e.g., 1234567890.123456 → p1234567890123456)
+        const messageTsFormatted = 'p' + messageTs.replace('.', '');
         
         if (this.session.isThread()) {
           // If in thread, link to the specific message in thread
-          url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/thread/${this.session.channelId}-${this.session.threadTs.replace('.', '')}?thread_ts=${this.session.threadTs}&cid=${this.session.channelId}`;
+          // Format: https://app.slack.com/client/{team_id}/{channel_id}/{message_ts_formatted}
+          url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/${messageTsFormatted}`;
         } else {
-          // If in channel, check if message has thread
-          if (message.thread_ts && message.thread_ts === message.ts) {
-            // This is a thread parent message
-            url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/thread/${this.session.channelId}-${messageTsFormatted}`;
-          } else {
-            // Regular channel message
-            url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/thread/${this.session.channelId}-${messageTsFormatted}`;
-          }
+          // If in channel, link directly to the message (will highlight it)
+          // Format: https://app.slack.com/client/{team_id}/{channel_id}/{message_ts_formatted}
+          url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/${messageTsFormatted}`;
         }
       } else {
         // No number provided - show current context link
