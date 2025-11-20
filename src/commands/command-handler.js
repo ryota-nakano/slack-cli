@@ -330,15 +330,21 @@ class CommandHandler {
     try {
       const { execSync } = require('child_process');
       
-      // Use app.slack.com URL which works without team domain
+      // Ensure we have team domain
+      if (!this.client.teamDomain) {
+        await this.client.getCurrentUser();
+      }
+      
+      // Generate proper Slack archive link
+      // Format: https://{workspace}.slack.com/archives/{channel_id}[/p{timestamp}]
       let url;
       if (this.session.isThread()) {
-        // Thread URL format: https://app.slack.com/client/{team_id}/{channel_id}/thread/{channel_id}-{thread_ts}
-        const threadTsFormatted = this.session.threadTs.replace('.', '');
-        url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/thread/${this.session.channelId}-${threadTsFormatted}`;
+        // Thread URL format
+        const threadTsFormatted = 'p' + this.session.threadTs.replace('.', '');
+        url = `https://${this.client.teamDomain}.slack.com/archives/${this.session.channelId}/${threadTsFormatted}`;
       } else {
-        // Channel URL format: https://app.slack.com/client/{team_id}/{channel_id}
-        url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}`;
+        // Channel URL format
+        url = `https://${this.client.teamDomain}.slack.com/archives/${this.session.channelId}`;
       }
 
       console.log(chalk.cyan(`\n🌐 ブラウザで開いています: ${url}\n`));
@@ -362,6 +368,12 @@ class CommandHandler {
       let url;
       let messageTs;
       
+      // Ensure we have team domain
+      if (!this.client.teamDomain) {
+        console.log(chalk.yellow('\n⚠️  ワークスペース情報を取得中...\n'));
+        await this.client.getCurrentUser();
+      }
+      
       // If message number is provided, get that specific message's link
       if (msgNumber) {
         const halfWidthMsgNumber = toHalfWidth(msgNumber);
@@ -381,22 +393,16 @@ class CommandHandler {
         // Format timestamp for URL: remove the dot and prepend 'p' (e.g., 1234567890.123456 → p1234567890123456)
         const messageTsFormatted = 'p' + messageTs.replace('.', '');
         
-        if (this.session.isThread()) {
-          // If in thread, link to the specific message in thread
-          // Format: https://app.slack.com/client/{team_id}/{channel_id}/{message_ts_formatted}
-          url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/${messageTsFormatted}`;
-        } else {
-          // If in channel, link directly to the message (will highlight it)
-          // Format: https://app.slack.com/client/{team_id}/{channel_id}/{message_ts_formatted}
-          url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/${messageTsFormatted}`;
-        }
+        // Generate proper Slack archive link
+        // Format: https://{workspace}.slack.com/archives/{channel_id}/p{timestamp}
+        url = `https://${this.client.teamDomain}.slack.com/archives/${this.session.channelId}/${messageTsFormatted}`;
       } else {
         // No number provided - show current context link
         if (this.session.isThread()) {
-          const threadTsFormatted = this.session.threadTs.replace('.', '');
-          url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/thread/${this.session.channelId}-${threadTsFormatted}`;
+          const threadTsFormatted = 'p' + this.session.threadTs.replace('.', '');
+          url = `https://${this.client.teamDomain}.slack.com/archives/${this.session.channelId}/${threadTsFormatted}`;
         } else {
-          url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}`;
+          url = `https://${this.client.teamDomain}.slack.com/archives/${this.session.channelId}`;
         }
       }
 
