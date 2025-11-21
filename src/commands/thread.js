@@ -859,22 +859,31 @@ class ChatSession {
   async sendAndDisplay(text) {
     const result = await this.client.sendMessage(this.channelId, text, this.threadTs);
 
+    // Immediately add the sent message to the display (optimistic update)
+    if (result && result.ok && result.message) {
+      const sentMsg = result.message;
+      
+      // Map the sent message to our format
+      const users = await this.client.getUsers();
+      const usergroups = await this.client.getUsergroups();
+      const formattedMsg = await this.client.messageAPI.mapMessage(sentMsg, users, usergroups);
+      
+      // Add to appropriate message array
+      if (this.isThread()) {
+        this.allMessages.push(formattedMsg);
+        // Update displayed messages
+        this.messages = this.allMessages.slice(-this.displayCount);
+      } else {
+        this.messages.push(formattedMsg);
+      }
+    }
+
     // Invalidate cache when sending a message
     if (this.isThread()) {
       this.messageCache.invalidate(this.channelId, this.threadTs);
-      // Maintain current display count when refreshing
-      const currentDisplayCount = this.displayCount;
-      await this.fetchMessages(null, null, true);
-      this.displayCount = currentDisplayCount;
-      // Make sure the new message is visible
-      if (this.allMessages.length > this.messages.length) {
-        this.messages = this.allMessages.slice(-this.displayCount);
-      }
-    } else {
-      await this.fetchMessages(null, null, true);
     }
 
-    // Refresh display
+    // Refresh display immediately with the optimistically added message
     this.displayMessages();
 
     // Update history immediately when sending a message

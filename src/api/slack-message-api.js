@@ -356,8 +356,14 @@ class SlackMessageAPI {
         options.thread_ts = threadTs;
       }
 
-      await this.client.chat.postMessage(options);
-      return true;
+      const response = await this.client.chat.postMessage(options);
+      
+      // Return the sent message data
+      return {
+        ok: response.ok,
+        ts: response.ts,
+        message: response.message
+      };
     } catch (error) {
       throw new Error(`Failed to send message: ${error.message}`);
     }
