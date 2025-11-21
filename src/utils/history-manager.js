@@ -51,12 +51,17 @@ class HistoryManager {
    */
   addConversation(conversation) {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const retentionDate = new Date(now);
+    // Subtract (RETENTION_DAYS - 1) to keep entries from today and the past (RETENTION_DAYS - 1) days
+    // e.g., if RETENTION_DAYS=7, keep entries from the past 6 days + today = 7 days total
+    retentionDate.setDate(retentionDate.getDate() - (HISTORY.RETENTION_DAYS - 1));
+    retentionDate.setHours(0, 0, 0, 0);
     
-    // Remove old entries (keep only today's)
+    // Remove old entries (keep only entries within retention period)
     this.history = this.history.filter(item => {
       const itemDate = new Date(item.timestamp);
-      return itemDate >= today;
+      itemDate.setHours(0, 0, 0, 0);
+      return itemDate >= retentionDate;
     });
 
     // Find existing entry
@@ -94,15 +99,19 @@ class HistoryManager {
   }
 
   /**
-   * Get today's conversation history (sorted by most recent)
+   * Get conversation history within retention period (sorted by most recent)
    */
   getTodayHistory() {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const retentionDate = new Date(now);
+    // Subtract (RETENTION_DAYS - 1) to keep entries from today and the past (RETENTION_DAYS - 1) days
+    retentionDate.setDate(retentionDate.getDate() - (HISTORY.RETENTION_DAYS - 1));
+    retentionDate.setHours(0, 0, 0, 0);
     
     return this.history.filter(item => {
       const itemDate = new Date(item.timestamp);
-      return itemDate >= today;
+      itemDate.setHours(0, 0, 0, 0);
+      return itemDate >= retentionDate;
     });
   }
 

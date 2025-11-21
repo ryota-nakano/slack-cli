@@ -39,6 +39,9 @@ const DISPLAY = {
 const HISTORY = {
   // Maximum number of history entries to keep
   LIMIT: getEnvInt('HISTORY_LIMIT', 20),
+  
+  // Number of days to retain history (default: 7 days)
+  RETENTION_DAYS: getEnvInt('HISTORY_RETENTION_DAYS', 7),
 };
 
 // Cache Settings
