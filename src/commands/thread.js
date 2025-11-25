@@ -396,7 +396,29 @@ class ChatSession {
           // Stop polling again while in editor mode
           this.stopPolling();
           
-          const editorInput = new EditorInput();
+          // Prepare reference messages (last 10 messages)
+          const messagesToShow = this.isThread() 
+            ? this.messages.slice(-10) 
+            : this.messages.slice(-10);
+          
+          let referenceText = '';
+          if (messagesToShow.length > 0) {
+            referenceText = '# 最近のメッセージ（参照用）\n\n';
+            for (const msg of messagesToShow) {
+              const time = new Date(parseFloat(msg.ts) * 1000).toLocaleString('ja-JP', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+              const user = msg.userName || msg.user || 'Unknown';
+              const text = msg.text || '';
+              referenceText += `[${time}] ${user}:\n${text}\n\n`;
+            }
+            referenceText += '---\n以下に返信を入力してください（このファイルは編集しないでください）\n';
+          }
+          
+          const editorInput = new EditorInput(referenceText || null);
           const editorText = await editorInput.prompt();
           
           // Resume polling after exiting editor
