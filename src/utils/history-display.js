@@ -232,10 +232,10 @@ async function displayThreadItem(item, client, historyManager) {
       ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
       : '';
     
-    // Display on one line: Number, time, user name, text preview (no channel name for threads)
+    // Display on one line: Time, Number, user name, text preview (no channel name for threads)
     console.log(
-      chalk.bgWhite.black(` ${item.displayNumber} `) + ' ' +
-      chalk.gray(time) + reactionIndicator + ' ' +
+      chalk.gray(time) + ' ' +
+      chalk.bgWhite.black(` ${item.displayNumber} `) + reactionIndicator + ' ' +
       chalk.green(userName) + ' ' +
       truncatedText
     );
@@ -282,10 +282,10 @@ async function displayThreadItem(item, client, historyManager) {
           ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
           : '';
         
-        // Display on one line: Number, time, user name, text preview (no channel name for threads)
+        // Display on one line: Time, Number, user name, text preview (no channel name for threads)
         console.log(
-          chalk.bgWhite.black(` ${item.displayNumber} `) + ' ' +
-          chalk.gray(time) + reactionIndicator + ' ' +
+          chalk.gray(time) + ' ' +
+          chalk.bgWhite.black(` ${item.displayNumber} `) + reactionIndicator + ' ' +
           chalk.green(userName) + ' ' +
           truncatedText
         );
@@ -296,15 +296,15 @@ async function displayThreadItem(item, client, historyManager) {
         ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
         : '';
       console.log(
-        chalk.bgWhite.black(` ${item.displayNumber} `) + ' ' +
-        chalk.gray(time) + reactionIndicator
+        chalk.gray(time) + ' ' +
+        chalk.bgWhite.black(` ${item.displayNumber} `) + reactionIndicator
       );
     }
   } else {
     // No preview and no client - just show basic info
     console.log(
-      chalk.bgWhite.black(` ${item.displayNumber} `) + ' ' +
-      chalk.gray(time)
+      chalk.gray(time) + ' ' +
+      chalk.bgWhite.black(` ${item.displayNumber} `)
     );
   }
 }
@@ -326,8 +326,8 @@ function displayChannelItem(item) {
     : '';
   
   console.log(
-    chalk.bgWhite.black(` ${item.displayNumber} `) + ' ' +
     chalk.gray(time) + ' ' +
+    chalk.bgWhite.black(` ${item.displayNumber} `) + ' ' +
     chalk.green(item.channelName) + reactionIndicator
   );
 }
