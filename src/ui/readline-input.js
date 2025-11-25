@@ -116,8 +116,37 @@ class ReadlineInput {
           return;
         }
 
-        // Ctrl+J: Ignore (prevent newline insertion)
+        // Ctrl+J: In selection mode, act as Enter (confirm). Otherwise, ignore (prevent newline insertion)
         if (key.ctrl && key.name === 'j') {
+          if (this.contextType === 'selection') {
+            // Act as Enter in selection mode
+            if (this.suggestions.length > 0) {
+              const result = this.insertSuggestion();
+              this.clearSuggestions();
+              this.redrawInput();
+              
+              // If channel was selected with switch intent, signal special handling
+              if (result && result.type === 'channel' && !result.inserted) {
+                cleanup();
+                resolve({ type: 'channel', channel: result.channel });
+                return;
+              }
+              
+              // Don't auto-update after selection
+              return;
+            }
+
+            // If input is empty, just ignore and continue waiting for input
+            if (this.input.trim() === '') {
+              return;
+            }
+
+            this.clearSuggestions();
+            cleanup();
+            resolve(this.input);
+            return;
+          }
+          // In other contexts, ignore Ctrl+J
           return;
         }
 
