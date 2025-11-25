@@ -934,9 +934,9 @@ async function channelChat() {
     
     // Show history immediately (don't wait for reactions)
     // Store the displayed history for selection
-    let displayedHistory = history;
+    let displayedHistory = [];
     if (history.length > 0) {
-      await displayGroupedHistory(history, client, historyManager);
+      displayedHistory = await displayGroupedHistory(history, client, historyManager);
       console.log(chalk.gray('\n💡 ヒント: /数字 で履歴から開く（例: /1）\n'));
     }
     

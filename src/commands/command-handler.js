@@ -197,11 +197,12 @@ class CommandHandler {
       return;
     }
 
-    await displayGroupedHistory(mergedHistory, this.client, this.historyManager);
+    // Display and get items in display order
+    const displayedHistory = await displayGroupedHistory(mergedHistory, this.client, this.historyManager);
     console.log(chalk.gray('\n💡 ヒント: 数字 または /数字 で移動（例: 1 または /1）\n'));
     
-    // Store merged history for navigation
-    this.session.recentHistory = mergedHistory;
+    // Store displayed history for navigation (in display order, not original order)
+    this.session.recentHistory = displayedHistory;
     this.session.showingRecentHistory = true; // Set flag for next command
   }
 

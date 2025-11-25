@@ -46,11 +46,11 @@ async function formatMentions(text, client = null) {
  * @param {Array} history - Array of history items from HistoryManager
  * @param {Object} client - SlackClient instance for fetching thread details
  * @param {Object} historyManager - HistoryManager instance for caching
- * @returns {Promise<void>}
+ * @returns {Promise<Array>} Array of items in display order with displayNumber assigned
  */
 async function displayGroupedHistory(history, client = null, historyManager = null) {
   if (history.length === 0) {
-    return;
+    return [];
   }
 
   // Separate into CLI threads, CLI channels, CLI DMs, and eyes reactions
@@ -91,6 +91,18 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
     }
   }
   
+  // Assign display numbers in order of appearance (1, 2, 3, ...)
+  let displayNumber = 1;
+  for (const item of cliThreads) {
+    item.displayNumber = displayNumber++;
+  }
+  for (const item of cliChannels) {
+    item.displayNumber = displayNumber++;
+  }
+  for (const item of cliDMs) {
+    item.displayNumber = displayNumber++;
+  }
+  
   // Filter eyes reactions to only show items NOT in CLI history
   const eyesThreads = [];
   const eyesChannels = [];
@@ -111,6 +123,17 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
         eyesChannels.push(item);
       }
     }
+  }
+  
+  // Assign display numbers to eyes reactions (continuing from previous sections)
+  for (const item of eyesThreads) {
+    item.displayNumber = displayNumber++;
+  }
+  for (const item of eyesChannels) {
+    item.displayNumber = displayNumber++;
+  }
+  for (const item of eyesDMs) {
+    item.displayNumber = displayNumber++;
   }
   
   // Display CLI threads
@@ -162,6 +185,9 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
       }
     }
   }
+  
+  // Return items in display order (for number-based selection)
+  return [...cliThreads, ...cliChannels, ...cliDMs, ...allEyesReactions];
 }
 
 /**
@@ -208,7 +234,7 @@ async function displayThreadItem(item, client, historyManager) {
     
     // Display on one line: Number, time, user name, text preview (no channel name for threads)
     console.log(
-      chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
+      chalk.bgWhite.black(` ${item.displayNumber} `) + ' ' +
       chalk.gray(time) + reactionIndicator + ' ' +
       chalk.green(userName) + ' ' +
       truncatedText
@@ -258,7 +284,7 @@ async function displayThreadItem(item, client, historyManager) {
         
         // Display on one line: Number, time, user name, text preview (no channel name for threads)
         console.log(
-          chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
+          chalk.bgWhite.black(` ${item.displayNumber} `) + ' ' +
           chalk.gray(time) + reactionIndicator + ' ' +
           chalk.green(userName) + ' ' +
           truncatedText
@@ -270,14 +296,14 @@ async function displayThreadItem(item, client, historyManager) {
         ? ' ' + chalk.yellow(item.reactions.map(r => `:${r}:`).join(' '))
         : '';
       console.log(
-        chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
+        chalk.bgWhite.black(` ${item.displayNumber} `) + ' ' +
         chalk.gray(time) + reactionIndicator
       );
     }
   } else {
     // No preview and no client - just show basic info
     console.log(
-      chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
+      chalk.bgWhite.black(` ${item.displayNumber} `) + ' ' +
       chalk.gray(time)
     );
   }
@@ -300,7 +326,7 @@ function displayChannelItem(item) {
     : '';
   
   console.log(
-    chalk.bgWhite.black(` ${item.originalIndex + 1} `) + ' ' +
+    chalk.bgWhite.black(` ${item.displayNumber} `) + ' ' +
     chalk.gray(time) + ' ' +
     chalk.green(item.channelName) + reactionIndicator
   );
