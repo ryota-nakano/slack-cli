@@ -577,10 +577,9 @@ class ReadlineInput {
     this.lastChannelQuery = null;
     this.lastMentionQuery = null;
     
-    // Reset screenCursorLine after cursor movement
-    const beforeCursor = this.input.substring(0, this.cursorPos);
-    const linesBeforeCursor = beforeCursor.split('\n');
-    this.screenCursorLine = linesBeforeCursor.length - 1;
+    // DON'T reset screenCursorLine here - it's already correct
+    // The cursor movement above doesn't change the logical position
+    // because we moved down and back up by the same amount
   }
 
   /**
@@ -651,6 +650,11 @@ class ReadlineInput {
     const currentLineIdx = linesBeforeCursor.length - 1;
     const currentLineText = linesBeforeCursor[currentLineIdx];
     
+    if (process.env.DEBUG_READLINE) {
+      console.error(`[DEBUG] redrawInput: screenCursorLine=${this.screenCursorLine}, currentLineIdx=${currentLineIdx}, lines.length=${lines.length}, previousLineCount=${this.previousLineCount}`);
+      console.error(`[DEBUG] input.length=${this.input.length}, cursorPos=${this.cursorPos}`);
+    }
+    
     // Step 1: Move to the first line using the tracked screen cursor position
     if (this.screenCursorLine > 0) {
       process.stdout.write(`\x1b[${this.screenCursorLine}A`);
@@ -699,6 +703,10 @@ class ReadlineInput {
     // Step 6: Update tracked positions
     this.previousLineCount = lines.length;
     this.screenCursorLine = currentLineIdx;
+    
+    if (process.env.DEBUG_READLINE) {
+      console.error(`[DEBUG] redrawInput完了: screenCursorLine=${this.screenCursorLine}, previousLineCount=${this.previousLineCount}`);
+    }
   }
 
   /**
