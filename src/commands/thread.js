@@ -864,8 +864,8 @@ class ChatSession {
       const sentMsg = result.message;
       
       // Map the sent message to our format
-      const users = await this.client.getUsers();
-      const usergroups = await this.client.getUsergroups();
+      const users = await this.client.listChannelUsers(this.channelId);
+      const usergroups = await this.client.listUsergroups();
       const formattedMsg = await this.client.messageAPI.mapMessage(sentMsg, users, usergroups);
       
       // Add to appropriate message array

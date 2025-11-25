@@ -57,6 +57,10 @@ class SlackClient {
     return this.userAPI.formatMentions(text, channelId);
   }
 
+  async listUsergroups() {
+    return this.userAPI.listUsergroups();
+  }
+
   // ============ Channel API Methods ============
 
   async listChannels(forceRefresh = false) {
