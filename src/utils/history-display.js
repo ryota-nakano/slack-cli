@@ -140,32 +140,41 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
   if (cliThreads.length > 0) {
     console.log(chalk.bold.cyan('💬 スレッド:\n'));
     
-    for (const item of cliThreads) {
-      await displayThreadItem(item, client, historyManager);
+    for (let i = 0; i < cliThreads.length; i++) {
+      await displayThreadItem(cliThreads[i], client, historyManager);
+      if (i < cliThreads.length - 1) {
+        console.log(''); // Add blank line between items
+      }
     }
   }
   
   // Display CLI channels
   if (cliChannels.length > 0) {
     if (cliThreads.length > 0) {
-      console.log(''); // Add blank line between sections
+      console.log('\n'); // Add blank line between sections
     }
     console.log(chalk.bold.cyan('# チャンネル:\n'));
     
-    for (const item of cliChannels) {
-      displayChannelItem(item);
+    for (let i = 0; i < cliChannels.length; i++) {
+      displayChannelItem(cliChannels[i]);
+      if (i < cliChannels.length - 1) {
+        console.log(''); // Add blank line between items
+      }
     }
   }
   
   // Display CLI DMs
   if (cliDMs.length > 0) {
     if (cliThreads.length > 0 || cliChannels.length > 0) {
-      console.log(''); // Add blank line between sections
+      console.log('\n'); // Add blank line between sections
     }
     console.log(chalk.bold.magenta('💌 DM:\n'));
     
-    for (const item of cliDMs) {
-      displayChannelItem(item);
+    for (let i = 0; i < cliDMs.length; i++) {
+      displayChannelItem(cliDMs[i]);
+      if (i < cliDMs.length - 1) {
+        console.log(''); // Add blank line between items
+      }
     }
   }
   
@@ -173,15 +182,19 @@ async function displayGroupedHistory(history, client = null, historyManager = nu
   const allEyesReactions = [...eyesThreads, ...eyesChannels, ...eyesDMs];
   if (allEyesReactions.length > 0) {
     if (cliThreads.length > 0 || cliChannels.length > 0 || cliDMs.length > 0) {
-      console.log(''); // Add blank line between sections
+      console.log('\n'); // Add blank line between sections
     }
     console.log(chalk.bold.yellow('👀 リアクション:\n'));
     
-    for (const item of allEyesReactions) {
+    for (let i = 0; i < allEyesReactions.length; i++) {
+      const item = allEyesReactions[i];
       if (item.type === 'thread') {
         await displayThreadItem(item, client, historyManager);
       } else {
         displayChannelItem(item);
+      }
+      if (i < allEyesReactions.length - 1) {
+        console.log(''); // Add blank line between items
       }
     }
   }
