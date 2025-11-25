@@ -85,6 +85,11 @@ class ReadlineInput {
 
       const onKeypress = async (str, key) => {
         if (!key) return;
+        
+        // Debug: Log key presses in selection mode
+        if (process.env.DEBUG_KEYS && this.contextType === 'selection') {
+          console.error(`[DEBUG] Key pressed: name="${key.name}", ctrl=${key.ctrl}, meta=${key.meta}, shift=${key.shift}, str="${str}"`);
+        }
 
         // Ctrl+C: Exit
         if (key.ctrl && key.name === 'c') {
@@ -117,7 +122,8 @@ class ReadlineInput {
         }
 
         // Ctrl+J: In selection mode, act as Enter (confirm). Otherwise, ignore (prevent newline insertion)
-        if (key.ctrl && key.name === 'j') {
+        // Note: Ctrl+J sends the same code as Enter (\n), so we check for both
+        if ((key.ctrl && key.name === 'j') || (key.name === 'return' && key.sequence === '\n')) {
           if (this.contextType === 'selection') {
             // Act as Enter in selection mode
             if (this.suggestions.length > 0) {
@@ -146,12 +152,14 @@ class ReadlineInput {
             resolve(this.input);
             return;
           }
-          // In other contexts, ignore Ctrl+J
-          return;
+          // In other contexts, ignore Ctrl+J (but allow Enter)
+          if (key.ctrl && key.name === 'j') {
+            return;
+          }
         }
 
-        // Enter: Submit or select suggestion
-        if (key.name === 'return') {
+        // Enter: Submit or select suggestion (handled by above for selection mode)
+        if (key.name === 'return' && this.contextType !== 'selection') {
           if (this.suggestions.length > 0) {
             const result = this.insertSuggestion();
             this.clearSuggestions();
