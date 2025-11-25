@@ -1,5 +1,18 @@
 # 変更履歴
 
+## バージョン 2.10.1 (2025-11-25)
+
+### 🐛 バグ修正
+
+- **getUsers/getUsergroupsエラー修正**: メッセージ送信時に`this.client.getUsers is not a function`エラーが発生する問題を修正
+  - 原因: SlackClientに存在しないメソッドを呼び出していた
+  - 修正: `listChannelUsers()`と`listUsergroups()`を使用するように変更
+
+- **readline長文入力バグ修正**: 2行目以降で入力するたびに同じ行が改行で増殖し続ける問題を修正
+  - 原因: `clearSuggestions()`で`screenCursorLine`を誤って再計算していた
+  - 修正: カーソル位置の追跡ロジックを改善し、行増殖を防止
+  - デバッグログを追加（`DEBUG_READLINE=1`で有効化）
+
 ## バージョン 2.10.0 (2025-11-19)
 
 ### ✨ 新機能
