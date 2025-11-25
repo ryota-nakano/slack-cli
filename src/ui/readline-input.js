@@ -121,11 +121,12 @@ class ReadlineInput {
           return;
         }
 
-        // Ctrl+J: In selection mode, act as Enter (confirm). Otherwise, ignore (prevent newline insertion)
-        // Note: Ctrl+J sends the same code as Enter (\n), so we check for both
-        if ((key.ctrl && key.name === 'j') || (key.name === 'return' && key.sequence === '\n')) {
+        // Enter (or Ctrl+J which is indistinguishable): Handle differently based on context
+        // In selection mode: always confirm
+        // In other modes: submit or select suggestion
+        if (key.name === 'return' || key.name === 'enter') {
           if (this.contextType === 'selection') {
-            // Act as Enter in selection mode
+            // In selection mode, Enter/Ctrl+J always confirms
             if (this.suggestions.length > 0) {
               const result = this.insertSuggestion();
               this.clearSuggestions();
@@ -151,39 +152,38 @@ class ReadlineInput {
             cleanup();
             resolve(this.input);
             return;
-          }
-          // In other contexts, ignore Ctrl+J (but allow Enter)
-          if (key.ctrl && key.name === 'j') {
+          } else {
+            // In other contexts (chat mode)
+            if (this.suggestions.length > 0) {
+              const result = this.insertSuggestion();
+              this.clearSuggestions();
+              this.redrawInput();
+              
+              // If channel was selected with switch intent, signal special handling
+              if (result && result.type === 'channel' && !result.inserted) {
+                cleanup();
+                resolve({ type: 'channel', channel: result.channel });
+                return;
+              }
+              
+              // Don't auto-update after selection
+              return;
+            }
+
+            // If input is empty, just ignore Enter and continue waiting for input
+            if (this.input.trim() === '') {
+              return;
+            }
+
+            this.clearSuggestions();
+            cleanup();
+            resolve(this.input);
             return;
           }
         }
 
-        // Enter: Submit or select suggestion (handled by above for selection mode)
-        if (key.name === 'return' && this.contextType !== 'selection') {
-          if (this.suggestions.length > 0) {
-            const result = this.insertSuggestion();
-            this.clearSuggestions();
-            this.redrawInput();
-            
-            // If channel was selected with switch intent, signal special handling
-            if (result && result.type === 'channel' && !result.inserted) {
-              cleanup();
-              resolve({ type: 'channel', channel: result.channel });
-              return;
-            }
-            
-            // Don't auto-update after selection
-            return;
-          }
-
-          // If input is empty, just ignore Enter and continue waiting for input
-          if (this.input.trim() === '') {
-            return;
-          }
-
-          this.clearSuggestions();
-          cleanup();
-          resolve(this.input);
+        // Ctrl+J: Ignore in non-selection contexts (prevent newline insertion)
+        if (key.ctrl && key.name === 'j') {
           return;
         }
 
