@@ -22,8 +22,9 @@ class EditorInput {
     return new Promise(async (resolve, reject) => {
       const tmpFile = join(tmpdir(), `slack-cli-${Date.now()}.txt`);
       const referenceFile = join(tmpdir(), `slack-cli-ref-${Date.now()}.txt`);
-      const vimScriptFile = join(tmpdir(), `slack-cli-vim-${Date.now()}.vim`);
+      const wrapperScript = join(tmpdir(), `slack-cli-wrapper-${Date.now()}.sh`);
 
+      let editorCommand = this.editor;
       let editorArgs = [tmpFile];
       
       // If reference messages are provided, save them to a file
@@ -31,31 +32,23 @@ class EditorInput {
         try {
           await writeFile(referenceFile, this.referenceMessages, 'utf-8');
           console.log(chalk.cyan(`\n📝 エディタを起動します（参照メッセージ付き）...\n`));
+          console.log(chalk.gray(`💡 ヒント: :wqa または :qa で全ウィンドウを閉じます\n`));
           
           // Setup editor-specific split commands
           if (this.editor.includes('vim') || this.editor.includes('nvim')) {
-            // Vim: Create a vim script to handle the split and auto-quit
-            const vimScript = `
-" Open reference file in split
-split ${referenceFile}
-" Make reference file readonly and unmodifiable
-setlocal readonly
-setlocal nomodifiable
-" Move to input window
-wincmd j
-" Start in insert mode
-startinsert
-
-" Auto-quit all windows when input buffer is closed
-augroup SlackCliAutoQuit
-  autocmd!
-  autocmd BufDelete ${tmpFile} qall!
-augroup END
-`;
-            await writeFile(vimScriptFile, vimScript, 'utf-8');
-            
-            // Use -S to source the script
-            editorArgs = ['-S', vimScriptFile, tmpFile];
+            // Vim: Use -o to open files in horizontal splits
+            // -o opens files in horizontal splits, with the last file being the active one
+            editorArgs = [
+              '-o2',                            // Open 2 windows horizontally
+              referenceFile,                    // Reference file (top)
+              tmpFile,                          // Input file (bottom)
+              '-c', 'wincmd j',                 // Move to bottom window
+              '-c', 'setlocal bufhidden=wipe',  // Wipe buffer when hidden
+              '-c', 'wincmd k',                 // Move to top window
+              '-c', 'setlocal readonly nomodifiable', // Make reference readonly
+              '-c', 'wincmd j',                 // Back to input window
+              '-c', 'startinsert'               // Start in insert mode
+            ];
           } else if (this.editor.includes('emacs')) {
             // Emacs: Open with split layout
             editorArgs = [
@@ -71,7 +64,7 @@ augroup END
         }
       }
 
-      const editorProcess = spawn(this.editor, editorArgs, {
+      const editorProcess = spawn(editorCommand, editorArgs, {
         stdio: 'inherit'
       });
 
@@ -79,10 +72,10 @@ augroup END
         try {
           const exists = await access(tmpFile).then(() => true).catch(() => false);
           if (!exists) {
-            // Cleanup reference file and vim script
+            // Cleanup reference file
             if (this.referenceMessages) {
               await unlink(referenceFile).catch(() => {});
-              await unlink(vimScriptFile).catch(() => {});
+              await unlink(wrapperScript).catch(() => {});
             }
             resolve('__CANCELLED__');
             return;
@@ -91,10 +84,10 @@ augroup END
           const content = await readFile(tmpFile, 'utf-8');
           await unlink(tmpFile).catch(() => {});
           
-          // Cleanup reference file and vim script
+          // Cleanup reference file
           if (this.referenceMessages) {
             await unlink(referenceFile).catch(() => {});
-            await unlink(vimScriptFile).catch(() => {});
+            await unlink(wrapperScript).catch(() => {});
           }
 
           if (content.trim() === '') {
