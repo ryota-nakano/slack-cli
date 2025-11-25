@@ -22,6 +22,7 @@ class EditorInput {
     return new Promise(async (resolve, reject) => {
       const tmpFile = join(tmpdir(), `slack-cli-${Date.now()}.txt`);
       const referenceFile = join(tmpdir(), `slack-cli-ref-${Date.now()}.txt`);
+      const vimScriptFile = join(tmpdir(), `slack-cli-vim-${Date.now()}.vim`);
 
       let editorArgs = [tmpFile];
       
@@ -33,17 +34,28 @@ class EditorInput {
           
           // Setup editor-specific split commands
           if (this.editor.includes('vim') || this.editor.includes('nvim')) {
-            // Vim: Open with split layout
-            // -c commands are executed in order after opening the file
-            editorArgs = [
-              '-c', `split ${referenceFile}`,  // Split and open reference file
-              '-c', 'setlocal readonly',        // Set reference file as readonly
-              '-c', 'setlocal nomodifiable',    // Make reference file unmodifiable
-              '-c', 'wincmd j',                 // Move to bottom window (input file)
-              '-c', 'startinsert',              // Start in insert mode
-              '-c', 'autocmd BufWinLeave <buffer> qa!',  // Auto-quit all when input file is closed
-              tmpFile
-            ];
+            // Vim: Create a vim script to handle the split and auto-quit
+            const vimScript = `
+" Open reference file in split
+split ${referenceFile}
+" Make reference file readonly and unmodifiable
+setlocal readonly
+setlocal nomodifiable
+" Move to input window
+wincmd j
+" Start in insert mode
+startinsert
+
+" Auto-quit all windows when input buffer is closed
+augroup SlackCliAutoQuit
+  autocmd!
+  autocmd BufDelete ${tmpFile} qall!
+augroup END
+`;
+            await writeFile(vimScriptFile, vimScript, 'utf-8');
+            
+            // Use -S to source the script
+            editorArgs = ['-S', vimScriptFile, tmpFile];
           } else if (this.editor.includes('emacs')) {
             // Emacs: Open with split layout
             editorArgs = [
@@ -67,9 +79,10 @@ class EditorInput {
         try {
           const exists = await access(tmpFile).then(() => true).catch(() => false);
           if (!exists) {
-            // Cleanup reference file
+            // Cleanup reference file and vim script
             if (this.referenceMessages) {
               await unlink(referenceFile).catch(() => {});
+              await unlink(vimScriptFile).catch(() => {});
             }
             resolve('__CANCELLED__');
             return;
@@ -78,9 +91,10 @@ class EditorInput {
           const content = await readFile(tmpFile, 'utf-8');
           await unlink(tmpFile).catch(() => {});
           
-          // Cleanup reference file
+          // Cleanup reference file and vim script
           if (this.referenceMessages) {
             await unlink(referenceFile).catch(() => {});
+            await unlink(vimScriptFile).catch(() => {});
           }
 
           if (content.trim() === '') {
