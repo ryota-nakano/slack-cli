@@ -37,14 +37,17 @@ class EditorInput {
             // -c commands are executed in order after opening the file
             editorArgs = [
               '-c', `split ${referenceFile}`,  // Split and open reference file
+              '-c', 'setlocal readonly',        // Set reference file as readonly
+              '-c', 'setlocal nomodifiable',    // Make reference file unmodifiable
               '-c', 'wincmd j',                 // Move to bottom window (input file)
               '-c', 'startinsert',              // Start in insert mode
+              '-c', 'autocmd BufWinLeave <buffer> qa!',  // Auto-quit all when input file is closed
               tmpFile
             ];
           } else if (this.editor.includes('emacs')) {
             // Emacs: Open with split layout
             editorArgs = [
-              '--eval', `(progn (find-file "${tmpFile}") (split-window-below) (other-window 1) (find-file "${referenceFile}") (other-window 1))`,
+              '--eval', `(progn (find-file "${tmpFile}") (split-window-below) (other-window 1) (find-file "${referenceFile}") (view-mode 1) (other-window 1))`,
             ];
           } else {
             // Other editors: just show hint
