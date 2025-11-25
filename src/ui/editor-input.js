@@ -23,24 +23,40 @@ class EditorInput {
       const tmpFile = join(tmpdir(), `slack-cli-${Date.now()}.txt`);
       const referenceFile = join(tmpdir(), `slack-cli-ref-${Date.now()}.txt`);
 
+      let editorArgs = [tmpFile];
+      
       // If reference messages are provided, save them to a file
       if (this.referenceMessages && this.referenceMessages.length > 0) {
         try {
           await writeFile(referenceFile, this.referenceMessages, 'utf-8');
-          console.log(chalk.cyan(`\n📝 エディタを起動します...`));
-          console.log(chalk.gray(`💡 ヒント: 参照用メッセージは ${referenceFile} に保存されています`));
+          console.log(chalk.cyan(`\n📝 エディタを起動します（参照メッセージ付き）...\n`));
+          
+          // Setup editor-specific split commands
           if (this.editor.includes('vim') || this.editor.includes('nvim')) {
-            console.log(chalk.gray(`💡 Vimユーザー: :split ${referenceFile} で参照を表示できます`));
+            // Vim: Open with split layout
+            // -c commands are executed in order after opening the file
+            editorArgs = [
+              '-c', `split ${referenceFile}`,  // Split and open reference file
+              '-c', 'wincmd j',                 // Move to bottom window (input file)
+              '-c', 'startinsert',              // Start in insert mode
+              tmpFile
+            ];
           } else if (this.editor.includes('emacs')) {
-            console.log(chalk.gray(`💡 Emacsユーザー: C-x 2 して C-x C-f ${referenceFile} で参照を表示できます`));
+            // Emacs: Open with split layout
+            editorArgs = [
+              '--eval', `(progn (find-file "${tmpFile}") (split-window-below) (other-window 1) (find-file "${referenceFile}") (other-window 1))`,
+            ];
+          } else {
+            // Other editors: just show hint
+            console.log(chalk.gray(`💡 参照用メッセージは ${referenceFile} に保存されています`));
+            console.log('');
           }
-          console.log('');
         } catch (error) {
           console.error(chalk.yellow('⚠️  参照ファイルの作成に失敗しました'));
         }
       }
 
-      const editorProcess = spawn(this.editor, [tmpFile], {
+      const editorProcess = spawn(this.editor, editorArgs, {
         stdio: 'inherit'
       });
 
