@@ -362,6 +362,9 @@ class ChatSession {
       try {
         const contextType = this.isThread() ? 'thread' : 'channel';
         
+        // Pass history list if in recent history mode
+        const historyList = this.showingRecentHistory ? this.recentHistory : null;
+        
         // Create readline input with callback for input state changes
         const readlineInput = new ReadlineInput(
           [], 
@@ -375,7 +378,8 @@ class ChatSession {
             } else {
               this.stopPolling();
             }
-          }
+          },
+          historyList  // Pass history list for Ctrl+P/N navigation
         );
         
         // Start with polling enabled (input is initially empty)
@@ -957,9 +961,9 @@ async function channelChat() {
       });
     
     // Initial prompt with channel selection
-    const readlineInput = new ReadlineInput([], client, 'selection');
+    const readlineInput = new ReadlineInput([], client, 'selection', null, null, displayedHistory);
     
-    console.log(chalk.yellow('💡 ヒント: 数字で履歴選択、#でチャンネル検索（例: 1 または #general）'));
+    console.log(chalk.yellow('💡 ヒント: 数字で履歴選択、#でチャンネル検索、Ctrl+P/N で履歴移動（例: 1 または #general）'));
     const result = await readlineInput.prompt('チャンネル選択');
     
     if (result === '__EMPTY__') {

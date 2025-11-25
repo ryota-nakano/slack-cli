@@ -10,7 +10,7 @@ const UserHelper = require('../utils/user-helper');
 const { API } = require('../utils/constants');
 
 class ReadlineInput {
-  constructor(channelMembers = [], slackClient = null, contextType = 'channel', channelId = null, onInputChange = null) {
+  constructor(channelMembers = [], slackClient = null, contextType = 'channel', channelId = null, onInputChange = null, historyList = null) {
     this.members = channelMembers; // Deprecated - not used anymore
     this.slackClient = slackClient; // SlackClient instance for dynamic search
     this.channelId = channelId; // Current channel ID for channel-specific user search
@@ -28,6 +28,8 @@ class ReadlineInput {
     this.isLoadingMentions = false; // Prevent concurrent mention loads
     this.contextType = contextType; // 'channel', 'thread', or 'selection'
     this.onInputChange = onInputChange; // Callback for input state changes
+    this.historyList = historyList; // History items for Ctrl+P/N navigation
+    this.historySelectedIndex = -1; // Currently selected history item (-1 = none)
   }
 
   /**
@@ -236,6 +238,40 @@ class ReadlineInput {
             }
           }
           return;
+        } else if (this.historyList && this.historyList.length > 0 && 
+                   ((key.ctrl && key.name === 'p') || (key.ctrl && key.name === 'n'))) {
+          // History navigation with Ctrl+P (previous) and Ctrl+N (next)
+          // Only when historyList is available and no suggestions are shown
+          
+          if (key.ctrl && key.name === 'p') {
+            // Previous item (move up in history)
+            if (this.historySelectedIndex < 0) {
+              // Start from the last item
+              this.historySelectedIndex = this.historyList.length - 1;
+            } else if (this.historySelectedIndex > 0) {
+              this.historySelectedIndex--;
+            } else {
+              // Wrap to last item
+              this.historySelectedIndex = this.historyList.length - 1;
+            }
+          } else if (key.ctrl && key.name === 'n') {
+            // Next item (move down in history)
+            if (this.historySelectedIndex < 0) {
+              // Start from the first item
+              this.historySelectedIndex = 0;
+            } else if (this.historySelectedIndex < this.historyList.length - 1) {
+              this.historySelectedIndex++;
+            } else {
+              // Wrap to first item
+              this.historySelectedIndex = 0;
+            }
+          }
+          
+          // Update input with the selected history number
+          this.input = (this.historySelectedIndex + 1).toString();
+          this.cursorPos = this.input.length;
+          this.redrawInput();
+          return;
         }
 
         // Normal key input
@@ -243,6 +279,7 @@ class ReadlineInput {
           if (this.cursorPos > 0) {
             this.input = this.input.substring(0, this.cursorPos - 1) + this.input.substring(this.cursorPos);
             this.cursorPos--;
+            this.historySelectedIndex = -1; // Reset history selection on manual input
             notifyInputChange(); // Notify after backspace
           }
         } else if (key.name === 'left') {
@@ -252,6 +289,7 @@ class ReadlineInput {
         } else if (str && !key.ctrl && !key.meta && key.name !== 'return') {
           this.input = this.input.substring(0, this.cursorPos) + str + this.input.substring(this.cursorPos);
           this.cursorPos++;
+          this.historySelectedIndex = -1; // Reset history selection on manual input
           notifyInputChange(); // Notify after character input
         } else {
           return;
