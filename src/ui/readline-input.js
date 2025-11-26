@@ -719,15 +719,45 @@ class ReadlineInput {
    * Redraw input line - Track screen cursor position accurately
    */
   redrawInput() {
+    const width = process.stdout.columns || 80;
     const lines = this.input.split('\n');
     const beforeCursor = this.input.substring(0, this.cursorPos);
     const linesBeforeCursor = beforeCursor.split('\n');
     const currentLineIdx = linesBeforeCursor.length - 1;
-    const currentLineText = linesBeforeCursor[currentLineIdx];
     
+    // Calculate physical lines and cursor position
+    let totalPhysicalLines = 0;
+    let cursorPhysicalLine = 0;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const prefix = (i === 0) ? '> ' : '  ';
+      const lineWidth = stringWidth(prefix) + stringWidth(line);
+      // Calculate how many screen lines this logical line takes
+      const physicalLinesForThisLogicalLine = Math.max(1, Math.ceil(lineWidth / width));
+      
+      if (i < currentLineIdx) {
+        cursorPhysicalLine += physicalLinesForThisLogicalLine;
+      } else if (i === currentLineIdx) {
+        // Calculate cursor row offset within current logical line
+        const textBeforeCursorInLine = linesBeforeCursor[currentLineIdx];
+        const widthBeforeCursor = stringWidth(prefix) + stringWidth(textBeforeCursorInLine);
+        let rowOffset = Math.floor(widthBeforeCursor / width);
+        
+        // If cursor is exactly at the end of a line (multiple of width),
+        // it should be considered on the same line, not the next one
+        if (widthBeforeCursor > 0 && widthBeforeCursor % width === 0) {
+          rowOffset--;
+        }
+        
+        cursorPhysicalLine += rowOffset;
+      }
+      
+      totalPhysicalLines += physicalLinesForThisLogicalLine;
+    }
+
     if (process.env.DEBUG_READLINE) {
-      console.error(`[DEBUG] redrawInput: screenCursorLine=${this.screenCursorLine}, currentLineIdx=${currentLineIdx}, lines.length=${lines.length}, previousLineCount=${this.previousLineCount}`);
-      console.error(`[DEBUG] input.length=${this.input.length}, cursorPos=${this.cursorPos}`);
+      console.error(`[DEBUG] redrawInput: cursorPhysicalLine=${cursorPhysicalLine}, totalPhysicalLines=${totalPhysicalLines}, prevTotal=${this.previousLineCount}`);
     }
     
     // Step 1: Move to the first line using the tracked screen cursor position
@@ -737,19 +767,13 @@ class ReadlineInput {
     
     // Step 2: Clear all old lines from the first line
     process.stdout.write('\r');
-    const maxLines = Math.max(lines.length, this.previousLineCount);
-    for (let i = 0; i < maxLines; i++) {
-      process.stdout.write('\x1b[2K'); // Clear entire line
-      if (i < maxLines - 1) {
-        process.stdout.write('\x1b[B'); // Move down one line
-      }
-    }
+    // Use Clear Screen Down (J) to ensure everything below is cleared
+    // This prevents artifacts when deleting lines
+    process.stdout.write('\x1b[J');
     
     // Step 3: Move back to first line, start of line
-    if (maxLines > 1) {
-      process.stdout.write(`\x1b[${maxLines - 1}A`);
-    }
-    process.stdout.write('\r');
+    // Not needed anymore because we are already at the start of the first line
+    // and we cleared everything below. We can just start writing.
     
     // Step 4: Draw all lines
     for (let i = 0; i < lines.length; i++) {
@@ -764,20 +788,28 @@ class ReadlineInput {
     }
     
     // Step 5: Position cursor at correct location
-    const linesToMoveUp = lines.length - 1 - currentLineIdx;
+    const endPhysicalLine = totalPhysicalLines - 1;
+    const linesToMoveUp = endPhysicalLine - cursorPhysicalLine;
+    
     if (linesToMoveUp > 0) {
       process.stdout.write(`\x1b[${linesToMoveUp}A`);
     }
     
     process.stdout.write('\r');
-    const col = 2 + stringWidth(currentLineText);
+    
+    // Calculate column offset
+    const prefix = (currentLineIdx === 0) ? '> ' : '  ';
+    const textBeforeCursorInLine = linesBeforeCursor[currentLineIdx];
+    const widthBeforeCursor = stringWidth(prefix) + stringWidth(textBeforeCursorInLine);
+    const col = widthBeforeCursor % width;
+    
     if (col > 0) {
       process.stdout.write(`\x1b[${col}C`);
     }
     
     // Step 6: Update tracked positions
-    this.previousLineCount = lines.length;
-    this.screenCursorLine = currentLineIdx;
+    this.previousLineCount = totalPhysicalLines;
+    this.screenCursorLine = cursorPhysicalLine;
     
     if (process.env.DEBUG_READLINE) {
       console.error(`[DEBUG] redrawInput完了: screenCursorLine=${this.screenCursorLine}, previousLineCount=${this.previousLineCount}`);

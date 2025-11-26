@@ -331,21 +331,21 @@ class CommandHandler {
     try {
       const { execSync } = require('child_process');
       
-      // Ensure we have team domain
-      if (!this.client.teamDomain) {
+      // Ensure we have team info
+      if (!this.client.teamDomain || !this.client.teamId) {
         await this.client.getCurrentUser();
       }
       
-      // Generate proper Slack archive link
-      // Format: https://{workspace}.slack.com/archives/{channel_id}[/p{timestamp}]
+      // Generate proper Slack client link
+      // Format: https://app.slack.com/client/{teamId}/{channelId}[/{timestamp}]
       let url;
       if (this.session.isThread()) {
         // Thread URL format
-        const threadTsFormatted = 'p' + this.session.threadTs.replace('.', '');
-        url = `https://${this.client.teamDomain}.slack.com/archives/${this.session.channelId}/${threadTsFormatted}`;
+        // Use raw timestamp (e.g. 1764122758.076869)
+        url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}/${this.session.threadTs}`;
       } else {
         // Channel URL format
-        url = `https://${this.client.teamDomain}.slack.com/archives/${this.session.channelId}`;
+        url = `https://app.slack.com/client/${this.client.teamId}/${this.session.channelId}`;
       }
 
       console.log(chalk.cyan(`\n🌐 ブラウザで開いています: ${url}\n`));
