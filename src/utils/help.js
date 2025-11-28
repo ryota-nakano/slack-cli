@@ -31,6 +31,8 @@ function showHelp() {
   console.log(chalk.white('チャット中のキー操作:'));
   console.log(chalk.green('  Ctrl+Enter') + chalk.gray('    - メッセージ送信'));
   console.log(chalk.green('  Enter/Ctrl+J') + chalk.gray('  - 改行挿入'));
+  console.log(chalk.green('  Ctrl+N') + chalk.gray('        - 次のスレッド番号 (/1→/2→/3)'));
+  console.log(chalk.green('  Ctrl+P') + chalk.gray('        - 前のスレッド番号 (/3→/2→/1)'));
   console.log(chalk.green('  @入力 → Tab') + chalk.gray('  - メンション補完'));
   console.log(chalk.green('  #入力 → Tab') + chalk.gray('  - チャンネル選択'));
   console.log(chalk.green('  Ctrl+E') + chalk.gray('        - エディタモード'));

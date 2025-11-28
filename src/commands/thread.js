@@ -23,6 +23,14 @@ function toHalfWidth(str) {
   });
 }
 
+/**
+ * Strip ANSI escape codes from text
+ */
+function stripAnsi(str) {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+}
+
 class ChatSession {
   constructor(channelId, channelName, threadTs = null) {
     const token = process.env.SLACK_USER_TOKEN || process.env.SLACK_BOT_TOKEN;
@@ -362,8 +370,12 @@ class ChatSession {
       try {
         const contextType = this.isThread() ? 'thread' : 'channel';
         
-        // Pass history list if in recent history mode
-        const historyList = this.showingRecentHistory ? this.recentHistory : null;
+        // Pass message count for Ctrl+P/N navigation
+        // In recent history mode: use history list length
+        // In channel/thread mode: use messages length for /1, /2 navigation
+        const messageCount = this.showingRecentHistory 
+          ? this.recentHistory.length 
+          : this.messages.length;
         
         // Create readline input with callback for input state changes
         const readlineInput = new ReadlineInput(
@@ -379,7 +391,7 @@ class ChatSession {
               this.stopPolling();
             }
           },
-          historyList  // Pass history list for Ctrl+P/N navigation
+          messageCount  // Pass message count for Ctrl+P/N navigation
         );
         
         // Start with polling enabled (input is initially empty)
@@ -412,7 +424,8 @@ class ChatSession {
                 minute: '2-digit'
               });
               const user = msg.userName || msg.user || 'Unknown';
-              const text = msg.text || '';
+              // Strip ANSI color codes from text for editor display
+              const text = stripAnsi(msg.text || '');
               referenceText += `[${time}] ${user}:\n${text}\n\n`;
             }
             referenceText += '---\n以下に返信を入力してください（このファイルは編集しないでください）\n';
@@ -983,7 +996,7 @@ async function channelChat() {
       });
     
     // Initial prompt with channel selection
-    const readlineInput = new ReadlineInput([], client, 'selection', null, null, displayedHistory);
+    const readlineInput = new ReadlineInput([], client, 'selection', null, null, displayedHistory.length);
     
     console.log(chalk.yellow('💡 ヒント: 数字で履歴選択、#でチャンネル検索、Ctrl+P/N で履歴移動（例: 1 または #general）'));
     const result = await readlineInput.prompt('チャンネル選択');

@@ -10,7 +10,7 @@ const UserHelper = require('../utils/user-helper');
 const { API } = require('../utils/constants');
 
 class ReadlineInput {
-  constructor(channelMembers = [], slackClient = null, contextType = 'channel', channelId = null, onInputChange = null, historyList = null) {
+  constructor(channelMembers = [], slackClient = null, contextType = 'channel', channelId = null, onInputChange = null, messageCount = 0) {
     this.members = channelMembers; // Deprecated - not used anymore
     this.slackClient = slackClient; // SlackClient instance for dynamic search
     this.channelId = channelId; // Current channel ID for channel-specific user search
@@ -28,8 +28,8 @@ class ReadlineInput {
     this.isLoadingMentions = false; // Prevent concurrent mention loads
     this.contextType = contextType; // 'channel', 'thread', or 'selection'
     this.onInputChange = onInputChange; // Callback for input state changes
-    this.historyList = historyList; // History items for Ctrl+P/N navigation
-    this.historySelectedIndex = -1; // Currently selected history item (-1 = none)
+    this.messageCount = messageCount; // Number of messages for Ctrl+P/N navigation
+    this.commandSelectedIndex = -1; // Currently selected command index (-1 = none)
   }
 
   /**
@@ -275,37 +275,42 @@ class ReadlineInput {
             }
           }
           return;
-        } else if (this.historyList && this.historyList.length > 0 && 
+        } else if (this.messageCount > 0 && 
                    ((key.ctrl && key.name === 'p') || (key.ctrl && key.name === 'n'))) {
-          // History navigation with Ctrl+P (previous) and Ctrl+N (next)
-          // Only when historyList is available and no suggestions are shown
+          // Command navigation with Ctrl+P (previous) and Ctrl+N (next)
+          // Shows /1, /2, /3... commands for quick thread/message selection
+          // In selection mode: show just number (1, 2, 3...)
+          // In channel/thread mode: show /1, /2, /3...
           
-          if (key.ctrl && key.name === 'p') {
-            // Previous item (move up in history)
-            if (this.historySelectedIndex < 0) {
-              // Start from the last item
-              this.historySelectedIndex = this.historyList.length - 1;
-            } else if (this.historySelectedIndex > 0) {
-              this.historySelectedIndex--;
+          if (key.ctrl && key.name === 'n') {
+            // Next item (move forward: 1 -> 2 -> 3)
+            if (this.commandSelectedIndex < 0) {
+              // Start from 1
+              this.commandSelectedIndex = 0;
+            } else if (this.commandSelectedIndex < this.messageCount - 1) {
+              this.commandSelectedIndex++;
             } else {
-              // Wrap to last item
-              this.historySelectedIndex = this.historyList.length - 1;
+              // Wrap to 1
+              this.commandSelectedIndex = 0;
             }
-          } else if (key.ctrl && key.name === 'n') {
-            // Next item (move down in history)
-            if (this.historySelectedIndex < 0) {
-              // Start from the first item
-              this.historySelectedIndex = 0;
-            } else if (this.historySelectedIndex < this.historyList.length - 1) {
-              this.historySelectedIndex++;
+          } else if (key.ctrl && key.name === 'p') {
+            // Previous item (move backward: 3 -> 2 -> 1)
+            if (this.commandSelectedIndex < 0) {
+              // Start from last
+              this.commandSelectedIndex = this.messageCount - 1;
+            } else if (this.commandSelectedIndex > 0) {
+              this.commandSelectedIndex--;
             } else {
-              // Wrap to first item
-              this.historySelectedIndex = 0;
+              // Wrap to last
+              this.commandSelectedIndex = this.messageCount - 1;
             }
           }
           
-          // Update input with the selected history number
-          this.input = (this.historySelectedIndex + 1).toString();
+          // Update input with the selected number
+          // Selection mode: just number (e.g., 1, 2)
+          // Channel/Thread mode: with slash (e.g., /1, /2)
+          const number = (this.commandSelectedIndex + 1).toString();
+          this.input = this.contextType === 'selection' ? number : '/' + number;
           this.cursorPos = this.input.length;
           this.redrawInput();
           return;
@@ -316,7 +321,7 @@ class ReadlineInput {
           if (this.cursorPos > 0) {
             this.input = this.input.substring(0, this.cursorPos - 1) + this.input.substring(this.cursorPos);
             this.cursorPos--;
-            this.historySelectedIndex = -1; // Reset history selection on manual input
+            this.commandSelectedIndex = -1; // Reset command selection on manual input
             notifyInputChange(); // Notify after backspace
           }
         } else if (key.name === 'left') {
@@ -326,7 +331,7 @@ class ReadlineInput {
         } else if (str && !key.ctrl && !key.meta && key.name !== 'return') {
           this.input = this.input.substring(0, this.cursorPos) + str + this.input.substring(this.cursorPos);
           this.cursorPos++;
-          this.historySelectedIndex = -1; // Reset history selection on manual input
+          this.commandSelectedIndex = -1; // Reset command selection on manual input
           notifyInputChange(); // Notify after character input
         } else {
           return;
