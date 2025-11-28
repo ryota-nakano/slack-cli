@@ -564,6 +564,16 @@ class ChatSession {
           continue;
         }
 
+        // Handle /edit command
+        if (halfWidthText.startsWith('/edit ')) {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
+          const msgNumber = halfWidthText.substring(6).trim();
+          await this.commandHandler.handleEditMessage(msgNumber);
+          continue;
+        }
+
         // Handle /delete or /del command - Delete history items in /recent mode
         if (halfWidthText.startsWith('/delete ') || halfWidthText.startsWith('/del ')) {
           // Only work in recent history mode
@@ -851,6 +861,7 @@ class ChatSession {
     console.log(chalk.yellow('  /clear') + chalk.gray('          - 履歴キャッシュをクリア'));
     console.log(chalk.yellow('  /w, /web') + chalk.gray('        - ブラウザで開く'));
     console.log(chalk.yellow('  /link [番号]') + chalk.gray('    - メッセージリンクを表示（例: /link 5）'));
+    console.log(chalk.yellow('  /edit <番号>') + chalk.gray('    - メッセージを編集（例: /edit 5）'));
     console.log(chalk.yellow('  /rm <番号...>') + chalk.gray('    - メッセージを削除（例: /rm 5 または /rm 1 3 5）'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));

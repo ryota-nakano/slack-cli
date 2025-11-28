@@ -385,6 +385,33 @@ class SlackMessageAPI {
   }
 
   /**
+   * Update a message
+   */
+  async updateMessage(channelId, ts, text) {
+    try {
+      const response = await this.client.chat.update({
+        channel: channelId,
+        ts: ts,
+        text: text
+      });
+      return {
+        ok: response.ok,
+        ts: response.ts,
+        message: response.message
+      };
+    } catch (error) {
+      if (error.data?.error === 'cant_update_message') {
+        throw new Error('このメッセージは編集できません（自分のメッセージのみ編集可能）');
+      } else if (error.data?.error === 'message_not_found') {
+        throw new Error('メッセージが見つかりません');
+      } else if (error.data?.error === 'edit_window_closed') {
+        throw new Error('編集可能な時間を過ぎています');
+      }
+      throw new Error(`Failed to update message: ${error.message}`);
+    }
+  }
+
+  /**
    * Mark channel as read
    */
   async markAsRead(channelId, ts) {

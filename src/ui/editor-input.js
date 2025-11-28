@@ -10,9 +10,10 @@ const { readFile, unlink, access, writeFile } = require('fs').promises;
 const chalk = require('chalk');
 
 class EditorInput {
-  constructor(referenceMessages = null) {
+  constructor(referenceMessages = null, initialText = null) {
     this.editor = process.env.EDITOR || process.env.VISUAL || 'vim';
     this.referenceMessages = referenceMessages; // Messages to display as reference
+    this.initialText = initialText; // Initial text to edit
   }
 
   /**
@@ -23,6 +24,16 @@ class EditorInput {
       const tmpFile = join(tmpdir(), `slack-cli-${Date.now()}.txt`);
       const referenceFile = join(tmpdir(), `slack-cli-ref-${Date.now()}.txt`);
       const wrapperScript = join(tmpdir(), `slack-cli-wrapper-${Date.now()}.sh`);
+
+      // If initial text is provided, write it to the temp file
+      if (this.initialText) {
+        try {
+          await writeFile(tmpFile, this.initialText, 'utf-8');
+          console.log(chalk.cyan(`\n📝 エディタを起動します（編集モード）...\n`));
+        } catch (error) {
+          console.error(chalk.yellow('⚠️  一時ファイルの作成に失敗しました'));
+        }
+      }
 
       let editorCommand = this.editor;
       let editorArgs = [tmpFile];

@@ -102,6 +102,78 @@ class CommandHandler {
   }
 
   /**
+   * Handle /edit command for editing messages
+   * @param {string} msgNumber - Message number to edit
+   * @param {string} newText - New text for the message (optional, prompts editor if not provided)
+   */
+  async handleEditMessage(msgNumber, newText = null) {
+    const halfWidthMsgNumber = toHalfWidth(msgNumber);
+    const num = parseInt(halfWidthMsgNumber, 10);
+    
+    // For threads, use allMessages for indexing
+    const messageArray = this.session.isThread() ? this.session.allMessages : this.session.messages;
+    
+    if (isNaN(num) || num < 1 || num > messageArray.length) {
+      console.log(chalk.yellow(`\n⚠️  無効なメッセージ番号: ${msgNumber}`));
+      console.log(chalk.yellow(`💡 有効な番号: 1-${messageArray.length}`));
+      return;
+    }
+    
+    const message = messageArray[num - 1];
+    
+    // Check if this is user's own message
+    const currentUserId = await this.client.getCurrentUser();
+    if (message.user !== currentUserId) {
+      console.log(chalk.yellow('\n⚠️  自分のメッセージのみ編集できます'));
+      return;
+    }
+    
+    let editText = newText;
+    
+    // If no new text provided, use editor
+    if (!editText) {
+      const EditorInput = require('../ui/editor-input');
+      
+      // Get original text (strip ANSI codes)
+      // eslint-disable-next-line no-control-regex
+      const originalText = (message.text || '').replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+      
+      // Create editor with original text
+      const editorInput = new EditorInput(null, originalText);
+      editText = await editorInput.prompt();
+      
+      if (editText === '__CANCELLED__') {
+        console.log(chalk.yellow('\n⚠️  編集がキャンセルされました\n'));
+        return;
+      }
+    }
+    
+    // Don't update if text is unchanged
+    // eslint-disable-next-line no-control-regex
+    const originalTextClean = (message.text || '').replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+    if (editText.trim() === originalTextClean.trim()) {
+      console.log(chalk.yellow('\n⚠️  変更がありません\n'));
+      return;
+    }
+    
+    try {
+      await this.client.updateMessage(this.session.channelId, message.ts, editText);
+      console.log(chalk.green('\n✅ メッセージを編集しました\n'));
+      
+      // Invalidate cache for threads
+      if (this.session.isThread()) {
+        this.messageCache.invalidate(this.session.channelId, this.session.threadTs);
+      }
+      
+      // Refresh messages
+      await this.session.fetchMessages(null, null, true);
+      this.session.displayMessages();
+    } catch (error) {
+      console.log(chalk.red(`\n❌ 編集失敗: ${error.message}`));
+    }
+  }
+
+  /**
    * Handle /refresh command
    * Search for today's user messages and add to history
    */

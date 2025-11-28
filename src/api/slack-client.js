@@ -105,6 +105,10 @@ class SlackClient {
     return this.messageAPI.deleteMessage(channelId, ts);
   }
 
+  async updateMessage(channelId, ts, text) {
+    return this.messageAPI.updateMessage(channelId, ts, text);
+  }
+
   async markAsRead(channelId, ts) {
     return this.messageAPI.markAsRead(channelId, ts);
   }

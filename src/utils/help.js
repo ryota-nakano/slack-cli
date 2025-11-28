@@ -44,6 +44,7 @@ function showHelp() {
   console.log(chalk.green('  /r') + chalk.gray('            - 今日の会話履歴'));
   console.log(chalk.green('  /w') + chalk.gray('            - ブラウザで開く'));
   console.log(chalk.green('  /copy [番号]') + chalk.gray('  - リンクをコピー (例: /copy 5)'));
+  console.log(chalk.green('  /edit <番号>') + chalk.gray('  - メッセージを編集 (例: /edit 5)'));
   console.log(chalk.green('  /refresh') + chalk.gray('      - 今日の投稿を履歴に追加'));
   console.log(chalk.green('  /clear') + chalk.gray('        - 履歴キャッシュをクリア'));
   console.log(chalk.green('  /l <日数>') + chalk.gray('     - 過去の履歴読込 (例: /l 3)'));
