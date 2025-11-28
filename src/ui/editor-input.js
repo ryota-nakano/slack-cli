@@ -58,7 +58,8 @@ class EditorInput {
               '-c', 'wincmd k',                 // Move to top window
               '-c', 'setlocal readonly nomodifiable', // Make reference readonly
               '-c', 'wincmd j',                 // Back to input window
-              '-c', 'startinsert'               // Start in insert mode
+              '-c', 'normal G$',                // Move cursor to end of file
+              '-c', 'startinsert!'              // Start in insert mode at end (append)
             ];
           } else if (this.editor.includes('emacs')) {
             // Emacs: Open with split layout
@@ -73,6 +74,13 @@ class EditorInput {
         } catch (error) {
           console.error(chalk.yellow('⚠️  参照ファイルの作成に失敗しました'));
         }
+      } else if (this.initialText && (this.editor.includes('vim') || this.editor.includes('nvim'))) {
+        // If only initial text (no reference), move cursor to end
+        editorArgs = [
+          tmpFile,
+          '-c', 'normal G$',      // Move cursor to end of file
+          '-c', 'startinsert!'    // Start in insert mode at end (append)
+        ];
       }
 
       const editorProcess = spawn(editorCommand, editorArgs, {

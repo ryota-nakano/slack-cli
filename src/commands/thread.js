@@ -404,9 +404,12 @@ class ChatSession {
         await this.checkUpdates();
 
         // Switch to editor mode
-        if (text === '__EDITOR__') {
+        if (text === '__EDITOR__' || (typeof text === 'object' && text.type === '__EDITOR__')) {
           // Stop polling again while in editor mode
           this.stopPolling();
+          
+          // Get prefilled text from readline input (if any)
+          const prefilledText = typeof text === 'object' ? text.text : '';
           
           // Prepare reference messages (last 10 messages)
           const messagesToShow = this.isThread() 
@@ -431,7 +434,8 @@ class ChatSession {
             referenceText += '---\n以下に返信を入力してください（このファイルは編集しないでください）\n';
           }
           
-          const editorInput = new EditorInput(referenceText || null);
+          // Pass prefilled text as initial text for editor
+          const editorInput = new EditorInput(referenceText || null, prefilledText || null);
           const editorText = await editorInput.prompt();
           
           // Resume polling after exiting editor

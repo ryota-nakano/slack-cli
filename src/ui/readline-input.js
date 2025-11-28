@@ -101,7 +101,8 @@ class ReadlineInput {
         if (key.ctrl && key.name === 'e') {
           this.clearSuggestions();
           cleanup();
-          resolve('__EDITOR__');
+          // Return editor signal with current input text
+          resolve({ type: '__EDITOR__', text: this.input });
           return;
         }
 
