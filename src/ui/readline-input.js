@@ -325,6 +325,12 @@ class ReadlineInput {
             this.commandSelectedIndex = -1; // Reset command selection on manual input
             notifyInputChange(); // Notify after backspace
           }
+        } else if (key.name === 'delete') {
+          if (this.cursorPos < this.input.length) {
+            this.input = this.input.substring(0, this.cursorPos) + this.input.substring(this.cursorPos + 1);
+            this.commandSelectedIndex = -1; // Reset command selection on manual input
+            notifyInputChange(); // Notify after delete
+          }
         } else if (key.name === 'left') {
           if (this.cursorPos > 0) this.cursorPos--;
         } else if (key.name === 'right') {
