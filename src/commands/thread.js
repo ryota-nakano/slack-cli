@@ -94,6 +94,9 @@ class ChatSession {
     // Get initial messages
     await this.fetchMessages();
     this.lastDisplayedCount = this.isThread() ? this.allMessages.length : this.messages.length;
+    
+    // Set terminal title (after messages are fetched for thread author info)
+    this.setTerminalTitle();
 
     // Display messages
     this.displayMessages();
@@ -945,10 +948,36 @@ class ChatSession {
   }
 
   /**
+   * Set terminal title to show current channel/thread name
+   */
+  setTerminalTitle() {
+    let title;
+    if (this.isThread() && this.allMessages.length > 0) {
+      // For threads: show channel name and first poster's name
+      const firstMessage = this.allMessages[0];
+      const authorName = firstMessage.userName || firstMessage.user || '';
+      title = `#${this.channelName} - ${authorName}`;
+    } else {
+      // For channels: just show channel name
+      title = `#${this.channelName}`;
+    }
+    // ANSI escape sequence to set terminal title: ESC ] 0 ; <title> BEL
+    process.stdout.write(`\x1b]0;${title}\x07`);
+  }
+
+  /**
+   * Clear terminal title (reset to default)
+   */
+  clearTerminalTitle() {
+    process.stdout.write('\x1b]0;\x07');
+  }
+
+  /**
    * Cleanup and exit
    */
   cleanup(exit = true) {
     this.stopPolling();
+    this.clearTerminalTitle();
     if (exit) {
       console.log(chalk.cyan('\n👋 終了しました。'));
       process.exit(0);
