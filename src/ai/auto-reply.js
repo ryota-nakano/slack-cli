@@ -5,6 +5,9 @@
 
 const OpenAI = require('openai');
 const chalk = require('chalk');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 class AutoReply {
   constructor(slackClient, currentUserId) {
@@ -14,12 +17,96 @@ class AutoReply {
     this.openai = null;
     this.processedMessages = new Set(); // Track already processed message timestamps
     this.maxContextMessages = 20; // Maximum number of context messages to include
+    this.replyHistory = []; // Store reply history for reporting
+    this.historyFile = path.join(os.homedir(), '.config', 'slack-cli', 'auto-reply-history.json');
     
     // Initialize OpenAI client if API key is available
     const apiKey = process.env.OPENAI_API_KEY;
     if (apiKey) {
       this.openai = new OpenAI({ apiKey });
     }
+    
+    // Load existing history
+    this.loadHistory();
+  }
+
+  /**
+   * Load reply history from file
+   */
+  loadHistory() {
+    try {
+      if (fs.existsSync(this.historyFile)) {
+        const data = fs.readFileSync(this.historyFile, 'utf-8');
+        this.replyHistory = JSON.parse(data);
+      }
+    } catch (error) {
+      // Ignore errors, start with empty history
+      this.replyHistory = [];
+    }
+  }
+
+  /**
+   * Save reply history to file
+   */
+  saveHistory() {
+    try {
+      const dir = path.dirname(this.historyFile);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(this.historyFile, JSON.stringify(this.replyHistory, null, 2));
+    } catch (error) {
+      console.error(chalk.red(`履歴の保存に失敗: ${error.message}`));
+    }
+  }
+
+  /**
+   * Add reply to history
+   */
+  addToHistory(entry) {
+    this.replyHistory.push({
+      ...entry,
+      timestamp: new Date().toISOString()
+    });
+    // Keep only last 100 entries
+    if (this.replyHistory.length > 100) {
+      this.replyHistory = this.replyHistory.slice(-100);
+    }
+    this.saveHistory();
+  }
+
+  /**
+   * Get reply history for reporting
+   */
+  getHistory(limit = 20) {
+    return this.replyHistory.slice(-limit).reverse();
+  }
+
+  /**
+   * Display reply history report
+   */
+  showReport(limit = 20) {
+    const history = this.getHistory(limit);
+    
+    if (history.length === 0) {
+      console.log(chalk.yellow('\n📊 自動応答の履歴がありません\n'));
+      return;
+    }
+    
+    console.log(chalk.cyan(`\n📊 自動応答レポート（直近${history.length}件）\n`));
+    console.log(chalk.gray('='.repeat(80)));
+    
+    history.forEach((entry, i) => {
+      const time = new Date(entry.timestamp).toLocaleString('ja-JP');
+      console.log(chalk.yellow(`\n[${i + 1}] ${time}`));
+      console.log(chalk.gray(`チャンネル: ${entry.channelName || entry.channelId}`));
+      console.log(chalk.gray(`トリガー: ${entry.triggerUser} さんのメンション`));
+      console.log(chalk.white(`元メッセージ: ${entry.triggerText?.substring(0, 100)}${entry.triggerText?.length > 100 ? '...' : ''}`));
+      console.log(chalk.green(`返信内容: ${entry.replyText?.substring(0, 200)}${entry.replyText?.length > 200 ? '...' : ''}`));
+    });
+    
+    console.log(chalk.gray('\n' + '='.repeat(80)));
+    console.log(chalk.gray(`💡 履歴は ${this.historyFile} に保存されています\n`));
   }
 
   /**
@@ -145,6 +232,16 @@ class AutoReply {
       
       console.log(chalk.green('✅ 自動応答を送信しました'));
       console.log(chalk.gray(`💬 ${reply.substring(0, 50)}${reply.length > 50 ? '...' : ''}`));
+      
+      // Add to history for reporting
+      this.addToHistory({
+        channelId,
+        channelName: triggerMessage.channelName || channelId,
+        threadTs: replyThreadTs,
+        triggerUser: triggerMessage.userName || triggerMessage.user,
+        triggerText: triggerMessage.text,
+        replyText: reply
+      });
     }
   }
 

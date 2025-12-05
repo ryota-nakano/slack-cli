@@ -518,6 +518,7 @@ class ReadlineInput {
         { command: '/edit', description: 'メッセージを編集（例: /edit 5）' },
         { command: '/rm', description: 'メッセージを削除（例: /rm 1 3 5）' },
         { command: '/auto', description: '自動応答モードの切り替え' },
+        { command: '/report', description: '自動応答履歴を表示', alias: '/report [件数]' },
         { command: '/exit', description: 'チャット終了', alias: '/quit, /q' },
         { command: '/help', description: 'ヘルプを表示' }
       ];
@@ -540,6 +541,7 @@ class ReadlineInput {
         { command: '/edit', description: 'メッセージを編集（例: /edit 5）' },
         { command: '/rm', description: 'メッセージを削除（例: /rm 1 3 5）' },
         { command: '/auto', description: '自動応答モードの切り替え' },
+        { command: '/report', description: '自動応答履歴を表示', alias: '/report [件数]' },
         { command: '/exit', description: 'チャット終了', alias: '/quit, /q' },
         { command: '/help', description: 'ヘルプを表示' }
       ];

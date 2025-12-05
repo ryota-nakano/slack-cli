@@ -860,6 +860,22 @@ class ChatSession {
           continue;
         }
 
+        // Handle /report command - Show auto-reply history report
+        if (halfWidthText === '/report' || halfWidthText.startsWith('/report ')) {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
+          
+          if (this.autoReply) {
+            const parts = halfWidthText.split(' ');
+            const limit = parts[1] ? parseInt(parts[1]) : 20;
+            this.autoReply.showReport(limit);
+          } else {
+            console.log(chalk.yellow('\n⚠️  自動応答機能が初期化されていません'));
+          }
+          continue;
+        }
+
         // Handle /help command
         if (halfWidthText === '/help') {
           // Reset recent history mode
@@ -931,6 +947,7 @@ class ChatSession {
     console.log(chalk.yellow('  /edit <番号>') + chalk.gray('    - メッセージを編集（例: /edit 5）'));
     console.log(chalk.yellow('  /rm <番号...>') + chalk.gray('    - メッセージを削除（例: /rm 5 または /rm 1 3 5）'));
     console.log(chalk.yellow('  /auto') + chalk.gray('           - 自動応答モードの切り替え'));
+    console.log(chalk.yellow('  /report [件数]') + chalk.gray('  - 自動応答の履歴レポートを表示（例: /report 10）'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
     console.log(chalk.yellow('  #channel[Tab]') + chalk.gray('   - チャンネル検索・切り替え（例: #gen[Tab] → [Enter]）'));
