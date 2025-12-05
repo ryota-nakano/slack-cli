@@ -120,6 +120,27 @@ class SlackMessageAPI {
       return emojiChar && emojiChar !== `:${emojiName}:` ? emojiChar : match;
     });
     
+    // Format Slack markdown decorations
+    // Bold: *text* -> bold text (but not ** or *text *text*)
+    formattedText = formattedText.replace(/(?<![*\w])\*([^*\n]+)\*(?![*\w])/g, (match, text) => {
+      return chalk.bold(text);
+    });
+    
+    // Italic: _text_ -> italic text (but not __ or _text _text_)
+    formattedText = formattedText.replace(/(?<![_\w])_([^_\n]+)_(?![_\w])/g, (match, text) => {
+      return chalk.italic(text);
+    });
+    
+    // Strikethrough: ~text~ -> strikethrough text
+    formattedText = formattedText.replace(/(?<![~\w])~([^~\n]+)~(?![~\w])/g, (match, text) => {
+      return chalk.strikethrough(text);
+    });
+    
+    // Inline code: `code` -> code with gray background
+    formattedText = formattedText.replace(/`([^`\n]+)`/g, (match, code) => {
+      return chalk.bgGray.white(` ${code} `);
+    });
+    
     return formattedText;
   }
 
