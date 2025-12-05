@@ -434,8 +434,26 @@ class ChatSession {
               const text = stripAnsi(msg.text || '');
               referenceText += `[${time}] ${user}:\n${text}\n\n`;
             }
-            referenceText += '---\n以下に返信を入力してください（このファイルは編集しないでください）\n';
+            referenceText += '---\n';
           }
+          
+          // Always add Slack format guide
+          referenceText += '# Slack書式ガイド\n\n';
+          referenceText += '## リンク\n';
+          referenceText += '<https://example.com|表示テキスト>  → 表示テキストにリンク\n';
+          referenceText += '<https://example.com>              → URLそのまま表示\n\n';
+          referenceText += '## 引用・コードブロック\n';
+          referenceText += '> 引用テキスト                     → 引用\n';
+          referenceText += '`インラインコード`                 → インラインコード\n';
+          referenceText += '```複数行コード```                 → コードブロック\n\n';
+          referenceText += '## リスト\n';
+          referenceText += '• 項目1                            → 箇条書き（• または - ）\n';
+          referenceText += '1. 項目1                           → 番号付きリスト\n\n';
+          referenceText += '## 装飾\n';
+          referenceText += '*太字*                             → 太字\n';
+          referenceText += '_斜体_                             → 斜体\n';
+          referenceText += '~取り消し線~                       → 取り消し線\n\n';
+          referenceText += '---\n以下に返信を入力してください（このファイルは編集しないでください）\n';
           
           // Pass prefilled text as initial text for editor
           const editorInput = new EditorInput(referenceText || null, prefilledText || null);
