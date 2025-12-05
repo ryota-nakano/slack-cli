@@ -102,6 +102,17 @@ class SlackMessageAPI {
     formattedText = formattedText.replace(/<!here>/g, chalk.yellow('@here'));
     formattedText = formattedText.replace(/<!everyone>/g, chalk.yellow('@everyone'));
     
+    // Format URL links <https://...|display text> -> display text (URL)
+    // This handles Slack's link format where URL and display text are separated by |
+    formattedText = formattedText.replace(/<(https?:\/\/[^|>]+)\|([^>]+)>/g, (match, url, displayText) => {
+      return chalk.cyan(`${displayText}`) + chalk.gray(` (${url})`);
+    });
+    
+    // Format plain URL links <https://...> without display text
+    formattedText = formattedText.replace(/<(https?:\/\/[^>]+)>/g, (match, url) => {
+      return chalk.cyan(url);
+    });
+    
     // Replace emoji :emoji_name: with actual emoji
     formattedText = formattedText.replace(/:([a-z0-9_+-]+):/g, (match, emojiName) => {
       const emojiChar = emoji.get(emojiName);
