@@ -857,8 +857,9 @@ class ReadlineInput {
       // Extract just the command name (e.g., "/back" from the display)
       const commandName = selectedCommand.command.split(' ')[0];
       
-      this.input = commandName + ' ' + afterCursor;
-      this.cursorPos = commandName.length + 1;
+      // Don't add trailing space - let user type it if needed
+      this.input = commandName + afterCursor;
+      this.cursorPos = commandName.length;
       
       return { type: 'command', command: selectedCommand };
     } else if (this.suggestionType === 'channel') {
