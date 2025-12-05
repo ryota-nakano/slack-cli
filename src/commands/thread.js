@@ -315,6 +315,11 @@ class ChatSession {
       this.display.displayMessages(this.messages, startIndex);
     }
     
+    // Show auto-reply status if enabled
+    if (this.autoReply && this.autoReply.enabled) {
+      console.log(chalk.bgGreen.black(' 🤖 自動応答モード ON ') + chalk.gray(' /auto で解除'));
+    }
+    
     this.lastDisplayedCount = this.isThread() ? this.allMessages.length : this.messages.length;
     
     // Mark as read (for today's messages only)
