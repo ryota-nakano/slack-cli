@@ -305,6 +305,7 @@ class ChatSession {
         console.log(chalk.gray(`   (${this.daysBack}日前)`));
       }
       
+      this.display.setAutoReplyStatus(this.autoReply?.enabled || false);
       this.display.displayMessages(this.messages);
     } else {
       // For threads, show if there are more messages available
@@ -315,12 +316,13 @@ class ChatSession {
       
       // Calculate start index for numbering (how many messages are hidden)
       const startIndex = this.allMessages.length - this.messages.length;
+      this.display.setAutoReplyStatus(this.autoReply?.enabled || false);
       this.display.displayMessages(this.messages, startIndex);
     }
     
-    // Show auto-reply status if enabled
+    // Show auto-reply status in footer if enabled (more prominent)
     if (this.autoReply && this.autoReply.enabled) {
-      console.log(chalk.bgGreen.black(' 🤖 自動応答モード ON ') + chalk.gray(' /auto で解除'));
+      console.log(chalk.bgGreen.black.bold(' 🤖 自動応答モード ON ') + chalk.green(' メンションに自動返信中 ') + chalk.gray('/auto で解除'));
     }
     
     this.lastDisplayedCount = this.isThread() ? this.allMessages.length : this.messages.length;

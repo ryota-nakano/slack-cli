@@ -9,6 +9,14 @@ const { DISPLAY } = require('../utils/constants');
 class ThreadDisplay {
   constructor(channelName) {
     this.channelName = channelName;
+    this.autoReplyEnabled = false;
+  }
+
+  /**
+   * Set auto-reply status
+   */
+  setAutoReplyStatus(enabled) {
+    this.autoReplyEnabled = enabled;
   }
 
   /**
@@ -18,6 +26,12 @@ class ThreadDisplay {
    */
   displayMessages(replies, startIndex = 0) {
     console.clear();
+    
+    // Show auto-reply indicator in header if enabled
+    if (this.autoReplyEnabled) {
+      console.log(chalk.bgGreen.black.bold(' 🤖 自動応答モード ON '));
+    }
+    
     console.log(chalk.bold.cyan(`\n#${this.channelName} のスレッド`));
     console.log(chalk.gray('='.repeat(DISPLAY.SEPARATOR_WIDTH)));
     console.log('');
