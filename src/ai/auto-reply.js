@@ -291,12 +291,31 @@ class AutoReply {
     try {
       const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
       
+      // カスタムプロンプトは環境変数または設定ファイルから取得可能
+      const customPersona = process.env.AUTO_REPLY_PERSONA || '';
+      
+      let systemPrompt = 'あなたはSlackで会話に参加しているチームメンバーです。';
+      
+      if (customPersona) {
+        systemPrompt += `\n\n以下の文体・キャラクター設定に従って返信してください：\n${customPersona}`;
+      } else {
+        // デフォルトの文体設定
+        systemPrompt += `
+以下の文体で返信してください：
+- フレンドリーでカジュアルな口調
+- 「〜だね」「〜かな」「〜だよ」などの語尾
+- 絵文字を適度に使用（:thumbsup: :smile: など）
+- 長すぎず、要点を押さえた返信
+- 技術的な質問には具体的に回答
+- わからないことは正直に「ちょっとわからないな」と言う`;
+      }
+      
       const response = await this.openai.chat.completions.create({
         model: model,
         messages: [
           {
             role: 'system',
-            content: 'あなたはSlackで会話に参加しているチームメンバーです。自然で親しみやすい返信を心がけてください。返信は簡潔に、でも必要な情報は含めてください。'
+            content: systemPrompt
           },
           {
             role: 'user',
