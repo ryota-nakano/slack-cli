@@ -279,14 +279,20 @@ class AutoReply {
       const replyThreadTs = threadTs || triggerMessage.thread_ts || triggerMessage.ts;
       
       // Add mention to the trigger user at the beginning of the reply
-      const triggerUserId = triggerMessage.user;
-      const replyWithMention = triggerUserId ? `<@${triggerUserId}> ${reply}` : reply;
+      // Skip mention in reply-all mode (too noisy)
+      let finalReply = reply;
+      if (!this.replyAllMode) {
+        const triggerUserId = triggerMessage.user;
+        if (triggerUserId) {
+          finalReply = `<@${triggerUserId}> ${reply}`;
+        }
+      }
       
       // Send the reply
-      await this.slackClient.sendMessage(channelId, replyWithMention, replyThreadTs);
+      await this.slackClient.sendMessage(channelId, finalReply, replyThreadTs);
       
       console.log(chalk.green('✅ 自動応答を送信しました'));
-      console.log(chalk.gray(`💬 ${replyWithMention.substring(0, 50)}${replyWithMention.length > 50 ? '...' : ''}`));
+      console.log(chalk.gray(`💬 ${finalReply.substring(0, 50)}${finalReply.length > 50 ? '...' : ''}`));
       
       // Add to history for reporting
       this.addToHistory({
@@ -295,7 +301,7 @@ class AutoReply {
         threadTs: replyThreadTs,
         triggerUser: triggerMessage.userName || triggerMessage.user,
         triggerText: triggerMessage.text,
-        replyText: replyWithMention
+        replyText: finalReply
       });
     }
   }
