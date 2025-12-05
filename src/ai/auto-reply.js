@@ -14,6 +14,7 @@ class AutoReply {
     this.slackClient = slackClient;
     this.currentUserId = currentUserId;
     this.enabled = false;
+    this.replyAllMode = false; // Reply to ALL messages (aggressive mode)
     this.openai = null;
     this.processedMessages = new Set(); // Track already processed message timestamps
     this.maxContextMessages = 20; // Maximum number of context messages to include
@@ -131,11 +132,41 @@ class AutoReply {
     if (this.enabled) {
       console.log(chalk.green('\n🤖 自動応答モードを有効にしました'));
       console.log(chalk.gray('💡 メンションや直接の呼びかけに自動で返信します'));
+      console.log(chalk.gray('💡 /autoall で全メッセージ返信モードに切り替え'));
     } else {
+      this.replyAllMode = false; // Disable reply-all when turning off
       console.log(chalk.yellow('\n🤖 自動応答モードを無効にしました'));
     }
     
     return this.enabled;
+  }
+
+  /**
+   * Toggle reply-all mode (respond to ALL messages, not just mentions)
+   */
+  toggleReplyAll() {
+    if (!this.isAvailable()) {
+      console.log(chalk.yellow('\n⚠️  OPENAI_API_KEY が設定されていません'));
+      return false;
+    }
+    
+    if (!this.enabled) {
+      // Enable auto-reply first
+      this.enabled = true;
+    }
+    
+    this.replyAllMode = !this.replyAllMode;
+    
+    if (this.replyAllMode) {
+      console.log(chalk.bgRed.white.bold('\n🔥 全メッセージ返信モードを有効にしました'));
+      console.log(chalk.red('⚠️  全ての新着メッセージに自動で返信します！'));
+      console.log(chalk.gray('💡 /autoall で通常モードに戻す'));
+    } else {
+      console.log(chalk.green('\n🤖 通常の自動応答モードに戻りました'));
+      console.log(chalk.gray('💡 メンションや1対1スレッドにのみ返信します'));
+    }
+    
+    return this.replyAllMode;
   }
 
   /**
@@ -165,6 +196,12 @@ class AutoReply {
     if (message.bot_id || message.subtype === 'bot_message') {
       if (process.env.DEBUG_AUTO) console.error('[DEBUG_AUTO] shouldRespond: bot message');
       return false;
+    }
+    
+    // Reply-all mode: respond to ALL messages (except own and bot)
+    if (this.replyAllMode) {
+      if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: MATCH! replyAllMode is ON`);
+      return true;
     }
     
     // Use rawText (original Slack format) for mention detection

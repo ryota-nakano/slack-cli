@@ -10,13 +10,15 @@ class ThreadDisplay {
   constructor(channelName) {
     this.channelName = channelName;
     this.autoReplyEnabled = false;
+    this.replyAllMode = false;
   }
 
   /**
    * Set auto-reply status
    */
-  setAutoReplyStatus(enabled) {
+  setAutoReplyStatus(enabled, replyAllMode = false) {
     this.autoReplyEnabled = enabled;
+    this.replyAllMode = replyAllMode;
   }
 
   /**
@@ -29,7 +31,11 @@ class ThreadDisplay {
     
     // Show auto-reply indicator in header if enabled
     if (this.autoReplyEnabled) {
-      console.log(chalk.bgGreen.black.bold(' 🤖 自動応答モード ON '));
+      if (this.replyAllMode) {
+        console.log(chalk.bgRed.white.bold(' 🔥 全メッセージ返信モード '));
+      } else {
+        console.log(chalk.bgGreen.black.bold(' 🤖 自動応答モード ON '));
+      }
     }
     
     console.log(chalk.bold.cyan(`\n#${this.channelName} のスレッド`));

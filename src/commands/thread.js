@@ -307,7 +307,7 @@ class ChatSession {
         console.log(chalk.gray(`   (${this.daysBack}日前)`));
       }
       
-      this.display.setAutoReplyStatus(this.autoReply?.enabled || false);
+      this.display.setAutoReplyStatus(this.autoReply?.enabled || false, this.autoReply?.replyAllMode || false);
       this.display.displayMessages(this.messages);
     } else {
       // For threads, show if there are more messages available
@@ -318,13 +318,17 @@ class ChatSession {
       
       // Calculate start index for numbering (how many messages are hidden)
       const startIndex = this.allMessages.length - this.messages.length;
-      this.display.setAutoReplyStatus(this.autoReply?.enabled || false);
+      this.display.setAutoReplyStatus(this.autoReply?.enabled || false, this.autoReply?.replyAllMode || false);
       this.display.displayMessages(this.messages, startIndex);
     }
     
     // Show auto-reply status in footer if enabled (more prominent)
     if (this.autoReply && this.autoReply.enabled) {
-      console.log(chalk.bgGreen.black.bold(' 🤖 自動応答モード ON ') + chalk.green(' メンションに自動返信中 ') + chalk.gray('/auto で解除'));
+      if (this.autoReply.replyAllMode) {
+        console.log(chalk.bgRed.white.bold(' 🔥 全メッセージ返信モード ') + chalk.red(' 全ての投稿に自動返信中！ ') + chalk.gray('/autoall で通常モード'));
+      } else {
+        console.log(chalk.bgGreen.black.bold(' 🤖 自動応答モード ON ') + chalk.green(' メンションに自動返信中 ') + chalk.gray('/auto で解除'));
+      }
     }
     
     this.lastDisplayedCount = this.isThread() ? this.allMessages.length : this.messages.length;
@@ -867,6 +871,20 @@ class ChatSession {
           continue;
         }
 
+        // Handle /autoall command - toggle reply-all mode
+        if (halfWidthText === '/autoall') {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
+          
+          if (this.autoReply) {
+            this.autoReply.toggleReplyAll();
+          } else {
+            console.log(chalk.yellow('\n⚠️  自動応答機能が初期化されていません'));
+          }
+          continue;
+        }
+
         // Handle /report command - Show auto-reply history report
         if (halfWidthText === '/report' || halfWidthText.startsWith('/report ')) {
           // Reset recent history mode
@@ -954,6 +972,7 @@ class ChatSession {
     console.log(chalk.yellow('  /edit <番号>') + chalk.gray('    - メッセージを編集（例: /edit 5）'));
     console.log(chalk.yellow('  /rm <番号...>') + chalk.gray('    - メッセージを削除（例: /rm 5 または /rm 1 3 5）'));
     console.log(chalk.yellow('  /auto') + chalk.gray('           - 自動応答モードの切り替え'));
+    console.log(chalk.yellow('  /autoall') + chalk.gray('        - 全メッセージ返信モードの切り替え'));
     console.log(chalk.yellow('  /report [件数]') + chalk.gray('  - 自動応答の履歴レポートを表示（例: /report 10）'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
