@@ -141,7 +141,7 @@ class AutoReply {
   /**
    * Check if a message should trigger auto-reply
    */
-  shouldRespond(message) {
+  shouldRespond(message, allMessages = []) {
     // Skip if auto-reply is disabled
     if (!this.enabled) {
       if (process.env.DEBUG_AUTO) console.error('[DEBUG_AUTO] shouldRespond: disabled');
@@ -177,6 +177,18 @@ class AutoReply {
       return true;
     }
     
+    // Check if this is a 1-on-1 thread (only 2 participants: me and someone else)
+    if (allMessages.length > 0) {
+      const uniqueUsers = new Set(allMessages.map(m => m.user).filter(u => u));
+      if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: uniqueUsers=${[...uniqueUsers].join(',')}`);
+      
+      // If only 2 participants and I'm one of them, it's likely directed at me
+      if (uniqueUsers.size === 2 && uniqueUsers.has(this.currentUserId)) {
+        if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: MATCH! 1-on-1 thread detected`);
+        return true;
+      }
+    }
+    
     if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: no mention (looking for <@${this.currentUserId}>) in "${text}"`);
     return false;
   }
@@ -184,20 +196,20 @@ class AutoReply {
   /**
    * Process new messages and auto-reply if needed
    */
-  async processMessages(messages, channelId, threadTs = null) {
-    if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] processMessages called: enabled=${this.enabled}, openai=${!!this.openai}, messages=${messages.length}`);
+  async processMessages(messages, channelId, threadTs = null, allMessages = []) {
+    if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] processMessages called: enabled=${this.enabled}, openai=${!!this.openai}, messages=${messages.length}, allMessages=${allMessages.length}`);
     
     if (!this.enabled || !this.openai) return;
     
     for (const message of messages) {
       if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] checking message: ts=${message.ts}, user=${message.user}, text="${(message.text || '').substring(0, 50)}..."`);
       
-      if (this.shouldRespond(message)) {
+      if (this.shouldRespond(message, allMessages)) {
         // Mark as processed immediately to prevent duplicate responses
         this.processedMessages.add(message.ts);
         
         try {
-          await this.generateAndSendReply(message, messages, channelId, threadTs);
+          await this.generateAndSendReply(message, allMessages.length > 0 ? allMessages : messages, channelId, threadTs);
         } catch (error) {
           console.error(chalk.red(`\n❌ 自動応答エラー: ${error.message}`));
         }
