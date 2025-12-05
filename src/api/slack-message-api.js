@@ -48,6 +48,7 @@ class SlackMessageAPI {
       user: msg.user,
       userName,
       text: formattedText || '',
+      rawText: msg.text || '',  // Keep original text for mention detection
       thread_ts: msg.thread_ts,
       reply_count: msg.reply_count || 0,
       reactions: msg.reactions || [],

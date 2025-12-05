@@ -227,10 +227,16 @@ class ChatSession {
         this.updateHistoryTimestamp();
         
         // Process auto-reply for new messages
+        if (process.env.DEBUG_AUTO) {
+          console.error(`[DEBUG_AUTO] checkUpdates: autoReply=${!!this.autoReply}, enabled=${this.autoReply?.enabled}`);
+        }
         if (this.autoReply && this.autoReply.enabled) {
           const newMessages = this.isThread() 
             ? this.allMessages.slice(oldCount)
             : this.messages.slice(oldCount);
+          if (process.env.DEBUG_AUTO) {
+            console.error(`[DEBUG_AUTO] checkUpdates: newMessages count=${newMessages.length}`);
+          }
           await this.autoReply.processMessages(
             newMessages, 
             this.channelId, 

@@ -56,24 +56,41 @@ class AutoReply {
    */
   shouldRespond(message) {
     // Skip if auto-reply is disabled
-    if (!this.enabled) return false;
+    if (!this.enabled) {
+      if (process.env.DEBUG_AUTO) console.error('[DEBUG_AUTO] shouldRespond: disabled');
+      return false;
+    }
     
     // Skip if already processed
-    if (this.processedMessages.has(message.ts)) return false;
+    if (this.processedMessages.has(message.ts)) {
+      if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: already processed ${message.ts}`);
+      return false;
+    }
     
     // Skip own messages (prevent infinite loop)
-    if (message.user === this.currentUserId) return false;
+    // DEBUG_AUTO_ALLOW_SELF=1 で自分の投稿もテスト可能（デバッグ用）
+    if (message.user === this.currentUserId && !process.env.DEBUG_AUTO_ALLOW_SELF) {
+      if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: own message (user=${message.user}, currentUserId=${this.currentUserId})`);
+      return false;
+    }
     
     // Skip bot messages
-    if (message.bot_id || message.subtype === 'bot_message') return false;
+    if (message.bot_id || message.subtype === 'bot_message') {
+      if (process.env.DEBUG_AUTO) console.error('[DEBUG_AUTO] shouldRespond: bot message');
+      return false;
+    }
     
-    const text = message.text || '';
+    // Use rawText (original Slack format) for mention detection
+    // rawText contains <@USER_ID> format, text is already formatted to @username
+    const text = message.rawText || message.text || '';
     
     // Check for direct mention
     if (text.includes(`<@${this.currentUserId}>`)) {
+      if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: MATCH! mention found in "${text}"`);
       return true;
     }
     
+    if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: no mention (looking for <@${this.currentUserId}>) in "${text}"`);
     return false;
   }
 
@@ -81,9 +98,13 @@ class AutoReply {
    * Process new messages and auto-reply if needed
    */
   async processMessages(messages, channelId, threadTs = null) {
+    if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] processMessages called: enabled=${this.enabled}, openai=${!!this.openai}, messages=${messages.length}`);
+    
     if (!this.enabled || !this.openai) return;
     
     for (const message of messages) {
+      if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] checking message: ts=${message.ts}, user=${message.user}, text="${(message.text || '').substring(0, 50)}..."`);
+      
       if (this.shouldRespond(message)) {
         // Mark as processed immediately to prevent duplicate responses
         this.processedMessages.add(message.ts);
