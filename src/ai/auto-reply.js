@@ -141,7 +141,7 @@ class AutoReply {
   /**
    * Check if a message should trigger auto-reply
    */
-  shouldRespond(message, allMessages = []) {
+  shouldRespond(message, allMessages = [], isThreadMode = false) {
     // Skip if auto-reply is disabled
     if (!this.enabled) {
       if (process.env.DEBUG_AUTO) console.error('[DEBUG_AUTO] shouldRespond: disabled');
@@ -178,9 +178,10 @@ class AutoReply {
     }
     
     // Check if this is a 1-on-1 thread (only 2 participants: me and someone else)
-    if (allMessages.length > 0) {
+    // Only apply this logic when in thread mode
+    if (isThreadMode && allMessages.length > 0) {
       const uniqueUsers = new Set(allMessages.map(m => m.user).filter(u => u));
-      if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: uniqueUsers=${[...uniqueUsers].join(',')}`);
+      if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: isThreadMode=${isThreadMode}, uniqueUsers=${[...uniqueUsers].join(',')}, size=${uniqueUsers.size}`);
       
       // If only 2 participants and I'm one of them, it's likely directed at me
       if (uniqueUsers.size === 2 && uniqueUsers.has(this.currentUserId)) {
@@ -189,22 +190,23 @@ class AutoReply {
       }
     }
     
-    if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: no mention (looking for <@${this.currentUserId}>) in "${text}"`);
+    if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] shouldRespond: no match (isThreadMode=${isThreadMode}, looking for <@${this.currentUserId}>) in "${text}"`);
     return false;
   }
 
   /**
    * Process new messages and auto-reply if needed
+   * @param {boolean} isThreadMode - Whether we're in a thread context
    */
-  async processMessages(messages, channelId, threadTs = null, allMessages = []) {
-    if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] processMessages called: enabled=${this.enabled}, openai=${!!this.openai}, messages=${messages.length}, allMessages=${allMessages.length}`);
+  async processMessages(messages, channelId, threadTs = null, allMessages = [], isThreadMode = false) {
+    if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] processMessages called: enabled=${this.enabled}, openai=${!!this.openai}, messages=${messages.length}, allMessages=${allMessages.length}, isThreadMode=${isThreadMode}`);
     
     if (!this.enabled || !this.openai) return;
     
     for (const message of messages) {
       if (process.env.DEBUG_AUTO) console.error(`[DEBUG_AUTO] checking message: ts=${message.ts}, user=${message.user}, text="${(message.text || '').substring(0, 50)}..."`);
       
-      if (this.shouldRespond(message, allMessages)) {
+      if (this.shouldRespond(message, allMessages, isThreadMode)) {
         // Mark as processed immediately to prevent duplicate responses
         this.processedMessages.add(message.ts);
         
@@ -279,12 +281,12 @@ class AutoReply {
     }
     
     context += '---\n\n';
+    // 基本ルールのみ。絵文字等のスタイルはsystemPrompt（ペルソナ）で制御
     context += '返信のルール:\n';
     context += '- 自然な日本語で返信してください\n';
     context += '- 文脈を理解した上で適切に返信してください\n';
     context += '- 必要に応じて質問に答えたり、情報を提供してください\n';
     context += '- 簡潔でわかりやすい返信を心がけてください\n';
-    context += '- Slackの絵文字（:emoji:形式）を適度に使用してOKです\n';
     
     return context;
   }

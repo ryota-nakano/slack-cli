@@ -236,14 +236,16 @@ class ChatSession {
             : this.messages.slice(oldCount);
           // Pass all messages for context (to detect 1-on-1 threads)
           const allContextMessages = this.isThread() ? this.allMessages : this.messages;
+          const isThreadMode = this.isThread();
           if (process.env.DEBUG_AUTO) {
-            console.error(`[DEBUG_AUTO] checkUpdates: newMessages count=${newMessages.length}, allMessages=${allContextMessages.length}`);
+            console.error(`[DEBUG_AUTO] checkUpdates: newMessages count=${newMessages.length}, allMessages=${allContextMessages.length}, isThreadMode=${isThreadMode}`);
           }
           await this.autoReply.processMessages(
             newMessages, 
             this.channelId, 
             this.threadTs,
-            allContextMessages
+            allContextMessages,
+            isThreadMode
           );
         }
       }
