@@ -517,6 +517,7 @@ class ReadlineInput {
         { command: '/link', description: 'リンクを表示', alias: '/link [番号]' },
         { command: '/edit', description: 'メッセージを編集（例: /edit 5）' },
         { command: '/rm', description: 'メッセージを削除（例: /rm 1 3 5）' },
+        { command: '/auto', description: '自動応答モードの切り替え' },
         { command: '/exit', description: 'チャット終了', alias: '/quit, /q' },
         { command: '/help', description: 'ヘルプを表示' }
       ];
@@ -538,6 +539,7 @@ class ReadlineInput {
         { command: '/link', description: 'リンクを表示', alias: '/link [番号]' },
         { command: '/edit', description: 'メッセージを編集（例: /edit 5）' },
         { command: '/rm', description: 'メッセージを削除（例: /rm 1 3 5）' },
+        { command: '/auto', description: '自動応答モードの切り替え' },
         { command: '/exit', description: 'チャット終了', alias: '/quit, /q' },
         { command: '/help', description: 'ヘルプを表示' }
       ];

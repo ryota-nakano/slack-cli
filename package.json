@@ -40,6 +40,7 @@
     "chalk": "^4.1.2",
     "dotenv": "^17.2.3",
     "node-emoji": "^2.2.0",
+    "openai": "^6.10.0",
     "string-width": "^4.2.3"
   }
 }

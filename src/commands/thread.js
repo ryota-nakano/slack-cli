@@ -12,6 +12,7 @@ const HistoryManager = require('../utils/history-manager');
 const MessageCache = require('../utils/message-cache');
 const { displayGroupedHistory } = require('../utils/history-display');
 const CommandHandler = require('./command-handler');
+const AutoReply = require('../ai/auto-reply');
 const { DISPLAY, API, FULLWIDTH_NUMBER_OFFSET } = require('../utils/constants');
 
 /**
@@ -52,6 +53,7 @@ class ChatSession {
     this.showingRecentHistory = false; // Track if /recent was just shown
     this.recentHistory = null; // Store merged history for navigation
     this.commandHandler = new CommandHandler(this); // Command handler
+    this.autoReply = null; // Auto-reply handler (initialized in start())
   }
 
   /**
@@ -90,6 +92,9 @@ class ChatSession {
 
     // Get current user
     this.currentUser = await this.client.getCurrentUser();
+    
+    // Initialize auto-reply handler
+    this.autoReply = new AutoReply(this.client, this.currentUser);
 
     // Get initial messages
     await this.fetchMessages();
@@ -220,6 +225,18 @@ class ChatSession {
         this.displayNewMessages();
         // Update history timestamp when new messages arrive
         this.updateHistoryTimestamp();
+        
+        // Process auto-reply for new messages
+        if (this.autoReply && this.autoReply.enabled) {
+          const newMessages = this.isThread() 
+            ? this.allMessages.slice(oldCount)
+            : this.messages.slice(oldCount);
+          await this.autoReply.processMessages(
+            newMessages, 
+            this.channelId, 
+            this.threadTs
+          );
+        }
       }
     } catch (error) {
       if (process.env.DEBUG_POLL) {
@@ -818,6 +835,20 @@ class ChatSession {
           continue;
         }
 
+        // Handle /auto command - toggle auto-reply mode
+        if (halfWidthText === '/auto') {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
+          
+          if (this.autoReply) {
+            this.autoReply.toggle();
+          } else {
+            console.log(chalk.yellow('\n⚠️  自動応答機能が初期化されていません'));
+          }
+          continue;
+        }
+
         // Handle /help command
         if (halfWidthText === '/help') {
           // Reset recent history mode
@@ -888,6 +919,7 @@ class ChatSession {
     console.log(chalk.yellow('  /link [番号]') + chalk.gray('    - メッセージリンクを表示（例: /link 5）'));
     console.log(chalk.yellow('  /edit <番号>') + chalk.gray('    - メッセージを編集（例: /edit 5）'));
     console.log(chalk.yellow('  /rm <番号...>') + chalk.gray('    - メッセージを削除（例: /rm 5 または /rm 1 3 5）'));
+    console.log(chalk.yellow('  /auto') + chalk.gray('           - 自動応答モードの切り替え'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
     console.log(chalk.yellow('  #channel[Tab]') + chalk.gray('   - チャンネル検索・切り替え（例: #gen[Tab] → [Enter]）'));
