@@ -864,7 +864,9 @@ class ChatSession {
           this.recentHistory = null;
           
           if (this.autoReply) {
-            this.autoReply.toggle();
+            // Pass current messages for immediate style learning
+            const contextMessages = this.isThread() ? this.allMessages : this.messages;
+            await this.autoReply.toggle(contextMessages, this.channelId, this.threadTs);
           } else {
             console.log(chalk.yellow('\n⚠️  自動応答機能が初期化されていません'));
           }
@@ -878,7 +880,9 @@ class ChatSession {
           this.recentHistory = null;
           
           if (this.autoReply) {
-            this.autoReply.toggleReplyAll();
+            // Pass current messages for immediate style learning
+            const contextMessages = this.isThread() ? this.allMessages : this.messages;
+            await this.autoReply.toggleReplyAll(contextMessages, this.channelId, this.threadTs);
           } else {
             console.log(chalk.yellow('\n⚠️  自動応答機能が初期化されていません'));
           }
@@ -895,6 +899,34 @@ class ChatSession {
             const parts = halfWidthText.split(' ');
             const limit = parts[1] ? parseInt(parts[1]) : 20;
             this.autoReply.showReport(limit);
+          } else {
+            console.log(chalk.yellow('\n⚠️  自動応答機能が初期化されていません'));
+          }
+          continue;
+        }
+
+        // Handle /style command - Show writing style info
+        if (halfWidthText === '/style') {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
+          
+          if (this.autoReply) {
+            this.autoReply.showStyleInfo(this.channelId, this.threadTs);
+          } else {
+            console.log(chalk.yellow('\n⚠️  自動応答機能が初期化されていません'));
+          }
+          continue;
+        }
+
+        // Handle /styleclear command - Clear writing styles
+        if (halfWidthText === '/styleclear') {
+          // Reset recent history mode
+          this.showingRecentHistory = false;
+          this.recentHistory = null;
+          
+          if (this.autoReply) {
+            this.autoReply.clearStyles();
           } else {
             console.log(chalk.yellow('\n⚠️  自動応答機能が初期化されていません'));
           }
@@ -974,6 +1006,8 @@ class ChatSession {
     console.log(chalk.yellow('  /auto') + chalk.gray('           - 自動応答モードの切り替え'));
     console.log(chalk.yellow('  /autoall') + chalk.gray('        - 全メッセージ返信モードの切り替え'));
     console.log(chalk.yellow('  /report [件数]') + chalk.gray('  - 自動応答の履歴レポートを表示（例: /report 10）'));
+    console.log(chalk.yellow('  /style') + chalk.gray('          - 学習済みの文体スタイルを表示'));
+    console.log(chalk.yellow('  /styleclear') + chalk.gray('     - 文体スタイルをクリア'));
     console.log(chalk.yellow('  /exit') + chalk.gray('           - チャット終了'));
     console.log(chalk.yellow('  /help') + chalk.gray('           - このヘルプを表示'));
     console.log(chalk.yellow('  #channel[Tab]') + chalk.gray('   - チャンネル検索・切り替え（例: #gen[Tab] → [Enter]）'));
