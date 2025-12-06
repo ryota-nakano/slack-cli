@@ -21,14 +21,24 @@ class AutoReply {
     this.replyHistory = []; // Store reply history for reporting
     this.historyFile = path.join(os.homedir(), '.config', 'slack-cli', 'auto-reply-history.json');
     
+    // Writing style files
+    this.configDir = path.join(os.homedir(), '.config', 'slack-cli');
+    this.defaultStyleFile = path.join(this.configDir, 'writing-style-default.json');
+    this.threadStyleFile = path.join(this.configDir, 'writing-style-threads.json');
+    
+    // Writing style cache
+    this.defaultStyle = null;
+    this.threadStyles = {}; // { threadKey: { style, analyzedAt, sampleCount } }
+    
     // Initialize OpenAI client if API key is available
     const apiKey = process.env.OPENAI_API_KEY;
     if (apiKey) {
       this.openai = new OpenAI({ apiKey });
     }
     
-    // Load existing history
+    // Load existing history and styles
     this.loadHistory();
+    this.loadWritingStyles();
   }
 
   /**
@@ -59,6 +69,312 @@ class AutoReply {
     } catch (error) {
       console.error(chalk.red(`履歴の保存に失敗: ${error.message}`));
     }
+  }
+
+  /**
+   * Load writing styles from files
+   */
+  loadWritingStyles() {
+    try {
+      // Load default style
+      if (fs.existsSync(this.defaultStyleFile)) {
+        const data = fs.readFileSync(this.defaultStyleFile, 'utf-8');
+        this.defaultStyle = JSON.parse(data);
+      }
+      
+      // Load thread styles
+      if (fs.existsSync(this.threadStyleFile)) {
+        const data = fs.readFileSync(this.threadStyleFile, 'utf-8');
+        this.threadStyles = JSON.parse(data);
+      }
+    } catch (error) {
+      // Ignore errors, start with empty styles
+      if (process.env.DEBUG_AUTO) {
+        console.error(`[DEBUG_AUTO] loadWritingStyles error: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Save writing styles to files
+   */
+  saveWritingStyles() {
+    try {
+      if (!fs.existsSync(this.configDir)) {
+        fs.mkdirSync(this.configDir, { recursive: true });
+      }
+      
+      // Save default style
+      if (this.defaultStyle) {
+        fs.writeFileSync(this.defaultStyleFile, JSON.stringify(this.defaultStyle, null, 2));
+      }
+      
+      // Save thread styles (keep last 100 threads)
+      const threadKeys = Object.keys(this.threadStyles);
+      if (threadKeys.length > 100) {
+        // Sort by analyzedAt and keep newest 100
+        const sorted = threadKeys.sort((a, b) => 
+          new Date(this.threadStyles[b].analyzedAt) - new Date(this.threadStyles[a].analyzedAt)
+        );
+        const toKeep = sorted.slice(0, 100);
+        const newStyles = {};
+        toKeep.forEach(key => { newStyles[key] = this.threadStyles[key]; });
+        this.threadStyles = newStyles;
+      }
+      fs.writeFileSync(this.threadStyleFile, JSON.stringify(this.threadStyles, null, 2));
+    } catch (error) {
+      console.error(chalk.red(`文体スタイルの保存に失敗: ${error.message}`));
+    }
+  }
+
+  /**
+   * Generate thread key for style lookup
+   */
+  getThreadKey(channelId, threadTs) {
+    return threadTs ? `${channelId}:${threadTs}` : channelId;
+  }
+
+  /**
+   * Extract my messages from a conversation
+   */
+  extractMyMessages(messages) {
+    return messages.filter(msg => msg.user === this.currentUserId && msg.text);
+  }
+
+  /**
+   * Analyze writing style from messages using OpenAI
+   */
+  async analyzeWritingStyle(myMessages) {
+    if (!this.openai || myMessages.length === 0) {
+      return null;
+    }
+
+    const sampleTexts = myMessages
+      .map(msg => this.stripMentions(msg.text || ''))
+      .filter(text => text.length > 10) // Skip very short messages
+      .slice(-10); // Use last 10 substantial messages
+
+    if (sampleTexts.length < 2) {
+      return null; // Need at least 2 messages to analyze
+    }
+
+    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: model,
+        messages: [
+          {
+            role: 'system',
+            content: `あなたは文章スタイル分析の専門家です。与えられたSlackメッセージのサンプルから、書き手の文体の特徴を分析してJSON形式で出力してください。
+
+出力形式（必ずこの形式で）:
+{
+  "formality": "casual" | "polite" | "formal",
+  "endings": ["〜です", "〜ね", "〜だよ"],
+  "characteristics": ["論理的な構造化", "番号付けを使う", "断定的"],
+  "connectors": ["まあ、", "いや、", "とは言え"],
+  "emoji_usage": "none" | "minimal" | "moderate" | "frequent",
+  "tone": "friendly" | "professional" | "direct",
+  "sample_phrases": ["〜してもらいたいです", "〜ですね〜"]
+}`
+          },
+          {
+            role: 'user',
+            content: `以下のSlackメッセージから文体の特徴を分析してください：\n\n${sampleTexts.join('\n\n---\n\n')}`
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.3,
+      });
+
+      const content = response.choices[0]?.message?.content?.trim();
+      if (!content) return null;
+
+      // Parse JSON from response (handle markdown code blocks)
+      let jsonStr = content;
+      if (content.includes('```')) {
+        const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (match) jsonStr = match[1].trim();
+      }
+
+      return JSON.parse(jsonStr);
+    } catch (error) {
+      if (process.env.DEBUG_AUTO) {
+        console.error(`[DEBUG_AUTO] analyzeWritingStyle error: ${error.message}`);
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Get or analyze writing style for a thread
+   * Returns the style to use for generating replies
+   */
+  async getWritingStyle(messages, channelId, threadTs) {
+    const threadKey = this.getThreadKey(channelId, threadTs);
+    const myMessages = this.extractMyMessages(messages);
+
+    // Check if we have cached style for this thread
+    const cachedStyle = this.threadStyles[threadKey];
+    if (cachedStyle && myMessages.length <= cachedStyle.sampleCount) {
+      // Use cached style if we haven't added more messages
+      if (process.env.DEBUG_AUTO) {
+        console.error(`[DEBUG_AUTO] Using cached style for ${threadKey}`);
+      }
+      return cachedStyle.style;
+    }
+
+    // Analyze if we have my messages in this thread
+    if (myMessages.length >= 2) {
+      console.log(chalk.gray('🔍 文体を解析中...'));
+      const style = await this.analyzeWritingStyle(myMessages);
+      
+      if (style) {
+        // Cache the style for this thread
+        this.threadStyles[threadKey] = {
+          style,
+          analyzedAt: new Date().toISOString(),
+          sampleCount: myMessages.length
+        };
+        this.saveWritingStyles();
+
+        // Also update default style with weighted merge
+        await this.updateDefaultStyle(style);
+
+        if (process.env.DEBUG_AUTO) {
+          console.error(`[DEBUG_AUTO] Analyzed and cached style for ${threadKey}`);
+        }
+        return style;
+      }
+    }
+
+    // Fall back to default style
+    if (this.defaultStyle) {
+      if (process.env.DEBUG_AUTO) {
+        console.error(`[DEBUG_AUTO] Using default style`);
+      }
+      return this.defaultStyle;
+    }
+
+    // No style available
+    return null;
+  }
+
+  /**
+   * Update default style by merging with new analysis
+   */
+  async updateDefaultStyle(newStyle) {
+    if (!this.defaultStyle) {
+      // First time: just use the new style
+      this.defaultStyle = {
+        ...newStyle,
+        sampleCount: 1,
+        lastUpdated: new Date().toISOString()
+      };
+      this.saveWritingStyles();
+      return;
+    }
+
+    // Merge arrays (take unique values, prefer recent)
+    const mergeArrays = (existing, incoming) => {
+      if (!existing) return incoming || [];
+      if (!incoming) return existing;
+      const combined = [...new Set([...incoming, ...existing])];
+      return combined.slice(0, 10); // Keep top 10
+    };
+
+    // Update with weighted preference to newer data
+    this.defaultStyle = {
+      formality: newStyle.formality || this.defaultStyle.formality,
+      endings: mergeArrays(this.defaultStyle.endings, newStyle.endings),
+      characteristics: mergeArrays(this.defaultStyle.characteristics, newStyle.characteristics),
+      connectors: mergeArrays(this.defaultStyle.connectors, newStyle.connectors),
+      emoji_usage: newStyle.emoji_usage || this.defaultStyle.emoji_usage,
+      tone: newStyle.tone || this.defaultStyle.tone,
+      sample_phrases: mergeArrays(this.defaultStyle.sample_phrases, newStyle.sample_phrases),
+      sampleCount: (this.defaultStyle.sampleCount || 0) + 1,
+      lastUpdated: new Date().toISOString()
+    };
+
+    this.saveWritingStyles();
+    
+    if (process.env.DEBUG_AUTO) {
+      console.error(`[DEBUG_AUTO] Updated default style, sampleCount: ${this.defaultStyle.sampleCount}`);
+    }
+  }
+
+  /**
+   * Convert writing style to prompt text
+   */
+  styleToPrompt(style) {
+    if (!style) return null;
+
+    let prompt = '';
+    
+    // Formality
+    switch (style.formality) {
+      case 'casual':
+        prompt += '- カジュアルでタメ口調で返信\n';
+        break;
+      case 'polite':
+        prompt += '- 丁寧語を使いつつも親しみやすい口調\n';
+        break;
+      case 'formal':
+        prompt += '- フォーマルで敬語を使った丁寧な返信\n';
+        break;
+    }
+
+    // Tone
+    switch (style.tone) {
+      case 'friendly':
+        prompt += '- フレンドリーで温かみのあるトーン\n';
+        break;
+      case 'professional':
+        prompt += '- プロフェッショナルなトーン\n';
+        break;
+      case 'direct':
+        prompt += '- 直接的で簡潔なトーン\n';
+        break;
+    }
+
+    // Endings
+    if (style.endings && style.endings.length > 0) {
+      prompt += `- 語尾のパターン: ${style.endings.slice(0, 5).join('、')}\n`;
+    }
+
+    // Characteristics
+    if (style.characteristics && style.characteristics.length > 0) {
+      prompt += `- 文章の特徴: ${style.characteristics.slice(0, 5).join('、')}\n`;
+    }
+
+    // Connectors
+    if (style.connectors && style.connectors.length > 0) {
+      prompt += `- よく使う接続詞・前置き: ${style.connectors.slice(0, 5).join('、')}\n`;
+    }
+
+    // Emoji usage
+    switch (style.emoji_usage) {
+      case 'none':
+        prompt += '- 絵文字は使わない\n';
+        break;
+      case 'minimal':
+        prompt += '- 絵文字は最小限に\n';
+        break;
+      case 'moderate':
+        prompt += '- 絵文字を適度に使用\n';
+        break;
+      case 'frequent':
+        prompt += '- 絵文字を頻繁に使用\n';
+        break;
+    }
+
+    // Sample phrases
+    if (style.sample_phrases && style.sample_phrases.length > 0) {
+      prompt += `- 参考フレーズ: 「${style.sample_phrases.slice(0, 3).join('」「')}」\n`;
+    }
+
+    return prompt;
   }
 
   /**
@@ -119,8 +435,11 @@ class AutoReply {
 
   /**
    * Toggle auto-reply mode
+   * @param {Array} contextMessages - Current thread/channel messages for style learning
+   * @param {string} channelId - Channel ID for style caching
+   * @param {string} threadTs - Thread timestamp for style caching
    */
-  toggle() {
+  async toggle(contextMessages = [], channelId = null, threadTs = null) {
     if (!this.isAvailable()) {
       console.log(chalk.yellow('\n⚠️  OPENAI_API_KEY が設定されていません'));
       console.log(chalk.gray('💡 環境変数 OPENAI_API_KEY を設定してください'));
@@ -133,6 +452,11 @@ class AutoReply {
       console.log(chalk.green('\n🤖 自動応答モードを有効にしました'));
       console.log(chalk.gray('💡 メンションや直接の呼びかけに自動で返信します'));
       console.log(chalk.gray('💡 /autoall で全メッセージ返信モードに切り替え'));
+      
+      // Start learning writing style immediately if we have context
+      if (contextMessages.length > 0 && channelId) {
+        await this.learnWritingStyleOnEnable(contextMessages, channelId, threadTs);
+      }
     } else {
       this.replyAllMode = false; // Disable reply-all when turning off
       console.log(chalk.yellow('\n🤖 自動応答モードを無効にしました'));
@@ -142,13 +466,57 @@ class AutoReply {
   }
 
   /**
-   * Toggle reply-all mode (respond to ALL messages, not just mentions)
+   * Learn writing style when auto-reply is enabled
    */
-  toggleReplyAll() {
+  async learnWritingStyleOnEnable(messages, channelId, threadTs) {
+    const myMessages = this.extractMyMessages(messages);
+    
+    if (myMessages.length < 2) {
+      console.log(chalk.gray('📝 このスレッドの自分の投稿が少ないため、デフォルト文体を使用します'));
+      if (this.defaultStyle) {
+        console.log(chalk.gray(`   (学習済みデフォルト文体: ${this.defaultStyle.formality || 'unknown'})`));
+      }
+      return;
+    }
+
+    console.log(chalk.cyan('📝 文体を学習中...'));
+    
+    const style = await this.analyzeWritingStyle(myMessages);
+    
+    if (style) {
+      const threadKey = this.getThreadKey(channelId, threadTs);
+      
+      // Cache the style for this thread
+      this.threadStyles[threadKey] = {
+        style,
+        analyzedAt: new Date().toISOString(),
+        sampleCount: myMessages.length
+      };
+      this.saveWritingStyles();
+
+      // Also update default style
+      await this.updateDefaultStyle(style);
+
+      console.log(chalk.green('✅ 文体を学習しました'));
+      console.log(chalk.gray(`   - トーン: ${style.formality || 'unknown'}`));
+      console.log(chalk.gray(`   - 語尾: ${(style.endings || []).slice(0, 3).join('、') || 'なし'}`));
+      console.log(chalk.gray(`   - 絵文字: ${style.emoji_usage || 'unknown'}`));
+    }
+  }
+
+  /**
+   * Toggle reply-all mode (respond to ALL messages, not just mentions)
+   * @param {Array} contextMessages - Current thread/channel messages for style learning
+   * @param {string} channelId - Channel ID for style caching
+   * @param {string} threadTs - Thread timestamp for style caching
+   */
+  async toggleReplyAll(contextMessages = [], channelId = null, threadTs = null) {
     if (!this.isAvailable()) {
       console.log(chalk.yellow('\n⚠️  OPENAI_API_KEY が設定されていません'));
       return false;
     }
+    
+    const wasDisabled = !this.enabled;
     
     if (!this.enabled) {
       // Enable auto-reply first
@@ -161,6 +529,11 @@ class AutoReply {
       console.log(chalk.bgRed.white.bold('\n🔥 全メッセージ返信モードを有効にしました'));
       console.log(chalk.red('⚠️  全ての新着メッセージに自動で返信します！'));
       console.log(chalk.gray('💡 /autoall で通常モードに戻す'));
+      
+      // Start learning writing style immediately if we just enabled
+      if (wasDisabled && contextMessages.length > 0 && channelId) {
+        await this.learnWritingStyleOnEnable(contextMessages, channelId, threadTs);
+      }
     } else {
       console.log(chalk.green('\n🤖 通常の自動応答モードに戻りました'));
       console.log(chalk.gray('💡 メンションや1対1スレッドにのみ返信します'));
@@ -268,11 +641,14 @@ class AutoReply {
   async generateAndSendReply(triggerMessage, contextMessages, channelId, threadTs) {
     console.log(chalk.cyan('\n🤖 自動応答を生成中...'));
     
+    // Get or analyze writing style for this thread
+    const style = await this.getWritingStyle(contextMessages, channelId, threadTs);
+    
     // Build context from recent messages
     const context = this.buildContext(contextMessages, triggerMessage);
     
-    // Generate reply using OpenAI
-    const reply = await this.generateReply(context, triggerMessage);
+    // Generate reply using OpenAI with writing style
+    const reply = await this.generateReply(context, triggerMessage, style);
     
     if (reply) {
       // Determine where to send the reply
@@ -348,7 +724,7 @@ class AutoReply {
   /**
    * Generate reply using OpenAI
    */
-  async generateReply(context, triggerMessage) {
+  async generateReply(context, triggerMessage, writingStyle = null) {
     try {
       const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
       
@@ -358,7 +734,17 @@ class AutoReply {
       let systemPrompt = 'あなたはSlackで会話に参加しているチームメンバーです。';
       
       if (customPersona) {
+        // 環境変数で明示的に指定された場合は最優先
         systemPrompt += `\n\n以下の文体・キャラクター設定に従って返信してください：\n${customPersona}`;
+      } else if (writingStyle) {
+        // 解析された文体がある場合はそれを使用
+        const stylePrompt = this.styleToPrompt(writingStyle);
+        if (stylePrompt) {
+          systemPrompt += `\n\n以下の文体で返信してください（この人の過去の投稿から学習した文体です）：\n${stylePrompt}`;
+          if (process.env.DEBUG_AUTO) {
+            console.error(`[DEBUG_AUTO] Using analyzed writing style:\n${stylePrompt}`);
+          }
+        }
       } else {
         // デフォルトの文体設定
         systemPrompt += `
@@ -410,6 +796,67 @@ class AutoReply {
     return this.enabled 
       ? chalk.green('🤖 自動応答: 有効')
       : chalk.gray('🤖 自動応答: 無効');
+  }
+
+  /**
+   * Show current writing style info
+   */
+  showStyleInfo(channelId, threadTs) {
+    const threadKey = this.getThreadKey(channelId, threadTs);
+    
+    console.log(chalk.cyan('\n📝 文体スタイル情報\n'));
+    
+    // Thread style
+    const threadStyle = this.threadStyles[threadKey];
+    if (threadStyle) {
+      console.log(chalk.yellow('🧵 このスレッドの文体:'));
+      console.log(chalk.gray(`   解析日時: ${new Date(threadStyle.analyzedAt).toLocaleString('ja-JP')}`));
+      console.log(chalk.gray(`   サンプル数: ${threadStyle.sampleCount}件`));
+      const prompt = this.styleToPrompt(threadStyle.style);
+      if (prompt) {
+        console.log(chalk.white(prompt.split('\n').map(l => '   ' + l).join('\n')));
+      }
+    } else {
+      console.log(chalk.gray('🧵 このスレッドの文体: 未解析'));
+    }
+    
+    console.log('');
+    
+    // Default style
+    if (this.defaultStyle) {
+      console.log(chalk.yellow('📌 デフォルト文体:'));
+      console.log(chalk.gray(`   更新日時: ${new Date(this.defaultStyle.lastUpdated).toLocaleString('ja-JP')}`));
+      console.log(chalk.gray(`   学習回数: ${this.defaultStyle.sampleCount}回`));
+      const prompt = this.styleToPrompt(this.defaultStyle);
+      if (prompt) {
+        console.log(chalk.white(prompt.split('\n').map(l => '   ' + l).join('\n')));
+      }
+    } else {
+      console.log(chalk.gray('📌 デフォルト文体: 未学習'));
+      console.log(chalk.gray('   💡 /auto を有効にして返信すると自動で学習します'));
+    }
+    
+    console.log('');
+  }
+
+  /**
+   * Clear all writing styles
+   */
+  clearStyles() {
+    this.defaultStyle = null;
+    this.threadStyles = {};
+    
+    try {
+      if (fs.existsSync(this.defaultStyleFile)) {
+        fs.unlinkSync(this.defaultStyleFile);
+      }
+      if (fs.existsSync(this.threadStyleFile)) {
+        fs.unlinkSync(this.threadStyleFile);
+      }
+      console.log(chalk.green('\n✅ 文体スタイルをクリアしました\n'));
+    } catch (error) {
+      console.error(chalk.red(`\n❌ クリアに失敗: ${error.message}\n`));
+    }
   }
 }
 
