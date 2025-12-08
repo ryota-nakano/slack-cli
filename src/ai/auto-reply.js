@@ -210,43 +210,60 @@ class AutoReply {
   /**
    * Get or analyze writing style for a thread
    * Returns the style to use for generating replies
+   * Uses default style as base and merges thread-specific rules
    */
   async getWritingStyle(messages, channelId, threadTs) {
     const threadKey = this.getThreadKey(channelId, threadTs);
     const myMessages = this.extractMyMessages(messages);
 
-    // Check if we have cached style for this thread
+    // Check if we have cached style for this thread and if we need to re-analyze
     const cachedStyle = this.threadStyles[threadKey];
-    if (cachedStyle && myMessages.length <= cachedStyle.sampleCount) {
-      // Use cached style if we haven't added more messages
-      if (process.env.DEBUG_AUTO) {
-        console.error(`[DEBUG_AUTO] Using cached style for ${threadKey}`);
-      }
-      return cachedStyle.style;
-    }
+    const needsReanalysis = !cachedStyle || myMessages.length > cachedStyle.sampleCount;
 
-    // Analyze if we have my messages in this thread
-    if (myMessages.length >= 2) {
+    // Analyze if we have my messages in this thread and need update
+    if (myMessages.length >= 2 && needsReanalysis) {
       console.log(chalk.gray('🔍 文体を解析中...'));
-      const style = await this.analyzeWritingStyle(myMessages);
+      const threadStyle = await this.analyzeWritingStyle(myMessages);
       
-      if (style) {
+      if (threadStyle) {
         // Cache the style for this thread
         this.threadStyles[threadKey] = {
-          style,
+          style: threadStyle,
           analyzedAt: new Date().toISOString(),
           sampleCount: myMessages.length
         };
         this.saveWritingStyles();
 
         // Also update default style with weighted merge
-        await this.updateDefaultStyle(style);
+        await this.updateDefaultStyle(threadStyle);
 
         if (process.env.DEBUG_AUTO) {
           console.error(`[DEBUG_AUTO] Analyzed and cached style for ${threadKey}`);
         }
-        return style;
+
+        // Merge default style with thread-specific rules
+        // Default style is base, thread style overrides/supplements
+        if (this.defaultStyle) {
+          return this.mergeStyles(this.defaultStyle, threadStyle);
+        }
+        return threadStyle;
       }
+    }
+
+    // Use cached thread style merged with default
+    if (cachedStyle && this.defaultStyle) {
+      if (process.env.DEBUG_AUTO) {
+        console.error(`[DEBUG_AUTO] Using merged style for ${threadKey}`);
+      }
+      return this.mergeStyles(this.defaultStyle, cachedStyle.style);
+    }
+
+    // Use cached thread style if no default
+    if (cachedStyle) {
+      if (process.env.DEBUG_AUTO) {
+        console.error(`[DEBUG_AUTO] Using cached thread style for ${threadKey}`);
+      }
+      return cachedStyle.style;
     }
 
     // Fall back to default style
@@ -259,6 +276,31 @@ class AutoReply {
 
     // No style available
     return null;
+  }
+
+  /**
+   * Merge default style with thread-specific style
+   * Default is the base, thread style supplements/overrides
+   */
+  mergeStyles(defaultStyle, threadStyle) {
+    const mergeArrays = (base, override) => {
+      if (!base && !override) return [];
+      if (!base) return override || [];
+      if (!override) return base;
+      // Thread-specific items come first (higher priority)
+      const combined = [...new Set([...override, ...base])];
+      return combined.slice(0, 10);
+    };
+
+    return {
+      formality: threadStyle.formality || defaultStyle.formality,
+      endings: mergeArrays(defaultStyle.endings, threadStyle.endings),
+      characteristics: mergeArrays(defaultStyle.characteristics, threadStyle.characteristics),
+      connectors: mergeArrays(defaultStyle.connectors, threadStyle.connectors),
+      emoji_usage: threadStyle.emoji_usage || defaultStyle.emoji_usage,
+      tone: threadStyle.tone || defaultStyle.tone,
+      sample_phrases: mergeArrays(defaultStyle.sample_phrases, threadStyle.sample_phrases),
+    };
   }
 
   /**
@@ -706,6 +748,7 @@ class AutoReply {
     context += '- 文脈を理解した上で適切に返信してください\n';
     context += '- 必要に応じて質問に答えたり、情報を提供してください\n';
     context += '- 簡潔でわかりやすい返信を心がけてください\n';
+    context += '- 自分の名前を名乗らないでください（「〇〇です」のような自己紹介は不要）\n';
     
     return context;
   }
