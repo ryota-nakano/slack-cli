@@ -725,11 +725,61 @@ class AutoReply {
   }
 
   /**
+   * Analyze the trigger message style to match response length/tone
+   */
+  analyzeTriggerStyle(triggerMessage, recentMessages = []) {
+    const triggerText = this.stripMentions(triggerMessage.text || '');
+    const triggerLength = triggerText.length;
+    
+    // Get recent messages from the same user
+    const sameUserMessages = recentMessages
+      .filter(m => m.user === triggerMessage.user && m.text)
+      .slice(-5);
+    
+    // Calculate average message length from this user
+    let avgLength = triggerLength;
+    if (sameUserMessages.length > 0) {
+      const totalLength = sameUserMessages.reduce((sum, m) => 
+        sum + this.stripMentions(m.text || '').length, 0);
+      avgLength = totalLength / sameUserMessages.length;
+    }
+    
+    // Determine response style based on trigger
+    let style = {
+      length: 'short', // short, medium, long
+      sentences: 1,
+    };
+    
+    if (avgLength < 30) {
+      style.length = 'very_short';
+      style.sentences = 1;
+    } else if (avgLength < 60) {
+      style.length = 'short';
+      style.sentences = 1;
+    } else if (avgLength < 150) {
+      style.length = 'medium';
+      style.sentences = 2;
+    } else {
+      style.length = 'long';
+      style.sentences = 3;
+    }
+    
+    if (process.env.DEBUG_AUTO) {
+      console.error(`[DEBUG_AUTO] analyzeTriggerStyle: triggerLength=${triggerLength}, avgLength=${avgLength}, style=${style.length}`);
+    }
+    
+    return style;
+  }
+
+  /**
    * Build context string from messages
    */
   buildContext(messages, triggerMessage) {
     // Get last N messages for context
     const recentMessages = messages.slice(-this.maxContextMessages);
+    
+    // Analyze trigger message style for response length matching
+    const triggerStyle = this.analyzeTriggerStyle(triggerMessage, recentMessages);
     
     let context = '以下はSlackのスレッドの会話履歴です。最後のメッセージに対して適切な返信を生成してください。\n\n';
     context += '---会話履歴---\n';
@@ -747,8 +797,25 @@ class AutoReply {
     context += '- 自然な日本語で返信してください\n';
     context += '- 文脈を理解した上で適切に返信してください\n';
     context += '- 必要に応じて質問に答えたり、情報を提供してください\n';
-    context += '- 簡潔でわかりやすい返信を心がけてください\n';
     context += '- 自分の名前を名乗らないでください（「〇〇です」のような自己紹介は不要）\n';
+    
+    // 相手のメッセージ長に合わせた返信長の指示
+    context += '\n【重要】返信の長さについて:\n';
+    switch (triggerStyle.length) {
+      case 'very_short':
+        context += '- 相手は短いメッセージを送っています。1文（20文字程度）で簡潔に返信してください\n';
+        context += '- 例: 「了解！」「いいね」「ありがとう〜」「オッケー」程度の短さ\n';
+        break;
+      case 'short':
+        context += '- 相手は短めのメッセージを送っています。1文（30-50文字程度）で返信してください\n';
+        break;
+      case 'medium':
+        context += '- 2文程度（50-100文字程度）で返信してください\n';
+        break;
+      case 'long':
+        context += '- 相手が詳しく書いているので、必要に応じて2-3文で返信してOKです\n';
+        break;
+    }
     
     return context;
   }
