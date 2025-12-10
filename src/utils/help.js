@@ -48,6 +48,10 @@ function showHelp() {
   console.log(chalk.green('  /refresh') + chalk.gray('      - 今日の投稿を履歴に追加'));
   console.log(chalk.green('  /clear') + chalk.gray('        - 履歴キャッシュをクリア'));
   console.log(chalk.green('  /l <日数>') + chalk.gray('     - 過去の履歴読込 (例: /l 3)'));
+  console.log(chalk.green('  /prev, /p') + chalk.gray('       - 前日の履歴を表示'));
+  console.log(chalk.green('  /next, /n') + chalk.gray('       - 次の日の履歴を表示'));
+  console.log(chalk.green('  /date <YYYY-MM-DD>, /d') + chalk.gray(' - 指定日付の履歴を表示'));
+  console.log(chalk.green('  /today') + chalk.gray('          - 今日の履歴に戻る'));
   console.log(chalk.green('  /rm <番号>') + chalk.gray('    - メッセージ削除'));
   console.log(chalk.green('  /help') + chalk.gray('         - ヘルプ'));
   console.log(chalk.green('  Ctrl+C') + chalk.gray('        - 終了'));

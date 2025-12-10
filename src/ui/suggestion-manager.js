@@ -158,6 +158,7 @@ class SuggestionManager {
         { command: '/<番号>', description: 'スレッドに入る（例: /3）' },
         { command: '/prev', description: '前日の履歴を表示', alias: '/p' },
         { command: '/next', description: '次の日の履歴を表示', alias: '/n' },
+        { command: '/date <YYYY-MM-DD>', description: '指定日付の履歴を表示', alias: '/d' },
         { command: '/today', description: '今日の履歴に戻る' },
         { command: '/history', description: '過去の履歴を表示', alias: '/h [件数]' },
         { command: '/recent', description: '今日の会話履歴から選択', alias: '/r' },

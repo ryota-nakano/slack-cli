@@ -14,6 +14,7 @@ const { displayGroupedHistory } = require('../utils/history-display');
 const CommandHandler = require('./command-handler');
 const AutoReply = require('../ai/auto-reply');
 const { DISPLAY, API, FULLWIDTH_NUMBER_OFFSET } = require('../utils/constants');
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
  * Convert full-width numbers to half-width numbers
@@ -22,6 +23,30 @@ function toHalfWidth(str) {
   return str.replace(/[０-９]/g, (s) => {
     return String.fromCharCode(s.charCodeAt(0) - FULLWIDTH_NUMBER_OFFSET);
   });
+}
+
+/**
+ * Parse date string (YYYY-MM-DD or YYYY/MM/DD) to Date at local midnight
+ */
+function parseDateInput(dateStr) {
+  const match = dateStr.trim().match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (!match) return null;
+
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const day = parseInt(match[3], 10);
+
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  date.setHours(0, 0, 0, 0);
+  return date;
 }
 
 /**
@@ -733,6 +758,43 @@ class ChatSession {
           continue;
         }
 
+        // Handle /date command (channel only) - Jump to specific date
+        if (!this.isThread()) {
+          const dateCommandMatch = halfWidthText.match(/^\/(?:date|d)(?:\s+(.*))?$/);
+          if (dateCommandMatch) {
+            // Reset recent history mode
+            this.showingRecentHistory = false;
+            this.recentHistory = null;
+
+            const dateInput = (dateCommandMatch[1] || '').trim();
+            if (!dateInput) {
+              console.log(chalk.yellow('\n⚠️  日付を指定してください（例: /date 2024-12-10）'));
+              continue;
+            }
+
+            const targetDate = parseDateInput(dateInput);
+            if (!targetDate) {
+              console.log(chalk.yellow('\n⚠️  日付形式が不正です。YYYY-MM-DD または YYYY/MM/DD で入力してください'));
+              continue;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const diffMs = today.getTime() - targetDate.getTime();
+            if (diffMs < 0) {
+              console.log(chalk.yellow('\n⚠️  未来の日付は指定できません'));
+              continue;
+            }
+
+            const daysBack = Math.round(diffMs / MS_PER_DAY);
+            this.daysBack = daysBack;
+            await this.fetchMessages();
+            this.displayMessages();
+            continue;
+          }
+        }
+
         // Handle /prev command (channel only) - Go to previous day
         if (!this.isThread() && (halfWidthText === '/prev' || halfWidthText === '/p')) {
           // Reset recent history mode
@@ -984,6 +1046,7 @@ class ChatSession {
       console.log(chalk.yellow('  /<番号>') + chalk.gray('        - 指定した投稿のスレッドに入る（例: /3）'));
       console.log(chalk.yellow('  /prev, /p') + chalk.gray('       - 前日の履歴を表示'));
       console.log(chalk.yellow('  /next, /n') + chalk.gray('       - 次の日の履歴を表示'));
+      console.log(chalk.yellow('  /date <YYYY-MM-DD>, /d') + chalk.gray(' - 指定日付の履歴を表示'));
       console.log(chalk.yellow('  /today') + chalk.gray('          - 今日の履歴に戻る'));
       console.log(chalk.yellow('  /history [件数]') + chalk.gray(' - 過去の履歴を表示 (デフォルト: 20件)'));
       console.log(chalk.yellow('  /h [件数]') + chalk.gray('       - 過去の履歴を表示 (短縮形)'));
