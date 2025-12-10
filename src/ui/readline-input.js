@@ -529,6 +529,7 @@ class ReadlineInput {
         { command: '/<番号>', description: 'スレッドに入る（例: /3）' },
         { command: '/prev', description: '前日の履歴を表示', alias: '/p' },
         { command: '/next', description: '次の日の履歴を表示', alias: '/n' },
+        { command: '/date', description: '指定日付の履歴を表示（例: /date 2024-01-15）', alias: '/d' },
         { command: '/today', description: '今日の履歴に戻る' },
         { command: '/history', description: '過去の履歴を表示', alias: '/h [件数]' },
         { command: '/recent', description: '今日の会話履歴から選択', alias: '/r' },
@@ -576,11 +577,12 @@ class ReadlineInput {
    */
   loadCommandSuggestions(searchTerm) {
     const commands = this.getAvailableCommands();
+    const lowerQuery = searchTerm.toLowerCase();
     
     // Filter commands based on search term
     const filtered = commands.filter(cmd => {
-      const mainMatch = cmd.command.toLowerCase().includes('/' + searchTerm.toLowerCase());
-      const aliasMatch = cmd.alias && cmd.alias.toLowerCase().includes(searchTerm.toLowerCase());
+      const mainMatch = cmd.command.toLowerCase().includes(lowerQuery);
+      const aliasMatch = cmd.alias && cmd.alias.toLowerCase().includes(lowerQuery);
       return mainMatch || aliasMatch;
     });
     
