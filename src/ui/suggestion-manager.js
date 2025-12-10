@@ -186,9 +186,9 @@ class SuggestionManager {
   findCommandContext(input, cursorPos) {
     const beforeCursor = input.substring(0, cursorPos);
     
-    // Only match if at start of line
+    // Only match if at start of line (allow arguments after command)
     if (beforeCursor.trim().startsWith('/')) {
-      const match = beforeCursor.match(/^\/([a-zA-Z]*)$/);
+      const match = beforeCursor.match(/^\/([a-zA-Z]*)(?:\s+.*)?$/);
       
       if (match) {
         return {
