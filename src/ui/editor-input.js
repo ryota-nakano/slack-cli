@@ -56,10 +56,9 @@ class EditorInput {
               '-c', 'wincmd j',                 // Move to bottom window
               '-c', 'setlocal bufhidden=wipe',  // Wipe buffer when hidden
               '-c', 'wincmd k',                 // Move to top window
-              '-c', 'setlocal readonly nomodifiable', // Make reference readonly
+              '-c', 'setlocal buftype=nofile',  // Make reference buffer scratch (no file backing)
               '-c', 'wincmd j',                 // Back to input window
-              '-c', 'normal G$',                // Move cursor to end of file
-              '-c', 'startinsert!'              // Start in insert mode at end (append)
+              '-c', 'normal G$'                 // Move cursor to end of file
             ];
           } else if (this.editor.includes('emacs')) {
             // Emacs: Open with split layout
@@ -78,8 +77,7 @@ class EditorInput {
         // If only initial text (no reference), move cursor to end
         editorArgs = [
           tmpFile,
-          '-c', 'normal G$',      // Move cursor to end of file
-          '-c', 'startinsert!'    // Start in insert mode at end (append)
+          '-c', 'normal G$'       // Move cursor to end of file
         ];
       }
 
