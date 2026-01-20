@@ -1,6 +1,6 @@
 {
   "name": "@ryota-nakano/slack-cli",
-  "version": "2.20.2",
+  "version": "2.20.3",
   "description": "Terminal-based Slack chat client with thread support and mention autocomplete",
   "main": "src/index.js",
   "bin": {

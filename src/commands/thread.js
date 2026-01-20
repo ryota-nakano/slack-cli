@@ -478,9 +478,11 @@ class ChatSession {
           // Get prefilled text from readline input (if any)
           const prefilledText = typeof text === 'object' ? text.text : '';
           
-          // Prepare reference messages (last 10 messages)
+          // Prepare reference messages
+          // For thread mode: show all messages in thread
+          // For channel mode: show last 10 messages
           const messagesToShow = this.isThread() 
-            ? this.messages.slice(-10) 
+            ? this.allMessages 
             : this.messages.slice(-10);
           
           let referenceText = '';
