@@ -47,17 +47,17 @@ class EditorInput {
           
           // Setup editor-specific split commands
           if (this.editor.includes('vim') || this.editor.includes('nvim')) {
-            // Vim: Use -o to open files in horizontal splits
-            // -o opens files in horizontal splits, with the last file being the active one
+            // Vim: Use -O to open files in vertical splits
+            // -O opens files in vertical splits, with the last file being the active one
             editorArgs = [
-              '-o2',                            // Open 2 windows horizontally
-              referenceFile,                    // Reference file (top)
-              tmpFile,                          // Input file (bottom)
-              '-c', 'wincmd j',                 // Move to bottom window
+              '-O2',                            // Open 2 windows vertically
+              referenceFile,                    // Reference file (left)
+              tmpFile,                          // Input file (right)
+              '-c', 'wincmd l',                 // Move to right window
               '-c', 'setlocal bufhidden=wipe',  // Wipe buffer when hidden
-              '-c', 'wincmd k',                 // Move to top window
+              '-c', 'wincmd h',                 // Move to left window
               '-c', 'setlocal buftype=nofile',  // Make reference buffer scratch (no file backing)
-              '-c', 'wincmd j',                 // Back to input window
+              '-c', 'wincmd l',                 // Back to input window
               '-c', 'normal G$'                 // Move cursor to end of file
             ];
           } else if (this.editor.includes('emacs')) {
